@@ -35,7 +35,11 @@ export function BoardFilters({
         onValueChange={(v) => setParam("state", v ? String(v) : null)}
       >
         <SelectTrigger size="sm" className="w-36">
-          <SelectValue />
+          <SelectValue>
+            {(v: string) =>
+              v === ALL ? "All states" : v.charAt(0) + v.slice(1).toLowerCase()
+            }
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={ALL}>All states</SelectItem>
@@ -51,7 +55,11 @@ export function BoardFilters({
         onValueChange={(v) => setParam("owner", v ? String(v) : null)}
       >
         <SelectTrigger size="sm" className="w-36">
-          <SelectValue />
+          <SelectValue>
+            {(v: string) =>
+              v === ALL ? "Everyone" : (owners.find((o) => o.id === v)?.name ?? "Everyone")
+            }
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={ALL}>Everyone</SelectItem>

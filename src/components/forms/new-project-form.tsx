@@ -8,13 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { PersonSelect } from "@/components/forms/labeled-selects";
 
 const HEILMEIER_FIELDS = [
   ["objective", "What are we trying to do? (no jargon)"],
@@ -58,33 +52,16 @@ export function NewProjectForm({
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
               <Label>Owner (engineer)</Label>
-              <Select name="ownerId" required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Who drives it" />
-                </SelectTrigger>
-                <SelectContent>
-                  {people.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <PersonSelect name="ownerId" people={people} placeholder="Who drives it" required />
             </div>
             <div className="flex flex-col gap-2">
               <Label>Advisor</Label>
-              <Select name="advisorId" required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Who unblocks it" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(managers.length > 0 ? managers : people).map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <PersonSelect
+                name="advisorId"
+                people={managers.length > 0 ? managers : people}
+                placeholder="Who unblocks it"
+                required
+              />
             </div>
           </div>
           {HEILMEIER_FIELDS.map(([field, label]) => (

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { asc, desc, eq, ne } from "drizzle-orm";
+import { asc, desc, ne } from "drizzle-orm";
 import { differenceInDays, format, formatDistanceStrict, addHours, isPast } from "date-fns";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
@@ -35,13 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { CauseSelect, PersonSelect } from "@/components/forms/labeled-selects";
 
 export const dynamic = "force-dynamic";
 
@@ -258,33 +252,15 @@ export default async function ProjectPage({
             </div>
             <div className="flex flex-col gap-2">
               <Label>Cause</Label>
-              <Select name="causeTag" defaultValue="TECHNICAL">
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(CAUSE_TAG_LABELS).map(([tag, label]) => (
-                    <SelectItem key={tag} value={tag}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <CauseSelect />
             </div>
             <div className="flex flex-col gap-2">
               <Label>Owner (who kills it)</Label>
-              <Select name="ownerId">
-                <SelectTrigger>
-                  <SelectValue placeholder="Unassigned (escalates in 2 days)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {people.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <PersonSelect
+                name="ownerId"
+                people={people}
+                placeholder="Unassigned (escalates in 2 days)"
+              />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="b-deadline">Deadline</Label>

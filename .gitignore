@@ -42,3 +42,4 @@ next-env.d.ts
 
 # sqlite database
 /data/
+!.env.example

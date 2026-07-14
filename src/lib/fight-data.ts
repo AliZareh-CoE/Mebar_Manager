@@ -1,7 +1,7 @@
 import "server-only";
 import { desc, inArray, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { blockers, decisions, milestones } from "@/lib/db/schema";
+import { blockers, milestones } from "@/lib/db/schema";
 import type { LabSnapshot } from "@/lib/fight-engine";
 
 /** Assemble the fight engine's input from a handful of cheap queries. */

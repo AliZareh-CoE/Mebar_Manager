@@ -85,7 +85,9 @@ export function CreateUserDialog() {
               onValueChange={(v) => setRole(v as "MANAGER" | "ENGINEER")}
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>
+                  {(v: string | null) => (v === "MANAGER" ? "Manager" : "Engineer")}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ENGINEER">Engineer</SelectItem>

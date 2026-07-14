@@ -11,7 +11,7 @@ import { CAUSE_TAG_LABELS } from "@/lib/labels";
 import type { ParetoSlice } from "@/lib/fight-engine";
 
 const chartConfig = {
-  count: { label: "Blockers", color: "var(--chart-2)" },
+  count: { label: "Blockers", color: "oklch(0.704 0.191 22.216)" },
 } satisfies ChartConfig;
 
 export function ParetoChart({ data }: { data: ParetoSlice[] }) {

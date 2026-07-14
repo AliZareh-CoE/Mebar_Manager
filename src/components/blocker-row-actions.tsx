@@ -63,7 +63,11 @@ export function BlockerRowActions({
         }
       >
         <SelectTrigger size="sm" className="w-36">
-          <SelectValue placeholder="Assign owner…" />
+          <SelectValue>
+            {ownerId
+              ? (people.find((p) => p.id === ownerId)?.name ?? "Assign owner…")
+              : "Assign owner…"}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {people.map((p) => (
