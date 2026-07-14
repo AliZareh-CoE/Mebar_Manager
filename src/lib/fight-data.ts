@@ -1,12 +1,20 @@
 import "server-only";
-import { desc, inArray, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { blockers, milestones, dataRequests } from "@/lib/db/schema";
+import { blockers, milestones, dataRequests, computeRequests, user } from "@/lib/db/schema";
 import type { LabSnapshot } from "@/lib/fight-engine";
 
 /** Assemble the fight engine's input from a handful of cheap queries. */
 export async function loadLabSnapshot(): Promise<LabSnapshot> {
-  const [projectRows, blockerRows, decisionRows, milestoneRows, dataRequestRows] = await Promise.all([
+  const [
+    projectRows,
+    blockerRows,
+    decisionRows,
+    milestoneRows,
+    dataRequestRows,
+    computeRequestRows,
+    coordinatorRow,
+  ] = await Promise.all([
     db.query.projects.findMany({
       with: {
         owner: { columns: { id: true, name: true } },
@@ -42,6 +50,15 @@ export async function loadLabSnapshot(): Promise<LabSnapshot> {
       where: ne(dataRequests.status, "DELIVERED"),
       with: { assignee: { columns: { id: true, name: true } } },
     }),
+    db.query.computeRequests.findMany({
+      where: inArray(computeRequests.status, ["PENDING", "APPROVED"]),
+      with: { requester: { columns: { id: true, name: true } } },
+    }),
+    db
+      .select({ id: user.id, name: user.name })
+      .from(user)
+      .where(and(eq(user.isComputeCoordinator, true), ne(user.banned, true)))
+      .get(),
   ]);
 
   return {
@@ -94,6 +111,17 @@ export async function loadLabSnapshot(): Promise<LabSnapshot> {
       assigneeId: dr.assigneeId,
       assignee: dr.assignee,
     })),
+    activeComputeRequests: computeRequestRows.map((cr) => ({
+      id: cr.id,
+      projectId: cr.projectId,
+      serverType: cr.serverType,
+      hoursNeeded: cr.hoursNeeded,
+      status: cr.status,
+      createdAt: cr.createdAt,
+      requester: cr.requester,
+      windowEnd: cr.windowEnd,
+    })),
+    computeCoordinator: coordinatorRow ?? null,
   };
 }
 

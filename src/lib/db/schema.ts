@@ -214,6 +214,74 @@ export const dataRequests = sqliteTable(
   ]
 );
 
+export const SERVER_TYPES = ["CPU", "SINGLE_GPU", "MULTI_GPU"] as const;
+export type ServerType = (typeof SERVER_TYPES)[number];
+
+// Keys live here because both the DB column type and zod need them;
+// human-readable labels are in labels.ts.
+export const OPTIMIZATION_KEYS = [
+  "VECTORIZED_OPS",
+  "CACHING",
+  "CHECKPOINTING",
+  "CUPY",
+  "AMP",
+  "DALI",
+  "DDP_FSDP",
+  "GRAD_ACCUM",
+  "TENSORRT",
+] as const;
+export type OptimizationKey = (typeof OPTIMIZATION_KEYS)[number];
+
+export const COMPUTE_REQUEST_STATUSES = [
+  "PENDING",
+  "APPROVED",
+  "DENIED",
+  "COMPLETED",
+] as const;
+export type ComputeRequestStatus = (typeof COMPUTE_REQUEST_STATUSES)[number];
+
+export const computeRequests = sqliteTable(
+  "compute_requests",
+  {
+    id: id(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id),
+    requesterId: text("requester_id")
+      .notNull()
+      .references(() => user.id),
+    serverType: text("server_type", { enum: SERVER_TYPES }).notNull(),
+    hoursNeeded: integer("hours_needed").notNull(),
+    // justification + utilization plan (sweeps/ablations, schedule, metrics)
+    justification: text("justification").notNull(),
+    datasetSize: text("dataset_size").notNull(),
+    preprocessingNote: text("preprocessing_note").notNull(),
+    dryRunEvidence: text("dry_run_evidence").notNull(),
+    expectedResults: text("expected_results").notNull(),
+    optimizations: text("optimizations", { mode: "json" })
+      .$type<OptimizationKey[]>()
+      .notNull(),
+    status: text("status", { enum: COMPUTE_REQUEST_STATUSES })
+      .notNull()
+      .default("PENDING"),
+    decidedById: text("decided_by_id").references(() => user.id),
+    decidedAt: integer("decided_at", { mode: "timestamp_ms" }),
+    // set on APPROVED: how to get on the machine (NVIDIA Brev link etc.)
+    accessInstructions: text("access_instructions"),
+    // set on APPROVED: when the allocated hours expire
+    windowEnd: integer("window_end", { mode: "timestamp_ms" }),
+    denialReason: text("denial_reason"),
+    // final outcomes vs expected — owed after the window ends
+    resultsSummary: text("results_summary"),
+    completedAt: integer("completed_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("compute_requests_status_idx").on(t.status),
+    index("compute_requests_project_idx").on(t.projectId),
+  ]
+);
+
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   owner: one(user, {
     fields: [projects.ownerId],
@@ -229,6 +297,22 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   decisions: many(decisions),
   transitions: many(stateTransitions),
   dataRequests: many(dataRequests),
+  computeRequests: many(computeRequests),
+}));
+
+export const computeRequestsRelations = relations(computeRequests, ({ one }) => ({
+  project: one(projects, {
+    fields: [computeRequests.projectId],
+    references: [projects.id],
+  }),
+  requester: one(user, {
+    fields: [computeRequests.requesterId],
+    references: [user.id],
+  }),
+  decidedBy: one(user, {
+    fields: [computeRequests.decidedById],
+    references: [user.id],
+  }),
 }));
 
 export const dataRequestsRelations = relations(dataRequests, ({ one }) => ({
@@ -303,6 +387,7 @@ export const decisionsRelations = relations(decisions, ({ one }) => ({
 
 export type User = typeof user.$inferSelect;
 export type DataRequest = typeof dataRequests.$inferSelect;
+export type ComputeRequest = typeof computeRequests.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type StateTransition = typeof stateTransitions.$inferSelect;
 export type Milestone = typeof milestones.$inferSelect;

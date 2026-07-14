@@ -10,6 +10,8 @@ import {
 } from "@/lib/fight-engine";
 import { decideDecision } from "@/actions/decisions";
 import { pushMilestoneDueDate } from "@/actions/milestones";
+import { submitComputeResults } from "@/actions/compute-requests";
+import { ComputeDecisionDialogs } from "@/components/compute-request-card";
 import { FightItemCard } from "@/components/fight-item-card";
 import { FormDialog } from "@/components/form-dialog";
 import { UpdateDialog } from "@/components/forms/update-dialog";
@@ -68,6 +70,14 @@ const SECTIONS: Record<FightType, { title: string; blurb: string }> = {
     title: "Unowned data requests",
     blurb: "No analyst has claimed these. Assign one.",
   },
+  PENDING_COMPUTE_REQUEST: {
+    title: "Compute requests waiting",
+    blurb: "These never auto-proceed. The coordinator approves or denies — with a reason.",
+  },
+  OVERDUE_COMPUTE_RESULTS: {
+    title: "Compute results owed",
+    blurb: "The window closed. Where are the results, and did you retrieve your data?",
+  },
 };
 
 const SECTION_ORDER: FightType[] = [
@@ -75,8 +85,10 @@ const SECTION_ORDER: FightType[] = [
   "PAST_REVIVE",
   "OVERDUE_BLOCKER",
   "OVERDUE_DATA_REQUEST",
+  "OVERDUE_COMPUTE_RESULTS",
   "UNOWNED_BLOCKER",
   "UNOWNED_DATA_REQUEST",
+  "PENDING_COMPUTE_REQUEST",
   "PENDING_DECISION",
   "MISSED_MILESTONE",
 ];
@@ -107,6 +119,7 @@ export default async function FightListPage() {
   const blockerById = new Map(snapshot.openBlockers.map((b) => [b.id, b]));
   const milestoneById = new Map(snapshot.openMilestones.map((m) => [m.id, m]));
   const dataRequestById = new Map(snapshot.openDataRequests.map((dr) => [dr.id, dr]));
+  const computeRequestById = new Map(snapshot.activeComputeRequests.map((cr) => [cr.id, cr]));
 
   function actionFor(item: FightItem) {
     switch (item.type) {
@@ -147,6 +160,42 @@ export default async function FightListPage() {
             meId={me!.id}
             meIsAnalyst={me!.isDataAnalyst}
           />
+        );
+      }
+      case "PENDING_COMPUTE_REQUEST": {
+        if (me!.isComputeCoordinator) {
+          return <ComputeDecisionDialogs requestId={item.entityId} />;
+        }
+        return (
+          <span className="text-sm text-muted-foreground">
+            waiting on {item.responsible?.name ?? "no coordinator set"}
+          </span>
+        );
+      }
+      case "OVERDUE_COMPUTE_RESULTS": {
+        const request = computeRequestById.get(item.entityId);
+        if (!request) return null;
+        if (me!.id !== request.requester.id && me!.role !== "MANAGER") {
+          return (
+            <span className="text-sm text-muted-foreground">
+              waiting on {item.responsible?.name}
+            </span>
+          );
+        }
+        return (
+          <FormDialog
+            trigger={<Button size="sm">Submit results</Button>}
+            title="Results summary"
+            description="Final outcomes vs. what you expected. Confirm you've retrieved all data and checkpoints from the server."
+            submitLabel="Submit"
+            successMessage="Results submitted. Request closed."
+            action={submitComputeResults.bind(null, item.entityId)}
+          >
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`rs-${item.entityId}`}>Summary</Label>
+              <Textarea id={`rs-${item.entityId}`} name="resultsSummary" rows={4} required />
+            </div>
+          </FormDialog>
         );
       }
       case "PENDING_DECISION":

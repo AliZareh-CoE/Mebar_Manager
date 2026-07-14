@@ -11,6 +11,7 @@ import {
   type DecisionRow,
   type MilestoneRow,
   type DataRequestRow,
+  type ComputeRequestRow,
 } from "./fight-engine";
 
 const NOW = new Date("2026-07-14T12:00:00Z");
@@ -86,6 +87,20 @@ function dataRequest(over: Partial<DataRequestRow> = {}): DataRequestRow {
   };
 }
 
+function computeRequest(over: Partial<ComputeRequestRow> = {}): ComputeRequestRow {
+  return {
+    id: "cr1",
+    projectId: "p1",
+    serverType: "SINGLE_GPU",
+    hoursNeeded: 48,
+    status: "PENDING",
+    createdAt: subHours(NOW, 4),
+    requester: alice,
+    windowEnd: null,
+    ...over,
+  };
+}
+
 function snap(over: Partial<LabSnapshot> = {}): LabSnapshot {
   return {
     projects: [project()],
@@ -93,6 +108,8 @@ function snap(over: Partial<LabSnapshot> = {}): LabSnapshot {
     pendingDecisions: [],
     openMilestones: [],
     openDataRequests: [],
+    activeComputeRequests: [],
+    computeCoordinator: prof,
     ...over,
   };
 }
@@ -420,6 +437,108 @@ describe("data requests", () => {
             }),
           ],
           openDataRequests: [dataRequest({ neededBy: subDays(NOW, 5) })],
+        }),
+        NOW
+      );
+      expect(items).toEqual([]);
+    }
+  });
+});
+
+describe("compute requests", () => {
+  it("every pending request on a moving project fights (sev 2 fresh), aimed at the coordinator", () => {
+    const items = computeFightList(
+      snap({ activeComputeRequests: [computeRequest()] }),
+      NOW
+    );
+    expect(items[0]).toMatchObject({
+      type: "PENDING_COMPUTE_REQUEST",
+      severity: 2,
+      responsible: prof,
+    });
+    expect(items[0]?.headline).toContain("SINGLE-GPU");
+    expect(items[0]?.headline).toContain("48h");
+  });
+
+  it("sev 2 at 47h, still 2 at exactly 48h, sev 3 at 49h — but never auto-proceeds", () => {
+    const at47 = computeFightList(
+      snap({ activeComputeRequests: [computeRequest({ createdAt: subHours(NOW, 47) })] }),
+      NOW
+    );
+    expect(at47[0]?.severity).toBe(2);
+
+    const at48 = computeFightList(
+      snap({ activeComputeRequests: [computeRequest({ createdAt: subHours(NOW, 48) })] }),
+      NOW
+    );
+    expect(at48[0]?.severity).toBe(2);
+
+    const at49 = computeFightList(
+      snap({ activeComputeRequests: [computeRequest({ createdAt: subHours(NOW, 49) })] }),
+      NOW
+    );
+    expect(at49[0]).toMatchObject({ type: "PENDING_COMPUTE_REQUEST", severity: 3 });
+  });
+
+  it("responsible is null when no coordinator is set — the item still shows", () => {
+    const items = computeFightList(
+      snap({ activeComputeRequests: [computeRequest()], computeCoordinator: null }),
+      NOW
+    );
+    expect(items[0]?.responsible).toBeNull();
+  });
+
+  it("pending requests on paused projects don't fight", () => {
+    const items = computeFightList(
+      snap({
+        projects: [project({ state: "PAUSED", pauseReason: "x", reviveDate: addDays(NOW, 5) })],
+        activeComputeRequests: [computeRequest()],
+      }),
+      NOW
+    );
+    expect(items).toEqual([]);
+  });
+
+  it("results owed: nothing at windowEnd, sev 2 at +1d, sev 3 at +8d, yells at requester", () => {
+    const approved = (windowEnd: Date) =>
+      snap({
+        activeComputeRequests: [computeRequest({ status: "APPROVED", windowEnd })],
+      });
+
+    expect(computeFightList(approved(NOW), NOW)).toEqual([]);
+
+    const oneDay = computeFightList(approved(subDays(NOW, 1)), NOW);
+    expect(oneDay[0]).toMatchObject({
+      type: "OVERDUE_COMPUTE_RESULTS",
+      severity: 2,
+      ageDays: 1,
+      responsible: alice,
+    });
+
+    const eightDays = computeFightList(approved(subDays(NOW, 8)), NOW);
+    expect(eightDays[0]?.severity).toBe(3);
+  });
+
+  it("the results debt survives a pause — the hours were burned", () => {
+    const items = computeFightList(
+      snap({
+        projects: [project({ state: "PAUSED", pauseReason: "x", reviveDate: addDays(NOW, 5) })],
+        activeComputeRequests: [
+          computeRequest({ status: "APPROVED", windowEnd: subDays(NOW, 3) }),
+        ],
+      }),
+      NOW
+    );
+    expect(items[0]?.type).toBe("OVERDUE_COMPUTE_RESULTS");
+  });
+
+  it("denied/completed requests never fight", () => {
+    for (const status of ["DENIED", "COMPLETED"] as const) {
+      const items = computeFightList(
+        snap({
+          activeComputeRequests: [
+            computeRequest({ status, windowEnd: subDays(NOW, 10) }),
+          ],
         }),
         NOW
       );

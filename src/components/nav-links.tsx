@@ -15,6 +15,7 @@ export function NavLinks({
   const links = [
     { href: "/", label: "Fight List", badge: fightCount },
     { href: "/board", label: "Board" },
+    { href: "/compute", label: "Compute" },
     ...(isManager ? [{ href: "/admin/users", label: "People" }] : []),
   ];
 

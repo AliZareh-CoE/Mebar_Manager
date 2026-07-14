@@ -1,10 +1,12 @@
-import { differenceInDays, differenceInMinutes, addHours } from "date-fns";
+import { differenceInDays, differenceInHours, differenceInMinutes, addHours } from "date-fns";
 import type { ProjectState, CauseTag, BlockerStatus, MilestoneStatus } from "@/lib/db/schema";
 import {
   STALL_DAYS,
   UNOWNED_BLOCKER_DAYS,
   DECISION_TIMEOUT_HOURS,
   DECISION_URGENT_HOURS,
+  COMPUTE_PENDING_URGENT_HOURS,
+  COMPUTE_RESULTS_URGENT_DAYS,
 } from "@/lib/thresholds";
 
 /**
@@ -69,12 +71,27 @@ export interface DataRequestRow {
   assignee: PersonRef | null;
 }
 
+export interface ComputeRequestRow {
+  id: string;
+  projectId: string;
+  serverType: string;
+  hoursNeeded: number;
+  status: string;
+  createdAt: Date;
+  requester: PersonRef;
+  windowEnd: Date | null;
+}
+
 export interface LabSnapshot {
   projects: ProjectRow[];
   openBlockers: BlockerRow[];
   pendingDecisions: DecisionRow[];
   openMilestones: MilestoneRow[];
   openDataRequests: DataRequestRow[];
+  /** PENDING + APPROVED compute requests. */
+  activeComputeRequests: ComputeRequestRow[];
+  /** The one flagged manager, if any. */
+  computeCoordinator: PersonRef | null;
 }
 
 export type FightType =
@@ -85,7 +102,9 @@ export type FightType =
   | "PAST_REVIVE"
   | "MISSED_MILESTONE"
   | "OVERDUE_DATA_REQUEST"
-  | "UNOWNED_DATA_REQUEST";
+  | "UNOWNED_DATA_REQUEST"
+  | "PENDING_COMPUTE_REQUEST"
+  | "OVERDUE_COMPUTE_RESULTS";
 
 /** 3 = red, fight today. 2 = amber, fight this week. 1 = notice. */
 export type Severity = 3 | 2 | 1;
@@ -311,6 +330,53 @@ export function computeFightList(snap: LabSnapshot, now: Date): FightItem[] {
         detail: "Close it, or push the date with a reason.",
         responsible: project.owner,
       });
+    }
+  }
+
+  // Compute requests. Two debts: the coordinator owes a decision on every
+  // pending request (they NEVER auto-proceed — nobody hands out GPU access
+  // by timeout), and the requester owes a results summary once the usage
+  // window closes.
+  for (const cr of snap.activeComputeRequests) {
+    const project = projectById.get(cr.projectId);
+    if (!project) continue;
+
+    if (cr.status === "PENDING") {
+      // A pause freezes the project's requests, same as decisions.
+      if (TERMINAL_OR_PAUSED.includes(project.state)) continue;
+      const hoursOld = differenceInHours(now, cr.createdAt);
+      items.push({
+        type: "PENDING_COMPUTE_REQUEST",
+        severity: hoursOld > COMPUTE_PENDING_URGENT_HOURS ? 3 : 2,
+        ageDays: Math.max(0, differenceInDays(now, cr.createdAt)),
+        projectId: cr.projectId,
+        projectTitle: project.title,
+        entityId: cr.id,
+        headline: `Compute request (${cr.serverType.replace("_", "-")}, ${cr.hoursNeeded}h) waiting ${hoursOld}h for a decision`,
+        detail: "Compute requests never auto-proceed. Approve it or deny it with a reason.",
+        responsible: snap.computeCoordinator,
+      });
+    }
+
+    if (cr.status === "APPROVED" && cr.windowEnd) {
+      // Deliberately NOT gated on TERMINAL_OR_PAUSED: the hours were burned,
+      // so the results debt survives a pause or even a kill. This is the one
+      // rule that deviates — don't "fix" it.
+      const over = differenceInDays(now, cr.windowEnd);
+      if (over > 0) {
+        items.push({
+          type: "OVERDUE_COMPUTE_RESULTS",
+          severity: over > COMPUTE_RESULTS_URGENT_DAYS ? 3 : 2,
+          ageDays: over,
+          projectId: cr.projectId,
+          projectTitle: project.title,
+          entityId: cr.id,
+          headline: `Compute window ended ${over}d ago — results summary owed`,
+          detail:
+            "Final outcomes vs. expected. And retrieve all data and checkpoints — the server doesn't keep them.",
+          responsible: cr.requester,
+        });
+      }
     }
   }
 

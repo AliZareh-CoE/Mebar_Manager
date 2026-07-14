@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { asc, desc, ne } from "drizzle-orm";
 import { format, formatDistanceStrict, addHours } from "date-fns";
@@ -21,6 +22,7 @@ import { Initials } from "@/components/initials";
 import { TransitionButtons } from "@/components/transition-buttons";
 import { FormDialog } from "@/components/form-dialog";
 import { BlockerRowActions } from "@/components/blocker-row-actions";
+import { ComputeRequestCard } from "@/components/compute-request-card";
 import { DataRequestRowActions } from "@/components/data-request-row-actions";
 import { MilestoneStatusButtons } from "@/components/milestone-status-buttons";
 import { Badge } from "@/components/ui/badge";
@@ -79,6 +81,10 @@ export default async function ProjectPage({
           requester: { columns: { id: true, name: true } },
         },
         orderBy: (dr) => desc(dr.createdAt),
+      },
+      computeRequests: {
+        with: { requester: { columns: { id: true, name: true } } },
+        orderBy: (cr) => desc(cr.createdAt),
       },
     },
   });
@@ -201,6 +207,9 @@ export default async function ProjectPage({
           </TabsTrigger>
           <TabsTrigger value="milestones">Milestones ({project.milestones.length})</TabsTrigger>
           <TabsTrigger value="data">Data ({openDataRequests.length} open)</TabsTrigger>
+          <TabsTrigger value="compute">
+            Compute ({project.computeRequests.filter((cr) => cr.status === "PENDING").length} pending)
+          </TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
 
@@ -628,6 +637,30 @@ export default async function ProjectPage({
                 ))}
               </TableBody>
             </Table>
+          )}
+        </TabsContent>
+
+        {/* Compute requests */}
+        <TabsContent value="compute" className="flex flex-col gap-4 pt-4">
+          <Button
+            className="self-start"
+            nativeButton={false}
+            render={<Link href={`/projects/${project.id}/compute/new`}>Request compute</Link>}
+          />
+          {project.computeRequests.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No compute requests. When this project needs hours, request them
+              with a plan — dry run first.
+            </p>
+          ) : (
+            project.computeRequests.map((cr) => (
+              <ComputeRequestCard
+                key={cr.id}
+                request={cr}
+                requesterName={cr.requester.name}
+                me={me}
+              />
+            ))
           )}
         </TabsContent>
 
