@@ -1,11 +1,17 @@
+import { redirect } from "next/navigation";
 import { ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
+import { getCurrentUser } from "@/lib/session";
 import { NewProjectForm } from "@/components/forms/new-project-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewProjectPage() {
+  // Per-page guard: the layout's check doesn't re-run on partial RSC renders.
+  const me = await getCurrentUser();
+  if (!me) redirect("/login");
+
   const people = await db
     .select({ id: user.id, name: user.name, role: user.role })
     .from(user)

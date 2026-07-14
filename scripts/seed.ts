@@ -36,24 +36,33 @@ async function createUserRaw(input: {
 
   const userId = crypto.randomUUID();
   const now = new Date();
-  await db.insert(user).values({
-    id: userId,
-    name: input.name,
-    email: input.email,
-    emailVerified: true,
-    role: input.role,
-    createdAt: now,
-    updatedAt: now,
-  });
-  // Credential account the way better-auth's email/password provider stores it.
-  await db.insert(account).values({
-    id: crypto.randomUUID(),
-    accountId: userId,
-    providerId: "credential",
-    userId,
-    password: await hashPassword(input.password),
-    createdAt: now,
-    updatedAt: now,
+  const passwordHash = await hashPassword(input.password);
+  // One transaction so a crash can't leave a user without a credential
+  // account (which the idempotency check above couldn't repair).
+  db.transaction((tx) => {
+    tx.insert(user)
+      .values({
+        id: userId,
+        name: input.name,
+        email: input.email,
+        emailVerified: true,
+        role: input.role,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    // Credential account the way better-auth's email/password provider stores it.
+    tx.insert(account)
+      .values({
+        id: crypto.randomUUID(),
+        accountId: userId,
+        providerId: "credential",
+        userId,
+        password: passwordHash,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
   });
   return userId;
 }

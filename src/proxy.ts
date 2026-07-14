@@ -11,9 +11,9 @@ export function proxy(request: NextRequest) {
   if (!hasSession && !isLogin) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
-  if (hasSession && isLogin) {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
+  // Note: no hasSession-on-/login bounce back to "/". A cookie can outlive
+  // its server-side session (deactivation, revocation), and bouncing such a
+  // browser away from /login creates an infinite / ⇄ /login redirect loop.
   return NextResponse.next();
 }
 

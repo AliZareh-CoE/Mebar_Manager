@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { desc, asc, ne } from "drizzle-orm";
 import { format } from "date-fns";
 import { db } from "@/lib/db";
 import { user, type ProjectState, PROJECT_STATES } from "@/lib/db/schema";
+import { getCurrentUser } from "@/lib/session";
 import { projectAgeDays } from "@/lib/fight-engine";
 import { StateBadge } from "@/components/state-badge";
 import { AgePill } from "@/components/age-pill";
@@ -18,6 +20,11 @@ export default async function BoardPage({
 }: {
   searchParams: Promise<{ state?: string; owner?: string }>;
 }) {
+  // Per-page guard: the layout's check doesn't re-run on partial RSC
+  // renders, so every page must validate the session itself.
+  const me = await getCurrentUser();
+  if (!me) redirect("/login");
+
   const { state, owner } = await searchParams;
 
   const [projects, owners] = await Promise.all([
@@ -61,7 +68,11 @@ export default async function BoardPage({
         </div>
         <div className="flex items-center gap-2">
           <BoardFilters owners={owners} />
-          <Button size="sm" render={<Link href="/projects/new">New proposal</Link>} />
+          <Button
+            size="sm"
+            nativeButton={false}
+            render={<Link href="/projects/new">New proposal</Link>}
+          />
         </div>
       </div>
 

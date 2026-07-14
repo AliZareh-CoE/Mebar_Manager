@@ -178,7 +178,10 @@ export const decisions = sqliteTable(
     createdAt: createdAt(),
     decidedAt: integer("decided_at", { mode: "timestamp_ms" }),
   },
-  (t) => [index("decisions_status_idx").on(t.status)]
+  (t) => [
+    index("decisions_status_idx").on(t.status),
+    index("decisions_project_idx").on(t.projectId),
+  ]
 );
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({

@@ -4,6 +4,7 @@ import {
   computeFightList,
   computeParetoData,
   projectAgeDays,
+  isOverdue,
   type LabSnapshot,
   type ProjectRow,
   type BlockerRow,
@@ -166,6 +167,24 @@ describe("blockers", () => {
     });
   });
 
+  it("escalating an unowned blocker keeps it on the list at higher severity", () => {
+    // Even a young escalated blocker fights — escalation must never hide it.
+    const items = computeFightList(
+      snap({
+        openBlockers: [
+          blocker({ status: "ESCALATED", ownerId: null, owner: null, createdAt: subDays(NOW, 1) }),
+        ],
+      }),
+      NOW
+    );
+    expect(items[0]).toMatchObject({
+      type: "UNOWNED_BLOCKER",
+      severity: 3,
+      responsible: prof,
+    });
+    expect(items[0]?.headline).toContain("Escalated");
+  });
+
   it("a blocker raises at most one fight (overdue wins over unowned)", () => {
     const items = computeFightList(
       snap({
@@ -204,6 +223,44 @@ describe("PENDING_DECISION", () => {
       NOW
     );
     expect(items[0]?.severity).toBe(3);
+  });
+
+  it("decision in its last hour says so instead of claiming auto-proceeded", () => {
+    const items = computeFightList(
+      // 47.5h old → 30 minutes left
+      snap({ pendingDecisions: [decision({ createdAt: new Date(NOW.getTime() - 47.5 * 3_600_000) })] }),
+      NOW
+    );
+    expect(items[0]?.headline).toContain("under an hour");
+    expect(items[0]?.severity).toBe(3);
+  });
+
+  it("decisions on paused/terminal projects don't fight", () => {
+    for (const state of ["PAUSED", "DONE", "KILLED"] as const) {
+      const items = computeFightList(
+        snap({
+          projects: [
+            project({
+              state,
+              pauseReason: state === "PAUSED" ? "x" : null,
+              reviveDate: state === "PAUSED" ? addDays(NOW, 5) : null,
+            }),
+          ],
+          pendingDecisions: [decision()],
+        }),
+        NOW
+      );
+      expect(items).toEqual([]);
+    }
+  });
+});
+
+describe("isOverdue", () => {
+  it("gives the full due day before turning red", () => {
+    const dueMidnight = new Date("2026-07-14T00:00:00Z");
+    expect(isOverdue(dueMidnight, NOW)).toBe(false); // due today, noon
+    expect(isOverdue(dueMidnight, new Date("2026-07-15T00:00:01Z"))).toBe(true);
+    expect(isOverdue(addDays(NOW, 3), NOW)).toBe(false);
   });
 });
 

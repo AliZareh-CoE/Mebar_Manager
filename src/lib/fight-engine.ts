@@ -1,4 +1,4 @@
-import { differenceInDays, differenceInHours, addHours } from "date-fns";
+import { differenceInDays, differenceInMinutes, addHours } from "date-fns";
 import type { ProjectState, CauseTag, BlockerStatus, MilestoneStatus } from "@/lib/db/schema";
 import {
   STALL_DAYS,
@@ -98,6 +98,17 @@ export function projectAgeDays(
   return Math.max(0, differenceInDays(now, lastUpdateAt ?? createdAt));
 }
 
+/**
+ * Single source of truth for "is this past its date?". Due dates and
+ * deadlines are date-only (midnight timestamps), so an item gets its whole
+ * due day before turning red — overdue starts the day after. Every surface
+ * (fight list, project page, board) must use this, or they contradict each
+ * other.
+ */
+export function isOverdue(date: Date, now: Date): boolean {
+  return differenceInDays(now, date) > 0;
+}
+
 export function computeFightList(snap: LabSnapshot, now: Date): FightItem[] {
   const items: FightItem[] = [];
   const projectById = new Map(snap.projects.map((p) => [p.id, p]));
@@ -162,18 +173,22 @@ export function computeFightList(snap: LabSnapshot, now: Date): FightItem[] {
       continue; // overdue beats unowned — one fight per blocker
     }
 
-    // Unowned blockers past the grace period.
-    if (b.status === "OPEN" && !b.ownerId) {
+    // Unowned blockers past the grace period. An ESCALATED blocker is MORE
+    // urgent, not less — escalating must never hide it from the list.
+    if (!b.ownerId) {
       const unownedDays = differenceInDays(now, b.createdAt);
-      if (unownedDays > UNOWNED_BLOCKER_DAYS) {
+      if (unownedDays > UNOWNED_BLOCKER_DAYS || b.status === "ESCALATED") {
         items.push({
           type: "UNOWNED_BLOCKER",
-          severity: 2,
-          ageDays: unownedDays - UNOWNED_BLOCKER_DAYS,
+          severity: b.status === "ESCALATED" ? 3 : 2,
+          ageDays: Math.max(0, unownedDays - UNOWNED_BLOCKER_DAYS),
           projectId: b.projectId,
           projectTitle: project.title,
           entityId: b.id,
-          headline: `Nobody owns this blocker (${unownedDays}d old)`,
+          headline:
+            b.status === "ESCALATED"
+              ? `Escalated blocker still has no owner (${unownedDays}d old)`
+              : `Nobody owns this blocker (${unownedDays}d old)`,
           detail: b.description,
           responsible: project.advisor,
         });
@@ -181,25 +196,29 @@ export function computeFightList(snap: LabSnapshot, now: Date): FightItem[] {
     }
   }
 
-  // Pending decisions — every one is on the list; urgency grows as the
-  // 48h auto-proceed deadline approaches.
+  // Pending decisions — every one on a moving project is on the list;
+  // urgency grows as the 48h auto-proceed deadline approaches. Decisions on
+  // paused/terminal projects are moot until the project moves again.
   for (const d of snap.pendingDecisions) {
     if (d.status !== "PENDING") continue;
     const project = projectById.get(d.projectId);
-    if (!project) continue;
+    if (!project || TERMINAL_OR_PAUSED.includes(project.state)) continue;
     const deadline = addHours(d.createdAt, DECISION_TIMEOUT_HOURS);
-    const hoursLeft = differenceInHours(deadline, now);
+    const minutesLeft = differenceInMinutes(deadline, now);
+    const hoursLeft = Math.floor(minutesLeft / 60);
     items.push({
       type: "PENDING_DECISION",
-      severity: hoursLeft <= DECISION_URGENT_HOURS ? 3 : 2,
+      severity: hoursLeft < DECISION_URGENT_HOURS ? 3 : 2,
       ageDays: Math.max(0, differenceInDays(now, d.createdAt)),
       projectId: d.projectId,
       projectTitle: project.title,
       entityId: d.id,
       headline:
-        hoursLeft > 0
-          ? `Decision needed — auto-proceeds in ${hoursLeft}h`
-          : "Decision needed — auto-proceeding",
+        minutesLeft <= 0
+          ? "Decision needed — auto-proceeding"
+          : hoursLeft < 1
+            ? "Decision needed — auto-proceeds in under an hour"
+            : `Decision needed — auto-proceeds in ${hoursLeft}h`,
       detail: `${d.question} (recommendation: ${d.recommendation})`,
       responsible: d.requestedFrom,
     });

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Flame } from "lucide-react";
 import { getCurrentUser } from "@/lib/session";
+import { expireOverdueDecisions } from "@/lib/maintenance";
 import { loadLabSnapshot } from "@/lib/fight-data";
 import { computeFightList } from "@/lib/fight-engine";
 import { NavLinks } from "@/components/nav-links";
@@ -15,6 +16,9 @@ export default async function AppLayout({
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
+  // Expire first so the badge never counts decisions already past the 48h
+  // cutoff as pending fights.
+  expireOverdueDecisions();
   const fightCount = computeFightList(await loadLabSnapshot(), new Date()).length;
 
   return (

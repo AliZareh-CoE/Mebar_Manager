@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { projects, stateTransitions } from "@/lib/db/schema";
@@ -114,15 +114,24 @@ export async function fireProjectEvent(
   const result = applyEvent(project.state, event, user.role);
   if (!result.ok) return { error: result.error };
 
+  // Guard against a concurrent transition between our read and this write:
+  // the UPDATE only applies if the project is still in the state we
+  // validated from. Zero rows changed = someone else moved it first.
+  let raced = false;
   db.transaction((tx) => {
-    tx.update(projects)
+    const updated = tx
+      .update(projects)
       .set({
         state: result.next,
         pauseReason: result.next === "PAUSED" ? (pauseReason ?? null) : null,
         reviveDate: result.next === "PAUSED" ? (reviveDate ?? null) : null,
       })
-      .where(eq(projects.id, projectId))
+      .where(and(eq(projects.id, projectId), eq(projects.state, project.state)))
       .run();
+    if (updated.changes === 0) {
+      raced = true;
+      return;
+    }
     tx.insert(stateTransitions)
       .values({
         projectId,
@@ -133,6 +142,9 @@ export async function fireProjectEvent(
       })
       .run();
   });
+  if (raced) {
+    return { error: "The project's state just changed — refresh and try again." };
+  }
 
   revalidateProject(projectId);
   return {};

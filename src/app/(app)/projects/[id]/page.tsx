@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { asc, desc, ne } from "drizzle-orm";
-import { differenceInDays, format, formatDistanceStrict, addHours, isPast } from "date-fns";
+import { differenceInDays, format, formatDistanceStrict, addHours } from "date-fns";
+import { isOverdue } from "@/lib/fight-engine";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/session";
@@ -299,7 +300,7 @@ export default async function ProjectPage({
                     </TableCell>
                     <TableCell
                       className={
-                        b.status !== "RESOLVED" && isPast(b.deadline)
+                        b.status !== "RESOLVED" && isOverdue(b.deadline, now)
                           ? "font-medium text-red-400"
                           : "text-muted-foreground"
                       }
@@ -464,7 +465,9 @@ export default async function ProjectPage({
               </TableHeader>
               <TableBody>
                 {project.milestones.map((m) => {
-                  const missed = m.status !== "DONE" && isPast(m.dueDate);
+                  // Same overdue semantics as the fight engine — the two
+                  // surfaces must never disagree about "missed".
+                  const missed = m.status !== "DONE" && isOverdue(m.dueDate, now);
                   return (
                     <TableRow key={m.id}>
                       <TableCell className="font-medium">{m.title}</TableCell>
