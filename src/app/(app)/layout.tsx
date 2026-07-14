@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Flame } from "lucide-react";
 import { getCurrentUser } from "@/lib/session";
+import { loadLabSnapshot } from "@/lib/fight-data";
+import { computeFightList } from "@/lib/fight-engine";
 import { NavLinks } from "@/components/nav-links";
 import { SignOutButton } from "@/components/sign-out-button";
 
@@ -12,6 +14,8 @@ export default async function AppLayout({
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+
+  const fightCount = computeFightList(await loadLabSnapshot(), new Date()).length;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -24,7 +28,7 @@ export default async function AppLayout({
             <Flame className="size-5 text-red-500" />
             Mebar
           </Link>
-          <NavLinks isManager={user.role === "MANAGER"} />
+          <NavLinks isManager={user.role === "MANAGER"} fightCount={fightCount} />
           <div className="ml-auto flex items-center gap-3">
             <span className="hidden text-sm text-muted-foreground sm:inline">
               {user.name}

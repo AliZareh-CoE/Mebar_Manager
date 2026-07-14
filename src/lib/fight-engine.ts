@@ -1,0 +1,254 @@
+import { differenceInDays, differenceInHours, addHours } from "date-fns";
+import type { ProjectState, CauseTag, BlockerStatus, MilestoneStatus } from "@/lib/db/schema";
+import {
+  STALL_DAYS,
+  UNOWNED_BLOCKER_DAYS,
+  DECISION_TIMEOUT_HOURS,
+  DECISION_URGENT_HOURS,
+} from "@/lib/thresholds";
+
+/**
+ * The fight engine. Pure — no DB, no hidden clock. Callers build a
+ * LabSnapshot from queries and pass `now` explicitly.
+ */
+
+export type PersonRef = { id: string; name: string };
+
+export interface ProjectRow {
+  id: string;
+  title: string;
+  state: ProjectState;
+  createdAt: Date;
+  lastUpdateAt: Date | null;
+  pauseReason: string | null;
+  reviveDate: Date | null;
+  owner: PersonRef;
+  advisor: PersonRef;
+}
+
+export interface BlockerRow {
+  id: string;
+  projectId: string;
+  description: string;
+  causeTag: CauseTag;
+  ownerId: string | null;
+  owner: PersonRef | null;
+  deadline: Date;
+  status: BlockerStatus;
+  createdAt: Date;
+}
+
+export interface DecisionRow {
+  id: string;
+  projectId: string;
+  question: string;
+  recommendation: string;
+  requestedFrom: PersonRef;
+  status: string;
+  createdAt: Date;
+}
+
+export interface MilestoneRow {
+  id: string;
+  projectId: string;
+  title: string;
+  dueDate: Date;
+  status: MilestoneStatus;
+}
+
+export interface LabSnapshot {
+  projects: ProjectRow[];
+  openBlockers: BlockerRow[];
+  pendingDecisions: DecisionRow[];
+  openMilestones: MilestoneRow[];
+}
+
+export type FightType =
+  | "STALLED_PROJECT"
+  | "OVERDUE_BLOCKER"
+  | "UNOWNED_BLOCKER"
+  | "PENDING_DECISION"
+  | "PAST_REVIVE"
+  | "MISSED_MILESTONE";
+
+/** 3 = red, fight today. 2 = amber, fight this week. 1 = notice. */
+export type Severity = 3 | 2 | 1;
+
+export interface FightItem {
+  type: FightType;
+  severity: Severity;
+  /** Days it has been red — drives sorting and the age badge. */
+  ageDays: number;
+  projectId: string;
+  projectTitle: string;
+  entityId: string;
+  headline: string;
+  detail?: string;
+  /** Who this item yells at. */
+  responsible: PersonRef | null;
+}
+
+const TERMINAL_OR_PAUSED: ProjectState[] = ["DONE", "KILLED", "PAUSED"];
+
+export function projectAgeDays(
+  lastUpdateAt: Date | null,
+  createdAt: Date,
+  now: Date
+): number {
+  return Math.max(0, differenceInDays(now, lastUpdateAt ?? createdAt));
+}
+
+export function computeFightList(snap: LabSnapshot, now: Date): FightItem[] {
+  const items: FightItem[] = [];
+  const projectById = new Map(snap.projects.map((p) => [p.id, p]));
+
+  // Stalled projects: ACTIVE/BLOCKED with no update in STALL_DAYS.
+  for (const p of snap.projects) {
+    if (p.state !== "ACTIVE" && p.state !== "BLOCKED") continue;
+    const age = projectAgeDays(p.lastUpdateAt, p.createdAt, now);
+    if (age > STALL_DAYS) {
+      items.push({
+        type: "STALLED_PROJECT",
+        severity: 3,
+        ageDays: age - STALL_DAYS,
+        projectId: p.id,
+        projectTitle: p.title,
+        entityId: p.id,
+        headline: `No update in ${age} days`,
+        detail: "Silence is how projects die. One update resets the clock.",
+        responsible: p.owner,
+      });
+    }
+  }
+
+  // Paused projects past their revive date.
+  for (const p of snap.projects) {
+    if (p.state !== "PAUSED" || !p.reviveDate) continue;
+    const over = differenceInDays(now, p.reviveDate);
+    if (over > 0) {
+      items.push({
+        type: "PAST_REVIVE",
+        severity: 3,
+        ageDays: over,
+        projectId: p.id,
+        projectTitle: p.title,
+        entityId: p.id,
+        headline: `Revive date passed ${over}d ago — revive it or kill it`,
+        detail: p.pauseReason ?? undefined,
+        responsible: p.advisor,
+      });
+    }
+  }
+
+  for (const b of snap.openBlockers) {
+    if (b.status === "RESOLVED") continue;
+    const project = projectById.get(b.projectId);
+    if (!project || TERMINAL_OR_PAUSED.includes(project.state)) continue;
+
+    // Overdue blockers.
+    const overdueDays = differenceInDays(now, b.deadline);
+    if (overdueDays > 0) {
+      items.push({
+        type: "OVERDUE_BLOCKER",
+        severity: 3,
+        ageDays: overdueDays,
+        projectId: b.projectId,
+        projectTitle: project.title,
+        entityId: b.id,
+        headline: `Blocker ${overdueDays}d past its deadline`,
+        detail: b.description,
+        responsible: b.owner ?? project.advisor,
+      });
+      continue; // overdue beats unowned — one fight per blocker
+    }
+
+    // Unowned blockers past the grace period.
+    if (b.status === "OPEN" && !b.ownerId) {
+      const unownedDays = differenceInDays(now, b.createdAt);
+      if (unownedDays > UNOWNED_BLOCKER_DAYS) {
+        items.push({
+          type: "UNOWNED_BLOCKER",
+          severity: 2,
+          ageDays: unownedDays - UNOWNED_BLOCKER_DAYS,
+          projectId: b.projectId,
+          projectTitle: project.title,
+          entityId: b.id,
+          headline: `Nobody owns this blocker (${unownedDays}d old)`,
+          detail: b.description,
+          responsible: project.advisor,
+        });
+      }
+    }
+  }
+
+  // Pending decisions — every one is on the list; urgency grows as the
+  // 48h auto-proceed deadline approaches.
+  for (const d of snap.pendingDecisions) {
+    if (d.status !== "PENDING") continue;
+    const project = projectById.get(d.projectId);
+    if (!project) continue;
+    const deadline = addHours(d.createdAt, DECISION_TIMEOUT_HOURS);
+    const hoursLeft = differenceInHours(deadline, now);
+    items.push({
+      type: "PENDING_DECISION",
+      severity: hoursLeft <= DECISION_URGENT_HOURS ? 3 : 2,
+      ageDays: Math.max(0, differenceInDays(now, d.createdAt)),
+      projectId: d.projectId,
+      projectTitle: project.title,
+      entityId: d.id,
+      headline:
+        hoursLeft > 0
+          ? `Decision needed — auto-proceeds in ${hoursLeft}h`
+          : "Decision needed — auto-proceeding",
+      detail: `${d.question} (recommendation: ${d.recommendation})`,
+      responsible: d.requestedFrom,
+    });
+  }
+
+  // Missed milestones on projects that are still supposed to be moving.
+  for (const m of snap.openMilestones) {
+    if (m.status === "DONE") continue;
+    const project = projectById.get(m.projectId);
+    if (!project || TERMINAL_OR_PAUSED.includes(project.state)) continue;
+    const over = differenceInDays(now, m.dueDate);
+    if (over > 0) {
+      items.push({
+        type: "MISSED_MILESTONE",
+        severity: 2,
+        ageDays: over,
+        projectId: m.projectId,
+        projectTitle: project.title,
+        entityId: m.id,
+        headline: `Milestone "${m.title}" is ${over}d past due`,
+        detail: "Close it, or push the date with a reason.",
+        responsible: project.owner,
+      });
+    }
+  }
+
+  return items.sort((a, b) => b.severity - a.severity || b.ageDays - a.ageDays);
+}
+
+export interface ParetoSlice {
+  causeTag: CauseTag;
+  count: number;
+  pct: number;
+}
+
+/** What keeps blocking the lab — open + resolved, for the monthly review. */
+export function computeParetoData(
+  blockers: Pick<BlockerRow, "causeTag">[]
+): ParetoSlice[] {
+  const counts = new Map<CauseTag, number>();
+  for (const b of blockers) {
+    counts.set(b.causeTag, (counts.get(b.causeTag) ?? 0) + 1);
+  }
+  const total = blockers.length;
+  return [...counts.entries()]
+    .map(([causeTag, count]) => ({
+      causeTag,
+      count,
+      pct: total === 0 ? 0 : Math.round((count / total) * 100),
+    }))
+    .sort((a, b) => b.count - a.count);
+}

@@ -4,36 +4,42 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-const links = [
-  { href: "/", label: "Fight List" },
-  { href: "/board", label: "Board" },
-];
-
-export function NavLinks({ isManager }: { isManager: boolean }) {
+export function NavLinks({
+  isManager,
+  fightCount,
+}: {
+  isManager: boolean;
+  fightCount: number;
+}) {
   const pathname = usePathname();
-  const all = isManager
-    ? [...links, { href: "/admin/users", label: "People" }]
-    : links;
+  const links = [
+    { href: "/", label: "Fight List", badge: fightCount },
+    { href: "/board", label: "Board" },
+    ...(isManager ? [{ href: "/admin/users", label: "People" }] : []),
+  ];
 
   return (
     <nav className="flex items-center gap-1">
-      {all.map((link) => {
+      {links.map((link) => {
         const active =
-          link.href === "/"
-            ? pathname === "/"
-            : pathname.startsWith(link.href);
+          link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
         return (
           <Link
             key={link.href}
             href={link.href}
             className={cn(
-              "rounded-md px-3 py-1.5 text-sm transition-colors",
+              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors",
               active
                 ? "bg-secondary text-foreground"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
             {link.label}
+            {"badge" in link && (link.badge ?? 0) > 0 && (
+              <span className="rounded-full bg-red-500/90 px-1.5 text-xs font-semibold tabular-nums text-white">
+                {link.badge}
+              </span>
+            )}
           </Link>
         );
       })}
