@@ -1,7 +1,16 @@
-import { LoginForm } from "@/components/forms/login-form";
+import { redirect } from "next/navigation";
 import { Flame } from "lucide-react";
+import { getCurrentUser } from "@/lib/session";
+import { LoginForm } from "@/components/forms/login-form";
 
-export default function LoginPage() {
+export const dynamic = "force-dynamic";
+
+export default async function LoginPage() {
+  // A *valid* session skips the login page. A stale/invalid cookie falls
+  // through and renders the form so the user can re-authenticate.
+  const user = await getCurrentUser();
+  if (user) redirect("/");
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 p-6">
       <div className="flex flex-col items-center gap-2 text-center">

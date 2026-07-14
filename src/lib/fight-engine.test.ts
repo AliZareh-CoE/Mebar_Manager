@@ -23,6 +23,7 @@ function project(over: Partial<ProjectRow> = {}): ProjectRow {
     state: "ACTIVE",
     createdAt: subDays(NOW, 60),
     lastUpdateAt: subDays(NOW, 1),
+    lastActivatedAt: null,
     pauseReason: null,
     reviveDate: null,
     owner: alice,
@@ -123,6 +124,39 @@ describe("STALLED_PROJECT", () => {
       expect(items).toEqual([]);
     }
   });
+
+  it("a fresh activation resets the stall clock (start/revive/unblock)", () => {
+    // 20-day-old proposal approved+started today: not stalled.
+    const started = snap({
+      projects: [
+        project({
+          createdAt: subDays(NOW, 20),
+          lastUpdateAt: null,
+          lastActivatedAt: subDays(NOW, 0),
+        }),
+      ],
+    });
+    expect(computeFightList(started, NOW)).toEqual([]);
+
+    // Revived 3 days ago after a 2-month pause: not stalled either.
+    const revived = snap({
+      projects: [
+        project({
+          lastUpdateAt: subDays(NOW, 60),
+          lastActivatedAt: subDays(NOW, 3),
+        }),
+      ],
+    });
+    expect(computeFightList(revived, NOW)).toEqual([]);
+
+    // But an activation 15 days ago with no update since: stalled.
+    const idleAfterStart = snap({
+      projects: [
+        project({ lastUpdateAt: null, lastActivatedAt: subDays(NOW, 15) }),
+      ],
+    });
+    expect(computeFightList(idleAfterStart, NOW)[0]?.type).toBe("STALLED_PROJECT");
+  });
 });
 
 describe("blockers", () => {
@@ -183,6 +217,22 @@ describe("blockers", () => {
       responsible: prof,
     });
     expect(items[0]?.headline).toContain("Escalated");
+  });
+
+  it("escalated unowned blocker past the grace period still fights (sev 3, advisor)", () => {
+    const items = computeFightList(
+      snap({
+        openBlockers: [
+          blocker({ ownerId: null, owner: null, status: "ESCALATED", createdAt: subDays(NOW, 3) }),
+        ],
+      }),
+      NOW
+    );
+    expect(items[0]).toMatchObject({
+      type: "UNOWNED_BLOCKER",
+      severity: 3,
+      responsible: prof,
+    });
   });
 
   it("a blocker raises at most one fight (overdue wins over unowned)", () => {
@@ -335,10 +385,13 @@ describe("sorting", () => {
 });
 
 describe("projectAgeDays", () => {
-  it("uses last update when present, createdAt otherwise, never negative", () => {
-    expect(projectAgeDays(subDays(NOW, 5), subDays(NOW, 50), NOW)).toBe(5);
-    expect(projectAgeDays(null, subDays(NOW, 50), NOW)).toBe(50);
-    expect(projectAgeDays(addDays(NOW, 1), subDays(NOW, 50), NOW)).toBe(0);
+  const base = { createdAt: subDays(NOW, 50) };
+
+  it("uses the freshest of update, activation, and creation; never negative", () => {
+    expect(projectAgeDays({ ...base, lastUpdateAt: subDays(NOW, 5), lastActivatedAt: null }, NOW)).toBe(5);
+    expect(projectAgeDays({ ...base, lastUpdateAt: null, lastActivatedAt: null }, NOW)).toBe(50);
+    expect(projectAgeDays({ ...base, lastUpdateAt: subDays(NOW, 20), lastActivatedAt: subDays(NOW, 2) }, NOW)).toBe(2);
+    expect(projectAgeDays({ ...base, lastUpdateAt: addDays(NOW, 1), lastActivatedAt: null }, NOW)).toBe(0);
   });
 });
 

@@ -58,7 +58,9 @@ export function FormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    // disablePointerDismissal: a stray backdrop click must not eat a
+    // half-written update. Esc and the close button still work.
+    <Dialog open={open} onOpenChange={setOpen} disablePointerDismissal>
       <DialogTrigger render={trigger} />
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>

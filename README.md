@@ -47,9 +47,12 @@ vitest · Playwright (e2e).
 ```bash
 npm install
 npm run db:push          # create ./data/mebar.db
-npm run db:seed          # first manager: admin@lab.local / mebar-admin
+npm run db:seed          # creates the first manager and prints its password once
 npm run dev
 ```
+
+Set `MANAGER_EMAIL` / `MANAGER_PASSWORD` before seeding to choose the first
+account's credentials; otherwise a random password is generated and printed.
 
 Want a lab that already looks alive (every fight rule triggered)?
 
@@ -68,7 +71,7 @@ npm run db:seed -- --demo
 | `npm run db:push` | apply schema to SQLite |
 | `npm run db:seed [-- --demo]` | seed admin (and optionally the demo lab) |
 | `npm test` | unit tests (state machine + fight engine) |
-| `npx tsx scripts/verify.e2e.ts` | browser click-through against a running dev server (`BASE_URL` to override) |
+| `npx tsx scripts/verify.e2e.ts` | browser click-through against a running dev server (`BASE_URL`, `CHROMIUM_PATH`, `SHOTS_DIR` to override) |
 
 ## Layout
 

@@ -89,7 +89,7 @@ export function BlockerRowActions({
         </Button>
       )}
 
-      <Dialog open={resolveOpen} onOpenChange={setResolveOpen}>
+      <Dialog open={resolveOpen} onOpenChange={setResolveOpen} disablePointerDismissal>
         <DialogTrigger
           render={
             <Button size="sm" disabled={pending}>

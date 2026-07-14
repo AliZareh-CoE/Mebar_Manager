@@ -50,7 +50,7 @@ export function CreateUserDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={setOpen} disablePointerDismissal>
       <DialogTrigger render={<Button>Add person</Button>} />
       <DialogContent>
         <DialogHeader>

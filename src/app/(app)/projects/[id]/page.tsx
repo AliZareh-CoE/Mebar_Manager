@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { asc, desc, ne } from "drizzle-orm";
-import { differenceInDays, format, formatDistanceStrict, addHours } from "date-fns";
-import { isOverdue } from "@/lib/fight-engine";
+import { format, formatDistanceStrict, addHours } from "date-fns";
+import { isOverdue, projectAgeDays } from "@/lib/fight-engine";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/session";
@@ -81,8 +81,15 @@ export default async function ProjectPage({
     .where(ne(user.banned, true));
 
   const now = new Date();
-  const lastProgress = project.updates[0]?.createdAt ?? project.createdAt;
-  const ageDays = differenceInDays(now, lastProgress);
+  const ageDays = projectAgeDays(
+    {
+      lastUpdateAt: project.updates[0]?.createdAt ?? null,
+      lastActivatedAt:
+        project.transitions.find((t) => t.toState === "ACTIVE")?.createdAt ?? null,
+      createdAt: project.createdAt,
+    },
+    now
+  );
   const openBlockers = project.blockers.filter((b) => b.status !== "RESOLVED");
   const pendingDecisions = project.decisions.filter((d) => d.status === "PENDING");
 

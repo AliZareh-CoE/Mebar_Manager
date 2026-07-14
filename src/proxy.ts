@@ -3,7 +3,10 @@ import { getSessionCookie } from "better-auth/cookies";
 
 // Edge runtime cannot open SQLite, so this is a cheap cookie-presence check
 // only. Real session validation happens in the (app) layout and inside every
-// server action.
+// server action. The login page must stay reachable with a cookie present —
+// a stale/invalid cookie (deactivation, revocation) would otherwise bounce
+// between / and /login forever; the login page itself redirects users whose
+// session actually validates.
 export function proxy(request: NextRequest) {
   const hasSession = Boolean(getSessionCookie(request));
   const isLogin = request.nextUrl.pathname === "/login";
@@ -11,9 +14,6 @@ export function proxy(request: NextRequest) {
   if (!hasSession && !isLogin) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
-  // Note: no hasSession-on-/login bounce back to "/". A cookie can outlive
-  // its server-side session (deactivation, revocation), and bouncing such a
-  // browser away from /login creates an infinite / ⇄ /login redirect loop.
   return NextResponse.next();
 }
 

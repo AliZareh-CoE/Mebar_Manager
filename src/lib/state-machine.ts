@@ -35,6 +35,18 @@ export const EVENT_LABELS: Record<ProjectEventType, string> = {
   KILL: "Kill project",
 };
 
+const DAY_MS = 86_400_000;
+
+/**
+ * UTC start of the day containing `d`. HTML date inputs parse as UTC
+ * midnight, so comparing against the raw `now` instant would reject a
+ * perfectly good "tomorrow" for users west of UTC. Same-UTC-day or later
+ * counts as valid.
+ */
+function utcDayStart(d: Date): Date {
+  return new Date(Math.floor(d.getTime() / DAY_MS) * DAY_MS);
+}
+
 export const projectMachine = setup({
   types: {
     events: {} as ProjectEvent,
@@ -43,7 +55,7 @@ export const projectMachine = setup({
     validPause: ({ event }) =>
       event.type === "PAUSE" &&
       event.pauseReason.trim().length > 0 &&
-      event.reviveDate.getTime() > event.now.getTime(),
+      event.reviveDate.getTime() >= utcDayStart(event.now).getTime(),
   },
 }).createMachine({
   id: "project",
@@ -98,8 +110,8 @@ export function applyEvent(
     if (!event.pauseReason.trim()) {
       return { ok: false, error: "Pausing requires a reason." };
     }
-    if (event.reviveDate.getTime() <= event.now.getTime()) {
-      return { ok: false, error: "Pausing requires a future revive date." };
+    if (event.reviveDate.getTime() < utcDayStart(event.now).getTime()) {
+      return { ok: false, error: "The revive date can't be in the past." };
     }
   }
 

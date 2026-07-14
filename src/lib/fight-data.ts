@@ -16,6 +16,14 @@ export async function loadLabSnapshot(): Promise<LabSnapshot> {
           orderBy: (u) => desc(u.createdAt),
           limit: 1,
         },
+        // Latest transition INTO ACTIVE — resets the stall clock so a fresh
+        // start/revive/unblock isn't counted as pre-existing silence.
+        transitions: {
+          columns: { createdAt: true },
+          where: (t, { eq }) => eq(t.toState, "ACTIVE"),
+          orderBy: (t) => desc(t.createdAt),
+          limit: 1,
+        },
       },
     }),
     db.query.blockers.findMany({
@@ -39,6 +47,7 @@ export async function loadLabSnapshot(): Promise<LabSnapshot> {
       state: p.state,
       createdAt: p.createdAt,
       lastUpdateAt: p.updates[0]?.createdAt ?? null,
+      lastActivatedAt: p.transitions[0]?.createdAt ?? null,
       pauseReason: p.pauseReason,
       reviveDate: p.reviveDate,
       owner: p.owner,

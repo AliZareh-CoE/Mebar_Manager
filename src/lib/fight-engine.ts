@@ -20,6 +20,8 @@ export interface ProjectRow {
   state: ProjectState;
   createdAt: Date;
   lastUpdateAt: Date | null;
+  /** Latest transition INTO ACTIVE (start/revive/unblock) — resets the stall clock. */
+  lastActivatedAt: Date | null;
   pauseReason: string | null;
   reviveDate: Date | null;
   owner: PersonRef;
@@ -90,12 +92,22 @@ export interface FightItem {
 
 const TERMINAL_OR_PAUSED: ProjectState[] = ["DONE", "KILLED", "PAUSED"];
 
+/**
+ * Days since the project last showed signs of life: an update, or a
+ * transition into ACTIVE (start/revive/unblock). Without the activation
+ * timestamp, approving a 20-day-old proposal or reviving a sanctioned pause
+ * would instantly read as 20 days of "silence".
+ */
 export function projectAgeDays(
-  lastUpdateAt: Date | null,
-  createdAt: Date,
+  p: Pick<ProjectRow, "lastUpdateAt" | "lastActivatedAt" | "createdAt">,
   now: Date
 ): number {
-  return Math.max(0, differenceInDays(now, lastUpdateAt ?? createdAt));
+  const lastProgress = Math.max(
+    p.createdAt.getTime(),
+    p.lastUpdateAt?.getTime() ?? 0,
+    p.lastActivatedAt?.getTime() ?? 0
+  );
+  return Math.max(0, differenceInDays(now, lastProgress));
 }
 
 /**
@@ -113,10 +125,10 @@ export function computeFightList(snap: LabSnapshot, now: Date): FightItem[] {
   const items: FightItem[] = [];
   const projectById = new Map(snap.projects.map((p) => [p.id, p]));
 
-  // Stalled projects: ACTIVE/BLOCKED with no update in STALL_DAYS.
+  // Stalled projects: ACTIVE/BLOCKED with no sign of life in STALL_DAYS.
   for (const p of snap.projects) {
     if (p.state !== "ACTIVE" && p.state !== "BLOCKED") continue;
-    const age = projectAgeDays(p.lastUpdateAt, p.createdAt, now);
+    const age = projectAgeDays(p, now);
     if (age > STALL_DAYS) {
       items.push({
         type: "STALLED_PROJECT",
@@ -196,9 +208,10 @@ export function computeFightList(snap: LabSnapshot, now: Date): FightItem[] {
     }
   }
 
-  // Pending decisions — every one on a moving project is on the list;
+  // Pending decisions — every one on a *moving* project is on the list;
   // urgency grows as the 48h auto-proceed deadline approaches. Decisions on
-  // paused/terminal projects are moot until the project moves again.
+  // paused/finished projects neither fight nor auto-proceed (see
+  // expireOverdueDecisions), so a pause freezes its open questions too.
   for (const d of snap.pendingDecisions) {
     if (d.status !== "PENDING") continue;
     const project = projectById.get(d.projectId);

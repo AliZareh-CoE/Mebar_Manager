@@ -63,9 +63,17 @@ describe("pause guard", () => {
     expect(result).toEqual({ ok: false, error: "Pausing requires a reason." });
   });
 
-  it("requires a future revive date", () => {
+  it("rejects a revive date in the past", () => {
     const result = applyEvent("ACTIVE", pause({ reviveDate: PAST }), "ENGINEER");
-    expect(result).toEqual({ ok: false, error: "Pausing requires a future revive date." });
+    expect(result).toEqual({ ok: false, error: "The revive date can't be in the past." });
+  });
+
+  it("accepts today's date even when parsed as UTC midnight (date-input tz quirk)", () => {
+    // <input type=date> yields "2026-07-14" → 2026-07-14T00:00Z, which is
+    // *before* NOW's instant but the same UTC day — must be accepted.
+    const sameDay = new Date("2026-07-14T00:00:00Z");
+    const result = applyEvent("ACTIVE", pause({ reviveDate: sameDay }), "ENGINEER");
+    expect(result).toEqual({ ok: true, next: "PAUSED" });
   });
 });
 

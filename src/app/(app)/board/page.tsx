@@ -36,6 +36,12 @@ export default async function BoardPage({
           orderBy: (u) => desc(u.createdAt),
           limit: 1,
         },
+        transitions: {
+          columns: { createdAt: true },
+          where: (t, { eq }) => eq(t.toState, "ACTIVE"),
+          orderBy: (t) => desc(t.createdAt),
+          limit: 1,
+        },
         milestones: {
           orderBy: (m) => asc(m.dueDate),
         },
@@ -84,7 +90,14 @@ export default async function BoardPage({
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((p) => {
             const currentMilestone = p.milestones.find((m) => m.status !== "DONE");
-            const age = projectAgeDays(p.updates[0]?.createdAt ?? null, p.createdAt, now);
+            const age = projectAgeDays(
+              {
+                lastUpdateAt: p.updates[0]?.createdAt ?? null,
+                lastActivatedAt: p.transitions[0]?.createdAt ?? null,
+                createdAt: p.createdAt,
+              },
+              now
+            );
             const moving = p.state === "ACTIVE" || p.state === "BLOCKED";
             return (
               <Link key={p.id} href={`/projects/${p.id}`} className="group">

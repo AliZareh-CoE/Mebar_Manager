@@ -1,7 +1,11 @@
 import { chromium } from "playwright-core";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
-const SHOTS = "/tmp/claude-0/-home-user-Mebar-Manager/7f573145-6c37-5b48-bfd7-387d9c5f9efe/scratchpad";
+const SHOTS = process.env.SHOTS_DIR ?? path.join(os.tmpdir(), "mebar-e2e");
+fs.mkdirSync(SHOTS, { recursive: true });
 const results: string[] = [];
 
 function check(name: string, ok: boolean, extra = "") {
@@ -9,7 +13,18 @@ function check(name: string, ok: boolean, extra = "") {
 }
 
 async function main() {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+  // playwright-core bundles no browser: point CHROMIUM_PATH at any Chrome or
+  // Chromium binary on your machine.
+  const executablePath =
+    process.env.CHROMIUM_PATH ??
+    ["/opt/pw-browsers/chromium", "/usr/bin/chromium", "/usr/bin/google-chrome"].find((p) =>
+      fs.existsSync(p)
+    );
+  if (!executablePath) {
+    console.error("No Chromium found. Set CHROMIUM_PATH to a Chrome/Chromium binary.");
+    process.exit(1);
+  }
+  const browser = await chromium.launch({ executablePath });
   const page = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
 
   // 1. Redirect to login when signed out

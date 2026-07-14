@@ -69,9 +69,23 @@ async function createUserRaw(input: {
 
 async function seedAdmin() {
   const email = process.env.MANAGER_EMAIL ?? "admin@lab.local";
-  const password = process.env.MANAGER_PASSWORD ?? "mebar-admin";
+  // Never default to a documented constant: without MANAGER_PASSWORD a random
+  // password is generated and printed exactly once.
+  const generated = !process.env.MANAGER_PASSWORD;
+  const password =
+    process.env.MANAGER_PASSWORD ?? crypto.randomUUID().replaceAll("-", "").slice(0, 16);
+
+  const existing = await db.select().from(user).where(eq(user.email, email)).get();
+  if (existing) {
+    console.log(`Manager account already exists: ${email}`);
+    return;
+  }
+
   await createUserRaw({ name: "Lab Manager", email, password, role: "MANAGER" });
-  console.log(`Manager account ready: ${email} / ${password}`);
+  console.log(`Manager account created: ${email} / ${password}`);
+  if (generated) {
+    console.log("(random password — save it now, it is not stored anywhere else)");
+  }
 }
 
 async function seedDemo() {
@@ -420,6 +434,10 @@ async function seedDemo() {
 async function main() {
   await seedAdmin();
   if (process.argv.includes("--demo")) {
+    if (process.env.NODE_ENV === "production") {
+      console.error("Refusing --demo in production: it wipes all project data.");
+      process.exit(1);
+    }
     await seedDemo();
   }
 }

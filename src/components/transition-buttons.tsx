@@ -77,7 +77,7 @@ export function TransitionButtons({
         </Button>
       ))}
 
-      <Dialog open={dialogEvent === "PAUSE"} onOpenChange={(o) => !o && setDialogEvent(null)}>
+      <Dialog open={dialogEvent === "PAUSE"} onOpenChange={(o) => !o && setDialogEvent(null)} disablePointerDismissal>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Pause project</DialogTitle>
@@ -113,7 +113,7 @@ export function TransitionButtons({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={dialogEvent === "KILL"} onOpenChange={(o) => !o && setDialogEvent(null)}>
+      <Dialog open={dialogEvent === "KILL"} onOpenChange={(o) => !o && setDialogEvent(null)} disablePointerDismissal>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Kill project</DialogTitle>
