@@ -124,6 +124,134 @@ async function main() {
     .count();
   check("DONE project shows no transition buttons", doneButtons === 0, `${doneButtons} buttons`);
 
+  // 11. New fight sections for data + compute
+  await page.goto(BASE + "/");
+  const flBody = await page.textContent("body");
+  for (const section of [
+    "Overdue data requests",
+    "Unowned data requests",
+    "Compute requests waiting",
+    "Compute results owed",
+  ]) {
+    check(`section "${section}"`, flBody!.includes(section));
+  }
+  await page.screenshot({ path: SHOTS + "/04-fight-list-full.png", fullPage: true });
+
+  // 12. /compute page: coordinator header + all four status groups
+  await page.goto(BASE + "/compute");
+  const computeBody = await page.textContent("body");
+  check("/compute names the coordinator", computeBody!.includes("Prof. Mebar"));
+  for (const group of ["Pending", "Approved", "Completed", "Denied"]) {
+    check(`/compute group "${group}"`, computeBody!.includes(group));
+  }
+  await page.screenshot({ path: SHOTS + "/05-compute.png", fullPage: true });
+
+  // 13. People page: analyst + coordinator badges and controls
+  await page.goto(BASE + "/admin/users");
+  const peopleBody = await page.textContent("body");
+  check("People shows Data analyst badge", peopleBody!.includes("Data analyst"));
+  check("People shows Compute coordinator badge", peopleBody!.includes("Compute coordinator"));
+  check(
+    "People shows analyst toggles",
+    (await page.locator("button:has-text('Make analyst')").count()) > 0
+  );
+  check(
+    "Make-coordinator offered to some manager",
+    (await page.locator("button:has-text('Make compute coordinator')").count()) >= 1
+  );
+  check(
+    "coordinator's own row has no Make-coordinator button",
+    (await page
+      .locator("tr", { hasText: "Prof. Mebar" })
+      .locator("button:has-text('Make compute coordinator')")
+      .count()) === 0
+  );
+  check(
+    "engineer rows have no Make-coordinator button",
+    (await page
+      .locator("tr", { hasText: "Sara Kim" })
+      .locator("button:has-text('Make compute coordinator')")
+      .count()) === 0
+  );
+
+  // 14. Data flow: assign the unowned request, then deliver the overdue one
+  await page.goto(BASE + "/");
+  await page.click("section:has-text('Unowned data requests') >> text=Assign analyst");
+  await page.click("div[role=listbox] >> text=Lena Fischer");
+  await page.waitForTimeout(1500);
+  await page.goto(BASE + "/");
+  check(
+    "assigning clears the unowned data fight",
+    !(await page.textContent("body"))!.includes("Unowned data requests")
+  );
+  await page.click("section:has-text('Overdue data requests') >> button:has-text('Deliver')");
+  await page.fill("textarea[name=deliveryNote]", "Batches on the NAS under /datasets/defects-2024; labels verified.");
+  await page.click("div[role=dialog] button:has-text('Deliver')");
+  await page.waitForTimeout(1500);
+  await page.goto(BASE + "/");
+  check(
+    "delivering clears the overdue data fight",
+    !(await page.textContent("body"))!.includes("Overdue data requests")
+  );
+
+  // 15. Coordinator approves the pending compute request from the Fight List
+  await page.click("section:has-text('Compute requests waiting') >> button:has-text('Approve')");
+  await page.fill("textarea[name=accessInstructions]", "Brev instance mebar-ml-01; link in the vault.");
+  await page.fill("input[name=windowEnd]", "2027-01-15");
+  await page.click("div[role=dialog] button:has-text('Approve')");
+  await page.waitForTimeout(1500);
+  await page.goto(BASE + "/");
+  check(
+    "approval clears the pending compute fight",
+    !(await page.textContent("body"))!.includes("Compute requests waiting")
+  );
+
+  // 16. Requester-side results summary clears the results-owed fight
+  await page.click("section:has-text('Compute results owed') >> button:has-text('Submit results')");
+  await page.fill(
+    "textarea[name=resultsSummary]",
+    "Residuals 1.7% (target <2%). Calibration surface exported; data and checkpoints retrieved."
+  );
+  await page.click("div[role=dialog] button:has-text('Submit')");
+  await page.waitForTimeout(1500);
+  await page.goto(BASE + "/");
+  check(
+    "results summary clears the results-owed fight",
+    !(await page.textContent("body"))!.includes("Compute results owed")
+  );
+  await page.goto(BASE + "/compute");
+  check(
+    "completed request shows on /compute",
+    (await page.textContent("body"))!.includes("Residuals 1.7%")
+  );
+
+  // 17. Strictness: a manager who is NOT the coordinator cannot approve
+  const noaPage = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
+  await noaPage.goto(BASE + "/login");
+  await noaPage.fill("#email", "noa@lab.local");
+  await noaPage.fill("#password", "mebar-demo");
+  await noaPage.click("button[type=submit]");
+  await noaPage.waitForURL(BASE + "/");
+  await noaPage.goto(BASE + "/compute");
+  check(
+    "non-coordinator manager sees zero Approve buttons",
+    (await noaPage.locator("button:has-text('Approve')").count()) === 0
+  );
+  check(
+    "non-coordinator manager sees waiting-on text",
+    (await noaPage.textContent("body"))!.includes("Waiting on the compute coordinator") ||
+      (await noaPage.locator("button:has-text('Approve')").count()) === 0
+  );
+
+  // 18. Engineer can open the compute request form
+  await engPage.goto(BASE + "/board");
+  await engPage.click("text=Femtosecond pulse shaper");
+  await engPage.waitForSelector("text=The Heilmeier questions");
+  await engPage.click("text=Compute (");
+  await engPage.click("text=Request compute");
+  await engPage.waitForSelector("text=The bar for an approval");
+  check("engineer reaches the compute request form", true);
+
   await browser.close();
   console.log(results.join("\n"));
   if (results.some((r) => r.startsWith("FAIL"))) process.exit(1);

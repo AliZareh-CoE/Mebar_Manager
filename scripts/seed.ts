@@ -19,6 +19,8 @@ import {
   blockers,
   updates,
   decisions,
+  dataRequests,
+  computeRequests,
 } from "../src/lib/db/schema";
 
 async function createUserRaw(input: {
@@ -95,6 +97,8 @@ async function seedDemo() {
   db.delete(blockers).run();
   db.delete(milestones).run();
   db.delete(stateTransitions).run();
+  db.delete(dataRequests).run();
+  db.delete(computeRequests).run();
   db.delete(projects).run();
 
   const password = "mebar-demo";
@@ -127,6 +131,25 @@ async function seedDemo() {
     email: "dan@lab.local",
     password,
     role: "ENGINEER",
+  });
+  // A second manager who is NOT the compute coordinator — proves the
+  // no-fallback rule (managers without the flag can't approve compute).
+  const noa = await createUserRaw({
+    name: "Noa Levi",
+    email: "noa@lab.local",
+    password,
+    role: "MANAGER",
+  });
+  void noa;
+
+  // Add-on roles (createUserRaw is idempotent, so set flags via UPDATE).
+  db.update(user).set({ isDataAnalyst: true }).where(eq(user.id, lena)).run();
+  db.transaction((tx) => {
+    tx.update(user)
+      .set({ isComputeCoordinator: false })
+      .where(eq(user.isComputeCoordinator, true))
+      .run();
+    tx.update(user).set({ isComputeCoordinator: true }).where(eq(user.id, prof)).run();
   });
 
   const heilmeier = {
@@ -426,9 +449,128 @@ async function seedDemo() {
     ])
     .run();
 
+  // Data requests — one overdue (assigned to the analyst), one unowned past
+  // the grace period, one delivered for history.
+  db.insert(dataRequests)
+    .values([
+      {
+        projectId: p3.id,
+        title: "2024 wafer defect micrographs, labeled, full resolution",
+        description: "Need the Q3-Q4 2024 batches with fab labels, PNG, one folder per class.",
+        neededBy: subDays(new Date(), 4),
+        requesterId: lena,
+        assigneeId: lena,
+        status: "OPEN",
+        createdAt: subDays(new Date(), 10),
+      },
+      {
+        projectId: p1.id,
+        title: "Accelerometer noise floor baselines from mech-eng",
+        description: "Raw time series from their vibration bench, any format, 10 min per config.",
+        neededBy: addDays(new Date(), 7),
+        requesterId: sara,
+        assigneeId: null,
+        status: "OPEN",
+        createdAt: subDays(new Date(), 5),
+      },
+      {
+        projectId: p2.id,
+        title: "Pulse spectra reference dataset",
+        description: "Reference spectra for calibration cross-checks.",
+        neededBy: subDays(new Date(), 20),
+        requesterId: omid,
+        assigneeId: lena,
+        status: "DELIVERED",
+        deliveryNote: "On the NAS under /datasets/pulse-ref-2026; checksums in MANIFEST.md.",
+        createdAt: subDays(new Date(), 30),
+        deliveredAt: subDays(new Date(), 22),
+      },
+    ])
+    .run();
+
+  // Compute requests — pending 72h (sev-3 fight at the coordinator), approved
+  // past its window (results owed), one completed and one denied for history.
+  db.insert(computeRequests)
+    .values([
+      {
+        projectId: p3.id,
+        requesterId: lena,
+        serverType: "MULTI_GPU",
+        hoursNeeded: 120,
+        justification:
+          "LR/WD sweep (24 runs) + augmentation ablation (8 runs) on the ResNet baseline; schedule: 2 days sweep, 1 day ablations, 1 day final training; success = >95% precision on the held-out batch.",
+        datasetSize: "40k images, 18 GB",
+        preprocessingNote: "All images resized/normalized; manifest checksummed on the NAS.",
+        dryRunEvidence: "Full pipeline on a 1k subset, 2 epochs, on the shared workstation — loss converges, checkpoints resume.",
+        expectedResults: "Precision 95%+ (baseline 88%); ablation table for the paper.",
+        optimizations: ["DDP_FSDP", "AMP", "CHECKPOINTING", "DALI", "GRAD_ACCUM"],
+        status: "PENDING",
+        createdAt: subHours(new Date(), 72),
+      },
+      {
+        projectId: p2.id,
+        requesterId: omid,
+        serverType: "SINGLE_GPU",
+        hoursNeeded: 40,
+        justification: "Calibration-model fits across the damage-threshold grid; metrics: fit residuals < 2%.",
+        datasetSize: "3.2 GB spectra",
+        preprocessingNote: "Spectra windowed and normalized; stored as parquet.",
+        dryRunEvidence: "Fit converges on 5% sample locally in 11 min.",
+        expectedResults: "Full calibration surface; residuals under 2%.",
+        optimizations: ["VECTORIZED_OPS", "CACHING", "CHECKPOINTING"],
+        status: "APPROVED",
+        decidedById: prof,
+        decidedAt: subDays(new Date(), 8),
+        accessInstructions: "NVIDIA Brev instance 'mebar-cal-01' — link in the lab vault.",
+        windowEnd: subDays(new Date(), 3),
+        createdAt: subDays(new Date(), 9),
+      },
+      {
+        projectId: p6.id,
+        requesterId: dan,
+        serverType: "CPU",
+        hoursNeeded: 24,
+        justification: "Firmware regression suite across 6 configurations.",
+        datasetSize: "400 MB test vectors",
+        preprocessingNote: "Vectors generated and versioned in the repo.",
+        dryRunEvidence: "Suite green on one configuration locally.",
+        expectedResults: "All configs green; timing report.",
+        optimizations: ["VECTORIZED_OPS", "CACHING"],
+        status: "COMPLETED",
+        decidedById: prof,
+        decidedAt: subDays(new Date(), 40),
+        accessInstructions: "Brev CPU box, shared queue.",
+        windowEnd: subDays(new Date(), 35),
+        resultsSummary: "All 6 configs green as expected; timing report attached to the project. Data retrieved.",
+        completedAt: subDays(new Date(), 36),
+        createdAt: subDays(new Date(), 42),
+      },
+      {
+        projectId: p1.id,
+        requesterId: sara,
+        serverType: "MULTI_GPU",
+        hoursNeeded: 200,
+        justification: "Controller parameter search.",
+        datasetSize: "2 GB telemetry",
+        preprocessingNote: "Raw dumps, not yet cleaned.",
+        dryRunEvidence: "Not yet — wanted to explore on the big box.",
+        expectedResults: "Better controller gains, hopefully.",
+        optimizations: ["DDP_FSDP"],
+        status: "DENIED",
+        decidedById: prof,
+        decidedAt: subDays(new Date(), 14),
+        denialReason:
+          "No dry run, data not preprocessed, and 200h for a parameter search needs a sweep plan. Preprocess, dry-run on the workstation, and resubmit with a schedule.",
+        createdAt: subDays(new Date(), 15),
+      },
+    ])
+    .run();
+
   console.log("Demo lab loaded:");
-  console.log("  prof@lab.local / mebar-demo   (manager)");
-  console.log("  sara@lab.local, omid@lab.local, lena@lab.local, dan@lab.local / mebar-demo");
+  console.log("  prof@lab.local / mebar-demo   (manager + compute coordinator)");
+  console.log("  noa@lab.local / mebar-demo    (manager, not coordinator)");
+  console.log("  lena@lab.local / mebar-demo   (engineer + data analyst)");
+  console.log("  sara@lab.local, omid@lab.local, dan@lab.local / mebar-demo");
 }
 
 async function main() {

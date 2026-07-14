@@ -24,6 +24,10 @@ The rules (thresholds in `src/lib/thresholds.ts`):
 | Unowned blocker | open blocker with no owner for **2 days** | advisor |
 | Pending decision | every pending decision; **auto-proceeds at 48h** with the engineer's recommendation | advisor |
 | Missed milestone | past due, not done, project still moving | owner |
+| Overdue data request | open request past its needed-by date | analyst (else advisor) |
+| Unowned data request | no analyst assigned for **2 days** | advisor |
+| Pending compute request | every pending request; **never auto-proceeds**; red after 48h | compute coordinator |
+| Compute results owed | approved request past its usage window without a results summary | requester |
 
 Other opinions built in:
 
@@ -34,6 +38,24 @@ Other opinions built in:
   shows what systemically blocks the lab.
 - Project lifecycle: `PROPOSAL → SCOPING → ACTIVE ⇄ BLOCKED → PAUSED → DONE/KILLED`,
   enforced by a state machine with full transition history.
+
+## Roles
+
+Two base roles — **Manager** (coordinator) and **Engineer** (researcher) —
+plus add-ons granted on the People page:
+
+- **Data analyst** (add-on, any engineer): researchers file **data requests**
+  on their projects; the assigned analyst (or a self-claiming one) is
+  responsible for delivering. Data requests obey all anti-stall rules.
+- **Compute coordinator** (exactly one manager): the only person who decides
+  **compute requests**. A request must state the server type + hours, a
+  justification with a utilization plan (sweeps, ablations, schedule,
+  metrics), proof of preprocessing + exact dataset size, dry-run evidence,
+  expected results, and an optimization-practices commitment (DDP/FSDP is
+  mandatory for multi-GPU). Approval grants access (e.g. NVIDIA Brev) with an
+  expiry window; after the window a results summary (outcomes vs. expected)
+  is owed, and everything left on the server is not guaranteed to be
+  retained. `/compute` shows the whole queue and history.
 
 ## Stack
 
