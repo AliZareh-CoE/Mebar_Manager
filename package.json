@@ -9,7 +9,8 @@
     "lint": "eslint",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx scripts/seed.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "predb:push": "node -e \"require('node:fs').mkdirSync('data',{recursive:true})\""
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

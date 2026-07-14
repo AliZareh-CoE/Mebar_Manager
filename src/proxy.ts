@@ -4,7 +4,7 @@ import { getSessionCookie } from "better-auth/cookies";
 // Edge runtime cannot open SQLite, so this is a cheap cookie-presence check
 // only. Real session validation happens in the (app) layout and inside every
 // server action.
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const hasSession = Boolean(getSessionCookie(request));
   const isLogin = request.nextUrl.pathname === "/login";
 
