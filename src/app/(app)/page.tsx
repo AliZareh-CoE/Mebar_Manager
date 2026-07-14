@@ -14,6 +14,7 @@ import { FightItemCard } from "@/components/fight-item-card";
 import { FormDialog } from "@/components/form-dialog";
 import { UpdateDialog } from "@/components/forms/update-dialog";
 import { BlockerRowActions } from "@/components/blocker-row-actions";
+import { DataRequestRowActions } from "@/components/data-request-row-actions";
 import { MilestoneStatusButtons } from "@/components/milestone-status-buttons";
 import { TransitionButtons } from "@/components/transition-buttons";
 import { ParetoChart } from "@/components/pareto-chart";
@@ -59,13 +60,23 @@ const SECTIONS: Record<FightType, { title: string; blurb: string }> = {
     title: "Missed milestones",
     blurb: "Close them, or push the date deliberately.",
   },
+  OVERDUE_DATA_REQUEST: {
+    title: "Overdue data requests",
+    blurb: "The needed-by date passed. The analyst delivers, or the advisor fights.",
+  },
+  UNOWNED_DATA_REQUEST: {
+    title: "Unowned data requests",
+    blurb: "No analyst has claimed these. Assign one.",
+  },
 };
 
 const SECTION_ORDER: FightType[] = [
   "STALLED_PROJECT",
   "PAST_REVIVE",
   "OVERDUE_BLOCKER",
+  "OVERDUE_DATA_REQUEST",
   "UNOWNED_BLOCKER",
+  "UNOWNED_DATA_REQUEST",
   "PENDING_DECISION",
   "MISSED_MILESTONE",
 ];
@@ -76,17 +87,26 @@ export default async function FightListPage() {
 
   expireOverdueDecisions();
 
-  const [snapshot, causes, people] = await Promise.all([
+  const [snapshot, causes, allPeople] = await Promise.all([
     loadLabSnapshot(),
     loadAllBlockerCauses(),
-    db.select({ id: user.id, name: user.name }).from(user).where(ne(user.banned, true)),
+    db
+      .select({ id: user.id, name: user.name, isDataAnalyst: user.isDataAnalyst })
+      .from(user)
+      .where(ne(user.banned, true)),
   ]);
+
+  const people = allPeople.map(({ id, name }) => ({ id, name }));
+  const analysts = allPeople
+    .filter((p) => p.isDataAnalyst)
+    .map(({ id, name }) => ({ id, name }));
 
   const now = new Date();
   const items = computeFightList(snapshot, now);
   const pareto = computeParetoData(causes);
   const blockerById = new Map(snapshot.openBlockers.map((b) => [b.id, b]));
   const milestoneById = new Map(snapshot.openMilestones.map((m) => [m.id, m]));
+  const dataRequestById = new Map(snapshot.openDataRequests.map((dr) => [dr.id, dr]));
 
   function actionFor(item: FightItem) {
     switch (item.type) {
@@ -111,6 +131,21 @@ export default async function FightListPage() {
             status={blocker.status}
             ownerId={blocker.ownerId}
             people={people}
+          />
+        );
+      }
+      case "OVERDUE_DATA_REQUEST":
+      case "UNOWNED_DATA_REQUEST": {
+        const request = dataRequestById.get(item.entityId);
+        if (!request) return null;
+        return (
+          <DataRequestRowActions
+            requestId={request.id}
+            status={request.status}
+            assigneeId={request.assigneeId}
+            analysts={analysts}
+            meId={me!.id}
+            meIsAnalyst={me!.isDataAnalyst}
           />
         );
       }

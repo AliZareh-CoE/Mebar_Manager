@@ -10,6 +10,7 @@ import {
   type BlockerRow,
   type DecisionRow,
   type MilestoneRow,
+  type DataRequestRow,
 } from "./fight-engine";
 
 const NOW = new Date("2026-07-14T12:00:00Z");
@@ -71,12 +72,27 @@ function milestone(over: Partial<MilestoneRow> = {}): MilestoneRow {
   };
 }
 
+function dataRequest(over: Partial<DataRequestRow> = {}): DataRequestRow {
+  return {
+    id: "dr1",
+    projectId: "p1",
+    title: "Wafer defect image archive, labeled, 2019-2024",
+    neededBy: addDays(NOW, 7),
+    createdAt: subDays(NOW, 1),
+    status: "OPEN",
+    assigneeId: alice.id,
+    assignee: alice,
+    ...over,
+  };
+}
+
 function snap(over: Partial<LabSnapshot> = {}): LabSnapshot {
   return {
     projects: [project()],
     openBlockers: [],
     pendingDecisions: [],
     openMilestones: [],
+    openDataRequests: [],
     ...over,
   };
 }
@@ -311,6 +327,104 @@ describe("isOverdue", () => {
     expect(isOverdue(dueMidnight, NOW)).toBe(false); // due today, noon
     expect(isOverdue(dueMidnight, new Date("2026-07-15T00:00:01Z"))).toBe(true);
     expect(isOverdue(addDays(NOW, 3), NOW)).toBe(false);
+  });
+});
+
+describe("data requests", () => {
+  it("healthy assigned request → no fight", () => {
+    expect(computeFightList(snap({ openDataRequests: [dataRequest()] }), NOW)).toEqual([]);
+  });
+
+  it("not overdue on the needed-by day itself, overdue the day after (sev 3, assignee)", () => {
+    const onDay = snap({ openDataRequests: [dataRequest({ neededBy: NOW })] });
+    expect(computeFightList(onDay, NOW)).toEqual([]);
+
+    const items = computeFightList(
+      snap({ openDataRequests: [dataRequest({ neededBy: subDays(NOW, 1) })] }),
+      NOW
+    );
+    expect(items[0]).toMatchObject({
+      type: "OVERDUE_DATA_REQUEST",
+      severity: 3,
+      ageDays: 1,
+      responsible: alice,
+    });
+  });
+
+  it("overdue unassigned request yells at the advisor", () => {
+    const items = computeFightList(
+      snap({
+        openDataRequests: [
+          dataRequest({ neededBy: subDays(NOW, 2), assigneeId: null, assignee: null }),
+        ],
+      }),
+      NOW
+    );
+    expect(items[0]?.responsible).toEqual(prof);
+  });
+
+  it("unowned at 1 day is silent, at 3 days it flags for the advisor (sev 2)", () => {
+    const young = snap({
+      openDataRequests: [dataRequest({ assigneeId: null, assignee: null, createdAt: subDays(NOW, 1) })],
+    });
+    expect(computeFightList(young, NOW)).toEqual([]);
+
+    const items = computeFightList(
+      snap({
+        openDataRequests: [
+          dataRequest({ assigneeId: null, assignee: null, createdAt: subDays(NOW, 3) }),
+        ],
+      }),
+      NOW
+    );
+    expect(items[0]).toMatchObject({
+      type: "UNOWNED_DATA_REQUEST",
+      severity: 2,
+      ageDays: 1,
+      responsible: prof,
+    });
+  });
+
+  it("a request raises at most one fight (overdue wins over unowned)", () => {
+    const items = computeFightList(
+      snap({
+        openDataRequests: [
+          dataRequest({
+            assigneeId: null,
+            assignee: null,
+            createdAt: subDays(NOW, 10),
+            neededBy: subDays(NOW, 2),
+          }),
+        ],
+      }),
+      NOW
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0]?.type).toBe("OVERDUE_DATA_REQUEST");
+  });
+
+  it("delivered requests and paused/terminal projects don't fight", () => {
+    const delivered = snap({
+      openDataRequests: [dataRequest({ status: "DELIVERED", neededBy: subDays(NOW, 5) })],
+    });
+    expect(computeFightList(delivered, NOW)).toEqual([]);
+
+    for (const state of ["PAUSED", "DONE", "KILLED"] as const) {
+      const items = computeFightList(
+        snap({
+          projects: [
+            project({
+              state,
+              pauseReason: state === "PAUSED" ? "x" : null,
+              reviveDate: state === "PAUSED" ? addDays(NOW, 5) : null,
+            }),
+          ],
+          openDataRequests: [dataRequest({ neededBy: subDays(NOW, 5) })],
+        }),
+        NOW
+      );
+      expect(items).toEqual([]);
+    }
   });
 });
 

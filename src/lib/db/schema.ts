@@ -184,6 +184,36 @@ export const decisions = sqliteTable(
   ]
 );
 
+export const DATA_REQUEST_STATUSES = ["OPEN", "DELIVERED"] as const;
+export type DataRequestStatus = (typeof DATA_REQUEST_STATUSES)[number];
+
+export const dataRequests = sqliteTable(
+  "data_requests",
+  {
+    id: id(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id),
+    // what data is needed
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    neededBy: integer("needed_by", { mode: "timestamp_ms" }).notNull(),
+    requesterId: text("requester_id")
+      .notNull()
+      .references(() => user.id),
+    // a data analyst; null → unowned, escalates via the fight engine
+    assigneeId: text("assignee_id").references(() => user.id),
+    status: text("status", { enum: DATA_REQUEST_STATUSES }).notNull().default("OPEN"),
+    deliveryNote: text("delivery_note"),
+    createdAt: createdAt(),
+    deliveredAt: integer("delivered_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [
+    index("data_requests_status_idx").on(t.status),
+    index("data_requests_project_idx").on(t.projectId),
+  ]
+);
+
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   owner: one(user, {
     fields: [projects.ownerId],
@@ -198,6 +228,22 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   updates: many(updates),
   decisions: many(decisions),
   transitions: many(stateTransitions),
+  dataRequests: many(dataRequests),
+}));
+
+export const dataRequestsRelations = relations(dataRequests, ({ one }) => ({
+  project: one(projects, {
+    fields: [dataRequests.projectId],
+    references: [projects.id],
+  }),
+  requester: one(user, {
+    fields: [dataRequests.requesterId],
+    references: [user.id],
+  }),
+  assignee: one(user, {
+    fields: [dataRequests.assigneeId],
+    references: [user.id],
+  }),
 }));
 
 export const stateTransitionsRelations = relations(stateTransitions, ({ one }) => ({
@@ -256,6 +302,7 @@ export const decisionsRelations = relations(decisions, ({ one }) => ({
 }));
 
 export type User = typeof user.$inferSelect;
+export type DataRequest = typeof dataRequests.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type StateTransition = typeof stateTransitions.$inferSelect;
 export type Milestone = typeof milestones.$inferSelect;

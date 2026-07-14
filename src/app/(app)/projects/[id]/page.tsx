@@ -12,6 +12,7 @@ import { editProject } from "@/actions/projects";
 import { addUpdate } from "@/actions/updates";
 import { raiseBlocker } from "@/actions/blockers";
 import { addMilestone } from "@/actions/milestones";
+import { fileDataRequest } from "@/actions/data-requests";
 import { requestDecision } from "@/actions/decisions";
 import { decideDecision } from "@/actions/decisions";
 import { StateBadge } from "@/components/state-badge";
@@ -20,6 +21,7 @@ import { Initials } from "@/components/initials";
 import { TransitionButtons } from "@/components/transition-buttons";
 import { FormDialog } from "@/components/form-dialog";
 import { BlockerRowActions } from "@/components/blocker-row-actions";
+import { DataRequestRowActions } from "@/components/data-request-row-actions";
 import { MilestoneStatusButtons } from "@/components/milestone-status-buttons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -71,14 +73,25 @@ export default async function ProjectPage({
       updates: { with: { author: true }, orderBy: (u) => desc(u.createdAt) },
       decisions: { orderBy: (d) => desc(d.createdAt) },
       transitions: { with: { byUser: true }, orderBy: (t) => desc(t.createdAt) },
+      dataRequests: {
+        with: {
+          assignee: { columns: { id: true, name: true } },
+          requester: { columns: { id: true, name: true } },
+        },
+        orderBy: (dr) => desc(dr.createdAt),
+      },
     },
   });
   if (!project) notFound();
 
-  const people = await db
-    .select({ id: user.id, name: user.name })
+  const allPeople = await db
+    .select({ id: user.id, name: user.name, isDataAnalyst: user.isDataAnalyst })
     .from(user)
     .where(ne(user.banned, true));
+  const people = allPeople.map(({ id, name }) => ({ id, name }));
+  const analysts = allPeople
+    .filter((p) => p.isDataAnalyst)
+    .map(({ id, name }) => ({ id, name }));
 
   const now = new Date();
   const ageDays = projectAgeDays(
@@ -92,6 +105,7 @@ export default async function ProjectPage({
   );
   const openBlockers = project.blockers.filter((b) => b.status !== "RESOLVED");
   const pendingDecisions = project.decisions.filter((d) => d.status === "PENDING");
+  const openDataRequests = project.dataRequests.filter((dr) => dr.status === "OPEN");
 
   return (
     <div className="flex flex-col gap-6">
@@ -186,6 +200,7 @@ export default async function ProjectPage({
             Decisions ({pendingDecisions.length} pending)
           </TabsTrigger>
           <TabsTrigger value="milestones">Milestones ({project.milestones.length})</TabsTrigger>
+          <TabsTrigger value="data">Data ({openDataRequests.length} open)</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
 
@@ -501,6 +516,116 @@ export default async function ProjectPage({
                     </TableRow>
                   );
                 })}
+              </TableBody>
+            </Table>
+          )}
+        </TabsContent>
+
+        {/* Data requests */}
+        <TabsContent value="data" className="flex flex-col gap-4 pt-4">
+          <FormDialog
+            trigger={<Button className="self-start">Request data</Button>}
+            title="Request data"
+            description="The assigned analyst is responsible for delivering it. Unassigned requests escalate to the advisor after 2 days."
+            submitLabel="Request it"
+            successMessage="Data request filed."
+            action={fileDataRequest.bind(null, project.id)}
+          >
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="dr-title">What data do you need?</Label>
+              <Input id="dr-title" name="title" required />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="dr-description">Details</Label>
+              <Textarea
+                id="dr-description"
+                name="description"
+                placeholder="Format, source, time range, granularity, labels…"
+                rows={3}
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>Analyst</Label>
+              <PersonSelect
+                name="assigneeId"
+                people={analysts}
+                placeholder="Unassigned (any analyst can claim; escalates in 2 days)"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="dr-neededBy">Needed by</Label>
+              <Input id="dr-neededBy" name="neededBy" type="date" required />
+            </div>
+          </FormDialog>
+
+          {analysts.length === 0 && (
+            <p className="text-sm text-amber-400">
+              No data analysts yet — a coordinator can grant the analyst role on
+              the People page.
+            </p>
+          )}
+
+          {project.dataRequests.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No data requests. When a project needs data, ask for it here —
+              not in a hallway.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>What&apos;s needed</TableHead>
+                  <TableHead>Needed by</TableHead>
+                  <TableHead>Analyst</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {project.dataRequests.map((dr) => (
+                  <TableRow key={dr.id}>
+                    <TableCell className="max-w-xs">
+                      <p className="truncate font-medium" title={dr.title}>
+                        {dr.title}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground" title={dr.description}>
+                        {dr.status === "DELIVERED" && dr.deliveryNote
+                          ? `✓ ${dr.deliveryNote}`
+                          : dr.description}
+                      </p>
+                    </TableCell>
+                    <TableCell
+                      className={
+                        dr.status === "OPEN" && isOverdue(dr.neededBy, now)
+                          ? "font-medium text-red-400"
+                          : "text-muted-foreground"
+                      }
+                    >
+                      {format(dr.neededBy, "MMM d")}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {dr.assignee?.name ?? <span className="text-amber-400">Unassigned</span>}
+                    </TableCell>
+                    <TableCell>
+                      {dr.status === "DELIVERED" ? (
+                        <Badge variant="outline" className="text-emerald-500">Delivered</Badge>
+                      ) : (
+                        <Badge variant="outline">Open</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <DataRequestRowActions
+                        requestId={dr.id}
+                        status={dr.status}
+                        assigneeId={dr.assigneeId}
+                        analysts={analysts}
+                        meId={me.id}
+                        meIsAnalyst={me.isDataAnalyst}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           )}

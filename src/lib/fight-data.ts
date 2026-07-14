@@ -1,12 +1,12 @@
 import "server-only";
 import { desc, inArray, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { blockers, milestones } from "@/lib/db/schema";
+import { blockers, milestones, dataRequests } from "@/lib/db/schema";
 import type { LabSnapshot } from "@/lib/fight-engine";
 
 /** Assemble the fight engine's input from a handful of cheap queries. */
 export async function loadLabSnapshot(): Promise<LabSnapshot> {
-  const [projectRows, blockerRows, decisionRows, milestoneRows] = await Promise.all([
+  const [projectRows, blockerRows, decisionRows, milestoneRows, dataRequestRows] = await Promise.all([
     db.query.projects.findMany({
       with: {
         owner: { columns: { id: true, name: true } },
@@ -38,6 +38,10 @@ export async function loadLabSnapshot(): Promise<LabSnapshot> {
       .select()
       .from(milestones)
       .where(inArray(milestones.status, ["PLANNED", "IN_PROGRESS"])),
+    db.query.dataRequests.findMany({
+      where: ne(dataRequests.status, "DELIVERED"),
+      with: { assignee: { columns: { id: true, name: true } } },
+    }),
   ]);
 
   return {
@@ -79,6 +83,16 @@ export async function loadLabSnapshot(): Promise<LabSnapshot> {
       title: m.title,
       dueDate: m.dueDate,
       status: m.status,
+    })),
+    openDataRequests: dataRequestRows.map((dr) => ({
+      id: dr.id,
+      projectId: dr.projectId,
+      title: dr.title,
+      neededBy: dr.neededBy,
+      createdAt: dr.createdAt,
+      status: dr.status,
+      assigneeId: dr.assigneeId,
+      assignee: dr.assignee,
     })),
   };
 }

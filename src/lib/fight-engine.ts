@@ -58,11 +58,23 @@ export interface MilestoneRow {
   status: MilestoneStatus;
 }
 
+export interface DataRequestRow {
+  id: string;
+  projectId: string;
+  title: string;
+  neededBy: Date;
+  createdAt: Date;
+  status: string;
+  assigneeId: string | null;
+  assignee: PersonRef | null;
+}
+
 export interface LabSnapshot {
   projects: ProjectRow[];
   openBlockers: BlockerRow[];
   pendingDecisions: DecisionRow[];
   openMilestones: MilestoneRow[];
+  openDataRequests: DataRequestRow[];
 }
 
 export type FightType =
@@ -71,7 +83,9 @@ export type FightType =
   | "UNOWNED_BLOCKER"
   | "PENDING_DECISION"
   | "PAST_REVIVE"
-  | "MISSED_MILESTONE";
+  | "MISSED_MILESTONE"
+  | "OVERDUE_DATA_REQUEST"
+  | "UNOWNED_DATA_REQUEST";
 
 /** 3 = red, fight today. 2 = amber, fight this week. 1 = notice. */
 export type Severity = 3 | 2 | 1;
@@ -202,6 +216,48 @@ export function computeFightList(snap: LabSnapshot, now: Date): FightItem[] {
               ? `Escalated blocker still has no owner (${unownedDays}d old)`
               : `Nobody owns this blocker (${unownedDays}d old)`,
           detail: b.description,
+          responsible: project.advisor,
+        });
+      }
+    }
+  }
+
+  // Data requests obey the same rules as blockers: overdue ones yell at the
+  // analyst (or the advisor if unowned), unowned ones escalate after the
+  // grace period. "All rules apply to them."
+  for (const dr of snap.openDataRequests) {
+    if (dr.status === "DELIVERED") continue;
+    const project = projectById.get(dr.projectId);
+    if (!project || TERMINAL_OR_PAUSED.includes(project.state)) continue;
+
+    const overdueDays = differenceInDays(now, dr.neededBy);
+    if (overdueDays > 0) {
+      items.push({
+        type: "OVERDUE_DATA_REQUEST",
+        severity: 3,
+        ageDays: overdueDays,
+        projectId: dr.projectId,
+        projectTitle: project.title,
+        entityId: dr.id,
+        headline: `Data request ${overdueDays}d past its needed-by date`,
+        detail: dr.title,
+        responsible: dr.assignee ?? project.advisor,
+      });
+      continue; // overdue beats unowned — one fight per request
+    }
+
+    if (!dr.assigneeId) {
+      const unownedDays = differenceInDays(now, dr.createdAt);
+      if (unownedDays > UNOWNED_BLOCKER_DAYS) {
+        items.push({
+          type: "UNOWNED_DATA_REQUEST",
+          severity: 2,
+          ageDays: unownedDays - UNOWNED_BLOCKER_DAYS,
+          projectId: dr.projectId,
+          projectTitle: project.title,
+          entityId: dr.id,
+          headline: `No analyst owns this data request (${unownedDays}d old)`,
+          detail: dr.title,
           responsible: project.advisor,
         });
       }
