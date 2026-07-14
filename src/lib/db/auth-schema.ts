@@ -20,6 +20,16 @@ export const user = sqliteTable("user", {
   banned: integer("banned", { mode: "boolean" }).default(false),
   banReason: text("ban_reason"),
   banExpires: integer("ban_expires", { mode: "timestamp_ms" }),
+  // HAND-ADDED domain flags — NOT managed by better-auth.
+  // WARNING: `npx @better-auth/cli generate` regenerates this file and DROPS
+  // these two columns. Re-add them after any regeneration. They are read via
+  // getCurrentUser()'s row query, never from better-auth's session.user.
+  isDataAnalyst: integer("is_data_analyst", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  isComputeCoordinator: integer("is_compute_coordinator", { mode: "boolean" })
+    .notNull()
+    .default(false),
 });
 
 export const session = sqliteTable(
