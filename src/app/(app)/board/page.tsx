@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { user, type ProjectState, PROJECT_STATES } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/session";
 import { projectAgeDays } from "@/lib/fight-engine";
+import { getSettings } from "@/lib/settings";
 import { StateBadge } from "@/components/state-badge";
 import { AgePill } from "@/components/age-pill";
 import { Initials } from "@/components/initials";
@@ -26,6 +27,7 @@ export default async function BoardPage({
   if (!me) redirect("/login");
 
   const { state, owner } = await searchParams;
+  const settings = await getSettings();
 
   const [projects, owners] = await Promise.all([
     db.query.projects.findMany({
@@ -121,9 +123,16 @@ export default async function BoardPage({
                     ) : (
                       <p className="text-sm text-muted-foreground">No open milestone</p>
                     )}
-                    {moving && <AgePill ageDays={age} className="self-start" />}
+                    {moving && (
+                      <AgePill
+                        ageDays={age}
+                        freshDays={settings.thresholds.ageFreshDays}
+                        agingDays={settings.thresholds.ageAgingDays}
+                        className="self-start"
+                      />
+                    )}
                     {p.state === "PAUSED" && p.reviveDate && (
-                      <p className="text-xs text-amber-400">
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
                         revives {format(p.reviveDate, "MMM d, yyyy")}
                       </p>
                     )}

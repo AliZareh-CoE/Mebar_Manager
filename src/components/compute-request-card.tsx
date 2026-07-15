@@ -17,9 +17,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 const STATUS_STYLES: Record<ComputeRequestStatus, string> = {
-  PENDING: "text-amber-400",
-  APPROVED: "text-blue-400",
-  DENIED: "text-red-400",
+  PENDING: "text-amber-600 dark:text-amber-400",
+  APPROVED: "text-blue-600 dark:text-blue-400",
+  DENIED: "text-red-600 dark:text-red-400",
   COMPLETED: "text-emerald-500",
 };
 
@@ -90,13 +90,13 @@ export function ComputeRequestCard({
           <div className="rounded-md border border-blue-500/30 bg-blue-500/10 p-3 text-sm">
             {request.windowEnd && (
               <p>
-                <span className="font-medium text-blue-400">Hours expire:</span>{" "}
+                <span className="font-medium text-blue-600 dark:text-blue-400">Hours expire:</span>{" "}
                 {format(request.windowEnd, "MMM d, yyyy")}
               </p>
             )}
             {canSeeAccess && request.accessInstructions && (
               <p className="mt-1">
-                <span className="font-medium text-blue-400">Access:</span>{" "}
+                <span className="font-medium text-blue-600 dark:text-blue-400">Access:</span>{" "}
                 {request.accessInstructions}
               </p>
             )}
@@ -109,7 +109,7 @@ export function ComputeRequestCard({
         )}
         {status === "DENIED" && request.denialReason && (
           <p className="text-sm">
-            <span className="font-medium text-red-400">Denied:</span> {request.denialReason}
+            <span className="font-medium text-red-600 dark:text-red-400">Denied:</span> {request.denialReason}
           </p>
         )}
         {status === "COMPLETED" && request.resultsSummary && (

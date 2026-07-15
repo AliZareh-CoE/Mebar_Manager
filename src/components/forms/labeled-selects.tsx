@@ -47,6 +47,37 @@ export function PersonSelect({
   );
 }
 
+export function EnumSelect({
+  name,
+  options,
+  defaultValue,
+  className,
+}: {
+  name: string;
+  options: { value: string; label: string }[];
+  defaultValue?: string;
+  className?: string;
+}) {
+  return (
+    <Select name={name} defaultValue={defaultValue}>
+      <SelectTrigger className={className}>
+        <SelectValue>
+          {(v: string | null) =>
+            options.find((o) => o.value === v)?.label ?? options[0]?.label ?? ""
+          }
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((o) => (
+          <SelectItem key={o.value} value={o.value}>
+            {o.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 export function CauseSelect({ name = "causeTag" }: { name?: string }) {
   return (
     <Select name={name} defaultValue="TECHNICAL">

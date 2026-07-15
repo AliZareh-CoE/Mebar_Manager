@@ -41,7 +41,7 @@ export default async function NewComputeRequestPage({
           {coordinator ? (
             <> — decided by {coordinator.name}, and only by them.</>
           ) : (
-            <span className="text-amber-400">
+            <span className="text-amber-600 dark:text-amber-400">
               {" "}
               — no compute coordinator is set yet; a manager must take the role
               on the People page before this can be approved.

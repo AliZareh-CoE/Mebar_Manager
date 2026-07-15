@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/session";
 import { expireOverdueDecisions } from "@/lib/maintenance";
-import { DECISION_TIMEOUT_HOURS } from "@/lib/thresholds";
+import { getSettings } from "@/lib/settings";
 import { CAUSE_TAG_LABELS } from "@/lib/labels";
 import { editProject } from "@/actions/projects";
 import { addUpdate } from "@/actions/updates";
@@ -63,7 +63,8 @@ export default async function ProjectPage({
   const me = await getCurrentUser();
   if (!me) notFound();
 
-  expireOverdueDecisions();
+  const settings = await getSettings();
+  expireOverdueDecisions(new Date(), settings.thresholds.decisionTimeoutHours);
 
   const project = await db.query.projects.findFirst({
     where: (p, { eq }) => eq(p.id, id),
@@ -121,7 +122,11 @@ export default async function ProjectPage({
           <h1 className="text-2xl font-semibold tracking-tight">{project.title}</h1>
           <StateBadge state={project.state} />
           {(project.state === "ACTIVE" || project.state === "BLOCKED") && (
-            <AgePill ageDays={ageDays} />
+            <AgePill
+              ageDays={ageDays}
+              freshDays={settings.thresholds.ageFreshDays}
+              agingDays={settings.thresholds.ageAgingDays}
+            />
           )}
         </div>
         {project.description && (
@@ -138,7 +143,7 @@ export default async function ProjectPage({
         </div>
         {project.state === "PAUSED" && (
           <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
-            <span className="font-medium text-amber-400">Paused:</span>{" "}
+            <span className="font-medium text-amber-600 dark:text-amber-400">Paused:</span>{" "}
             {project.pauseReason}
             {project.reviveDate && (
               <span className="text-muted-foreground">
@@ -250,11 +255,11 @@ export default async function ProjectPage({
                     {u.author.name} · {format(u.createdAt, "MMM d, yyyy")}
                   </div>
                   <div className="mt-1 grid gap-1 text-sm">
-                    <p><span className="font-medium text-green-400">Moved:</span> {u.whatMoved}</p>
+                    <p><span className="font-medium text-green-600 dark:text-green-400">Moved:</span> {u.whatMoved}</p>
                     {u.whatsBlocked && (
-                      <p><span className="font-medium text-red-400">Blocked:</span> {u.whatsBlocked}</p>
+                      <p><span className="font-medium text-red-600 dark:text-red-400">Blocked:</span> {u.whatsBlocked}</p>
                     )}
-                    <p><span className="font-medium text-blue-400">Next:</span> {u.whatsNext}</p>
+                    <p><span className="font-medium text-blue-600 dark:text-blue-400">Next:</span> {u.whatsNext}</p>
                   </div>
                 </li>
               ))}
@@ -332,7 +337,7 @@ export default async function ProjectPage({
                     <TableCell
                       className={
                         b.status !== "RESOLVED" && isOverdue(b.deadline, now)
-                          ? "font-medium text-red-400"
+                          ? "font-medium text-red-600 dark:text-red-400"
                           : "text-muted-foreground"
                       }
                     >
@@ -367,7 +372,7 @@ export default async function ProjectPage({
           <FormDialog
             trigger={<Button className="self-start">Request decision</Button>}
             title="Request a decision"
-            description={`If ${project.advisor.name} doesn't answer within ${DECISION_TIMEOUT_HOURS} hours, you proceed with your recommendation. Default to action.`}
+            description={`If ${project.advisor.name} doesn't answer within ${settings.thresholds.decisionTimeoutHours} hours, you proceed with your recommendation. Default to action.`}
             submitLabel="Request it"
             successMessage="Decision requested. The 48-hour clock is running."
             action={requestDecision.bind(null, project.id)}
@@ -391,20 +396,20 @@ export default async function ProjectPage({
           ) : (
             <div className="flex flex-col gap-3">
               {project.decisions.map((d) => {
-                const deadline = addHours(d.createdAt, DECISION_TIMEOUT_HOURS);
+                const deadline = addHours(d.createdAt, settings.thresholds.decisionTimeoutHours);
                 return (
                   <Card key={d.id}>
                     <CardContent className="flex flex-col gap-2 pt-0">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="font-medium">{d.question}</p>
                         {d.status === "PENDING" ? (
-                          <Badge variant="outline" className="text-amber-400">
+                          <Badge variant="outline" className="text-amber-600 dark:text-amber-400">
                             auto-proceeds in {formatDistanceStrict(deadline, now)}
                           </Badge>
                         ) : d.status === "DECIDED" ? (
                           <Badge variant="outline" className="text-emerald-500">Decided</Badge>
                         ) : (
-                          <Badge variant="outline" className="text-blue-400">
+                          <Badge variant="outline" className="text-blue-600 dark:text-blue-400">
                             Auto-proceeded with recommendation
                           </Badge>
                         )}
@@ -413,7 +418,7 @@ export default async function ProjectPage({
                         {d.options}
                       </pre>
                       <p className="text-sm">
-                        <span className="font-medium text-blue-400">Recommendation:</span>{" "}
+                        <span className="font-medium text-blue-600 dark:text-blue-400">Recommendation:</span>{" "}
                         {d.recommendation}
                       </p>
                       {d.decisionNote && (
@@ -505,7 +510,7 @@ export default async function ProjectPage({
                       <TableCell className="max-w-xs truncate text-muted-foreground" title={m.deliverable}>
                         {m.deliverable}
                       </TableCell>
-                      <TableCell className={missed ? "font-medium text-red-400" : "text-muted-foreground"}>
+                      <TableCell className={missed ? "font-medium text-red-600 dark:text-red-400" : "text-muted-foreground"}>
                         {format(m.dueDate, "MMM d")}
                       </TableCell>
                       <TableCell>
@@ -514,7 +519,7 @@ export default async function ProjectPage({
                         ) : missed ? (
                           <Badge variant="destructive">Missed</Badge>
                         ) : m.status === "IN_PROGRESS" ? (
-                          <Badge variant="outline" className="text-blue-400">In progress</Badge>
+                          <Badge variant="outline" className="text-blue-600 dark:text-blue-400">In progress</Badge>
                         ) : (
                           <Badge variant="outline">Planned</Badge>
                         )}
@@ -569,7 +574,7 @@ export default async function ProjectPage({
           </FormDialog>
 
           {analysts.length === 0 && (
-            <p className="text-sm text-amber-400">
+            <p className="text-sm text-amber-600 dark:text-amber-400">
               No data analysts yet — a coordinator can grant the analyst role on
               the People page.
             </p>
@@ -607,14 +612,14 @@ export default async function ProjectPage({
                     <TableCell
                       className={
                         dr.status === "OPEN" && isOverdue(dr.neededBy, now)
-                          ? "font-medium text-red-400"
+                          ? "font-medium text-red-600 dark:text-red-400"
                           : "text-muted-foreground"
                       }
                     >
                       {format(dr.neededBy, "MMM d")}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {dr.assignee?.name ?? <span className="text-amber-400">Unassigned</span>}
+                      {dr.assignee?.name ?? <span className="text-amber-600 dark:text-amber-400">Unassigned</span>}
                     </TableCell>
                     <TableCell>
                       {dr.status === "DELIVERED" ? (

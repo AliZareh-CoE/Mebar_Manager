@@ -41,7 +41,7 @@ export default async function AdminUsersPage() {
       </div>
 
       {!coordinator && (
-        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-400">
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-400">
           No compute coordinator is set — compute requests can&apos;t be approved
           until a manager takes the role below.
         </div>
@@ -72,7 +72,7 @@ export default async function AdminUsersPage() {
               <TableCell>
                 <div className="flex flex-wrap gap-1">
                   {u.isDataAnalyst && (
-                    <Badge variant="outline" className="text-blue-400">
+                    <Badge variant="outline" className="text-blue-600 dark:text-blue-400">
                       Data analyst
                     </Badge>
                   )}

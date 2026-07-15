@@ -109,6 +109,25 @@ export type FightType =
 /** 3 = red, fight today. 2 = amber, fight this week. 1 = notice. */
 export type Severity = 3 | 2 | 1;
 
+/** Tunable rule numbers — admin-editable; constants remain the defaults. */
+export interface FightThresholds {
+  stallDays: number;
+  unownedGraceDays: number;
+  decisionTimeoutHours: number;
+  decisionUrgentHours: number;
+  computePendingUrgentHours: number;
+  computeResultsUrgentDays: number;
+}
+
+export const DEFAULT_THRESHOLDS: FightThresholds = {
+  stallDays: STALL_DAYS,
+  unownedGraceDays: UNOWNED_BLOCKER_DAYS,
+  decisionTimeoutHours: DECISION_TIMEOUT_HOURS,
+  decisionUrgentHours: DECISION_URGENT_HOURS,
+  computePendingUrgentHours: COMPUTE_PENDING_URGENT_HOURS,
+  computeResultsUrgentDays: COMPUTE_RESULTS_URGENT_DAYS,
+};
+
 export interface FightItem {
   type: FightType;
   severity: Severity;
@@ -154,19 +173,23 @@ export function isOverdue(date: Date, now: Date): boolean {
   return differenceInDays(now, date) > 0;
 }
 
-export function computeFightList(snap: LabSnapshot, now: Date): FightItem[] {
+export function computeFightList(
+  snap: LabSnapshot,
+  now: Date,
+  t: FightThresholds = DEFAULT_THRESHOLDS
+): FightItem[] {
   const items: FightItem[] = [];
   const projectById = new Map(snap.projects.map((p) => [p.id, p]));
 
-  // Stalled projects: ACTIVE/BLOCKED with no sign of life in STALL_DAYS.
+  // Stalled projects: ACTIVE/BLOCKED with no sign of life in t.stallDays.
   for (const p of snap.projects) {
     if (p.state !== "ACTIVE" && p.state !== "BLOCKED") continue;
     const age = projectAgeDays(p, now);
-    if (age > STALL_DAYS) {
+    if (age > t.stallDays) {
       items.push({
         type: "STALLED_PROJECT",
         severity: 3,
-        ageDays: age - STALL_DAYS,
+        ageDays: age - t.stallDays,
         projectId: p.id,
         projectTitle: p.title,
         entityId: p.id,
@@ -222,11 +245,11 @@ export function computeFightList(snap: LabSnapshot, now: Date): FightItem[] {
     // urgent, not less — escalating must never hide it from the list.
     if (!b.ownerId) {
       const unownedDays = differenceInDays(now, b.createdAt);
-      if (unownedDays > UNOWNED_BLOCKER_DAYS || b.status === "ESCALATED") {
+      if (unownedDays > t.unownedGraceDays || b.status === "ESCALATED") {
         items.push({
           type: "UNOWNED_BLOCKER",
           severity: b.status === "ESCALATED" ? 3 : 2,
-          ageDays: Math.max(0, unownedDays - UNOWNED_BLOCKER_DAYS),
+          ageDays: Math.max(0, unownedDays - t.unownedGraceDays),
           projectId: b.projectId,
           projectTitle: project.title,
           entityId: b.id,
@@ -267,11 +290,11 @@ export function computeFightList(snap: LabSnapshot, now: Date): FightItem[] {
 
     if (!dr.assigneeId) {
       const unownedDays = differenceInDays(now, dr.createdAt);
-      if (unownedDays > UNOWNED_BLOCKER_DAYS) {
+      if (unownedDays > t.unownedGraceDays) {
         items.push({
           type: "UNOWNED_DATA_REQUEST",
           severity: 2,
-          ageDays: unownedDays - UNOWNED_BLOCKER_DAYS,
+          ageDays: unownedDays - t.unownedGraceDays,
           projectId: dr.projectId,
           projectTitle: project.title,
           entityId: dr.id,
@@ -291,12 +314,12 @@ export function computeFightList(snap: LabSnapshot, now: Date): FightItem[] {
     if (d.status !== "PENDING") continue;
     const project = projectById.get(d.projectId);
     if (!project || TERMINAL_OR_PAUSED.includes(project.state)) continue;
-    const deadline = addHours(d.createdAt, DECISION_TIMEOUT_HOURS);
+    const deadline = addHours(d.createdAt, t.decisionTimeoutHours);
     const minutesLeft = differenceInMinutes(deadline, now);
     const hoursLeft = Math.floor(minutesLeft / 60);
     items.push({
       type: "PENDING_DECISION",
-      severity: hoursLeft < DECISION_URGENT_HOURS ? 3 : 2,
+      severity: hoursLeft < t.decisionUrgentHours ? 3 : 2,
       ageDays: Math.max(0, differenceInDays(now, d.createdAt)),
       projectId: d.projectId,
       projectTitle: project.title,
@@ -347,7 +370,7 @@ export function computeFightList(snap: LabSnapshot, now: Date): FightItem[] {
       const hoursOld = differenceInHours(now, cr.createdAt);
       items.push({
         type: "PENDING_COMPUTE_REQUEST",
-        severity: hoursOld > COMPUTE_PENDING_URGENT_HOURS ? 3 : 2,
+        severity: hoursOld > t.computePendingUrgentHours ? 3 : 2,
         ageDays: Math.max(0, differenceInDays(now, cr.createdAt)),
         projectId: cr.projectId,
         projectTitle: project.title,
@@ -366,7 +389,7 @@ export function computeFightList(snap: LabSnapshot, now: Date): FightItem[] {
       if (over > 0) {
         items.push({
           type: "OVERDUE_COMPUTE_RESULTS",
-          severity: over > COMPUTE_RESULTS_URGENT_DAYS ? 3 : 2,
+          severity: over > t.computeResultsUrgentDays ? 3 : 2,
           ageDays: over,
           projectId: cr.projectId,
           projectTitle: project.title,

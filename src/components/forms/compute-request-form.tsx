@@ -128,7 +128,7 @@ export function ComputeRequestForm({ projectId }: { projectId: string }) {
             <p className="text-xs text-muted-foreground">
               Full-system utilization is expected. Check what applies
               {multiGpu && (
-                <span className="text-amber-400">
+                <span className="text-amber-600 dark:text-amber-400">
                   {" "}
                   — DDP/FSDP is mandatory on multi-GPU servers.
                 </span>

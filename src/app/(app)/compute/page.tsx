@@ -47,7 +47,7 @@ export default async function ComputePage() {
               approvals grant access (NVIDIA Brev) with an expiry window.
             </>
           ) : (
-            <span className="text-amber-400">
+            <span className="text-amber-600 dark:text-amber-400">
               No compute coordinator is set — managers can take the role on the
               People page. Requests queue until then.
             </span>

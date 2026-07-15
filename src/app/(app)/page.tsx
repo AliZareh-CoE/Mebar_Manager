@@ -1,5 +1,6 @@
 import { PartyPopper } from "lucide-react";
 import { getCurrentUser } from "@/lib/session";
+import { getSettings } from "@/lib/settings";
 import { expireOverdueDecisions } from "@/lib/maintenance";
 import { loadLabSnapshot, loadAllBlockerCauses } from "@/lib/fight-data";
 import {
@@ -40,7 +41,7 @@ export const dynamic = "force-dynamic";
 const SECTIONS: Record<FightType, { title: string; blurb: string }> = {
   STALLED_PROJECT: {
     title: "Stalled projects",
-    blurb: "No update in two weeks. One update ends the fight.",
+    blurb: "No update past the stall threshold. One update ends the fight.",
   },
   PAST_REVIVE: {
     title: "Past their revive date",
@@ -97,7 +98,8 @@ export default async function FightListPage() {
   const me = await getCurrentUser();
   if (!me) return null;
 
-  expireOverdueDecisions();
+  const settings = await getSettings();
+  expireOverdueDecisions(new Date(), settings.thresholds.decisionTimeoutHours);
 
   const [snapshot, causes, allPeople] = await Promise.all([
     loadLabSnapshot(),
@@ -114,7 +116,7 @@ export default async function FightListPage() {
     .map(({ id, name }) => ({ id, name }));
 
   const now = new Date();
-  const items = computeFightList(snapshot, now);
+  const items = computeFightList(snapshot, now, settings.thresholds);
   const pareto = computeParetoData(causes);
   const blockerById = new Map(snapshot.openBlockers.map((b) => [b.id, b]));
   const milestoneById = new Map(snapshot.openMilestones.map((m) => [m.id, m]));
@@ -258,7 +260,7 @@ export default async function FightListPage() {
       {items.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
-            <PartyPopper className="size-10 text-green-400" />
+            <PartyPopper className="size-10 text-green-600 dark:text-green-400" />
             <p className="text-xl font-medium">Nothing to fight today.</p>
             <p className="max-w-md text-sm text-muted-foreground">
               No stalls, no overdue blockers, no waiting decisions. This is what

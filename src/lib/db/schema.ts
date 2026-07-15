@@ -184,6 +184,16 @@ export const decisions = sqliteTable(
   ]
 );
 
+// Single-row settings store: { id: 1, data: <zod-validated JSON blob> }.
+// Shape and defaults live in src/lib/settings.ts.
+export const labSettings = sqliteTable("lab_settings", {
+  id: integer("id").primaryKey(),
+  data: text("data", { mode: "json" }).$type<unknown>().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 export const DATA_REQUEST_STATUSES = ["OPEN", "DELIVERED"] as const;
 export type DataRequestStatus = (typeof DATA_REQUEST_STATUSES)[number];
 

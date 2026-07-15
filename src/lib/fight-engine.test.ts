@@ -628,6 +628,39 @@ describe("projectAgeDays", () => {
   });
 });
 
+describe("custom thresholds", () => {
+  const custom = {
+    stallDays: 30,
+    unownedGraceDays: 2,
+    decisionTimeoutHours: 48,
+    decisionUrgentHours: 24,
+    computePendingUrgentHours: 48,
+    computeResultsUrgentDays: 1,
+  };
+
+  it("stallDays 30 un-stalls a 21-day-silent project", () => {
+    const s = snap({ projects: [project({ lastUpdateAt: subDays(NOW, 21) })] });
+    expect(computeFightList(s, NOW)[0]?.type).toBe("STALLED_PROJECT"); // default 14
+    expect(computeFightList(s, NOW, custom)).toEqual([]);
+  });
+
+  it("decisionUrgentHours 24 flips a 22h-remaining decision to sev 3", () => {
+    const s = snap({ pendingDecisions: [decision({ createdAt: subHours(NOW, 26) })] }); // 22h left
+    expect(computeFightList(s, NOW)[0]?.severity).toBe(2); // default urgent = 12h
+    expect(computeFightList(s, NOW, custom)[0]?.severity).toBe(3);
+  });
+
+  it("computeResultsUrgentDays 1 makes a 2-day-overdue result sev 3", () => {
+    const s = snap({
+      activeComputeRequests: [
+        computeRequest({ status: "APPROVED", windowEnd: subDays(NOW, 2) }),
+      ],
+    });
+    expect(computeFightList(s, NOW)[0]?.severity).toBe(2); // default 7d
+    expect(computeFightList(s, NOW, custom)[0]?.severity).toBe(3);
+  });
+});
+
 describe("computeParetoData", () => {
   it("counts, percentages, sorted desc", () => {
     const data = computeParetoData([

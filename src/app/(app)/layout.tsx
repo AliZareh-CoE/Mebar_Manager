@@ -2,11 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Flame } from "lucide-react";
 import { getCurrentUser } from "@/lib/session";
+import { getSettings } from "@/lib/settings";
 import { expireOverdueDecisions } from "@/lib/maintenance";
 import { loadLabSnapshot } from "@/lib/fight-data";
 import { computeFightList } from "@/lib/fight-engine";
 import { NavLinks } from "@/components/nav-links";
 import { SignOutButton } from "@/components/sign-out-button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default async function AppLayout({
   children,
@@ -16,10 +18,15 @@ export default async function AppLayout({
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  // Expire first so the badge never counts decisions already past the 48h
-  // cutoff as pending fights.
-  expireOverdueDecisions();
-  const fightCount = computeFightList(await loadLabSnapshot(), new Date()).length;
+  const settings = await getSettings();
+  // Expire first so the badge never counts decisions already past the
+  // timeout as pending fights.
+  expireOverdueDecisions(new Date(), settings.thresholds.decisionTimeoutHours);
+  const fightCount = computeFightList(
+    await loadLabSnapshot(),
+    new Date(),
+    settings.thresholds
+  ).length;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -30,13 +37,17 @@ export default async function AppLayout({
             className="flex items-center gap-1.5 font-semibold tracking-tight"
           >
             <Flame className="size-5 text-red-500" />
-            Mebar
+            {settings.labName}
           </Link>
           <NavLinks isManager={user.role === "MANAGER"} fightCount={fightCount} />
           <div className="ml-auto flex items-center gap-3">
-            <span className="hidden text-sm text-muted-foreground sm:inline">
+            <Link
+              href="/account"
+              className="hidden text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline sm:inline"
+            >
               {user.name}
-            </span>
+            </Link>
+            <ThemeToggle />
             <SignOutButton />
           </div>
         </div>

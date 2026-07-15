@@ -14,13 +14,16 @@ import { DECISION_TIMEOUT_HOURS } from "@/lib/thresholds";
  * with anything on a paused project, so the 48h clock only applies while the
  * project is moving.
  */
-export function expireOverdueDecisions(now: Date = new Date()): void {
+export function expireOverdueDecisions(
+  now: Date = new Date(),
+  timeoutHours: number = DECISION_TIMEOUT_HOURS
+): void {
   db.update(decisions)
     .set({ status: "AUTO_PROCEEDED", decidedAt: now })
     .where(
       and(
         eq(decisions.status, "PENDING"),
-        lt(decisions.createdAt, subHours(now, DECISION_TIMEOUT_HOURS)),
+        lt(decisions.createdAt, subHours(now, timeoutHours)),
         inArray(
           decisions.projectId,
           db

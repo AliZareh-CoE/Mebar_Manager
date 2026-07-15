@@ -2,13 +2,23 @@ import { cn } from "@/lib/utils";
 import { AGE_FRESH_DAYS, AGE_AGING_DAYS } from "@/lib/thresholds";
 
 /** Days since last progress, colored by how worried we should be. */
-export function AgePill({ ageDays, className }: { ageDays: number; className?: string }) {
+export function AgePill({
+  ageDays,
+  freshDays = AGE_FRESH_DAYS,
+  agingDays = AGE_AGING_DAYS,
+  className,
+}: {
+  ageDays: number;
+  freshDays?: number;
+  agingDays?: number;
+  className?: string;
+}) {
   const tone =
-    ageDays <= AGE_FRESH_DAYS
-      ? "bg-green-500/15 text-green-400"
-      : ageDays <= AGE_AGING_DAYS
-        ? "bg-amber-500/15 text-amber-400"
-        : "bg-red-500/15 text-red-400";
+    ageDays <= freshDays
+      ? "bg-green-500/15 text-green-600 dark:text-green-400"
+      : ageDays <= agingDays
+        ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+        : "bg-red-500/15 text-red-600 dark:text-red-400";
 
   return (
     <span
