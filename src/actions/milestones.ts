@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/session";
 import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 import { canAccessProject } from "@/lib/visibility";
+import { notifyProjectEvent } from "@/lib/notify";
 
 function revalidateMilestone(projectId: string) {
   revalidatePath("/");
@@ -76,6 +77,12 @@ export async function setMilestoneStatus(
     .where(eq(milestones.id, milestoneId));
 
   revalidateMilestone(milestone.projectId);
+  if (status === "DONE") {
+    void notifyProjectEvent(milestone.projectId, {
+      title: "Milestone completed",
+      lines: [`"${milestone.title}" — marked done by ${me.name}.`],
+    });
+  }
   return {};
 }
 

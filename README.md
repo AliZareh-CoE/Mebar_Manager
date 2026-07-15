@@ -171,6 +171,11 @@ rendering:
   their own fights). Managers reset passwords, rename, promote/demote from
   the People page. "Forgot password" emails a reset link when SMTP_* env vars
   are set (see `.env.example`); otherwise it points at the coordinator reset.
+- **Watcher emails**: people on a project's People tab with the bell toggled
+  on get a plain-text email on big events — state changes, milestones
+  completed, paper status changes (never the daily chatter). Externals use
+  the email on their row; members their account email. Needs the same SMTP_*
+  vars; without them the toggle is stored but nothing sends.
 - **No hard deletes**: everything closes with a status and a reason —
   blockers/milestones/decisions/data requests cancel, compute requests
   withdraw, projects are killed. History stays on the record.

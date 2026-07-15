@@ -36,3 +36,19 @@ export async function sendPasswordResetEmail(to: string, url: string): Promise<v
     text: `Someone (hopefully you) requested a password reset.\n\nReset it here: ${url}\n\nThe link expires in an hour. If you didn't ask for this, ignore this email.`,
   });
 }
+
+/** Plain-text mail to a list of watchers (project notifications). */
+export async function sendWatcherEmail(
+  to: string[],
+  subject: string,
+  text: string
+): Promise<void> {
+  if (to.length === 0) return;
+  await getTransporter().sendMail({
+    from: process.env.SMTP_FROM,
+    // BCC so external watchers don't see each other's addresses.
+    bcc: to,
+    subject,
+    text,
+  });
+}

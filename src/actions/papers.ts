@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/session";
 import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 import { canAccessProject } from "@/lib/visibility";
+import { notifyProjectEvent } from "@/lib/notify";
 import {
   canTransitionPaper,
   transitionRequirements,
@@ -115,5 +116,12 @@ export async function transitionPaper(
     .set(transitionColumns(to, new Date(), { venue, closureNote }))
     .where(eq(papers.id, paperId));
   revalidatePaper(paper.projectId);
+  void notifyProjectEvent(paper.projectId, {
+    title: `Paper ${PAPER_STATUS_LABELS[to].toLowerCase()}`,
+    lines: [
+      `"${paper.title}"${venue || paper.venue ? ` — ${venue || paper.venue}` : ""}.`,
+      ...(closureNote ? [`Note: ${closureNote}`] : []),
+    ],
+  });
   return {};
 }
