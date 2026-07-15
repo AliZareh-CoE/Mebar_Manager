@@ -1,5 +1,7 @@
 import { differenceInDays, differenceInHours, differenceInMinutes, addHours } from "date-fns";
-import type { ProjectState, CauseTag, BlockerStatus, MilestoneStatus } from "@/lib/db/schema";
+import type { CauseTag, BlockerStatus, MilestoneStatus } from "@/lib/db/schema";
+import { engineStateFlags } from "@/lib/workflow";
+import { DEFAULT_WORKFLOW } from "@/lib/settings-defaults";
 import {
   STALL_DAYS,
   UNOWNED_BLOCKER_DAYS,
@@ -19,7 +21,8 @@ export type PersonRef = { id: string; name: string };
 export interface ProjectRow {
   id: string;
   title: string;
-  state: ProjectState;
+  /** A workflow state key — semantics come from FightConfig.stateFlags. */
+  state: string;
   createdAt: Date;
   lastUpdateAt: Date | null;
   /** Latest transition INTO ACTIVE (start/revive/unblock) — resets the stall clock. */
@@ -142,7 +145,25 @@ export interface FightItem {
   responsible: PersonRef | null;
 }
 
-const TERMINAL_OR_PAUSED: ProjectState[] = ["DONE", "KILLED", "PAUSED"];
+/** Per-state semantics — what the rules ask instead of comparing key literals. */
+export interface StateSemantics {
+  /** Terminal or paused: nothing on the project fights (except results debts). */
+  frozen: boolean;
+  /** The stall rule watches this state. */
+  countsForStall: boolean;
+  /** The past-revive rule watches this state. */
+  paused: boolean;
+}
+
+export interface FightConfig {
+  /** Keyed by workflow state key; unknown states are treated as moving. */
+  stateFlags?: Record<string, StateSemantics>;
+  /** Per-rule off switch — admin-configurable; missing means enabled. */
+  enabledRules?: Partial<Record<FightType, boolean>>;
+}
+
+const DEFAULT_STATE_FLAGS = engineStateFlags(DEFAULT_WORKFLOW);
+const MOVING: StateSemantics = { frozen: false, countsForStall: false, paused: false };
 
 /**
  * Days since the project last showed signs of life: an update, or a
@@ -176,14 +197,19 @@ export function isOverdue(date: Date, now: Date): boolean {
 export function computeFightList(
   snap: LabSnapshot,
   now: Date,
-  t: FightThresholds = DEFAULT_THRESHOLDS
+  t: FightThresholds = DEFAULT_THRESHOLDS,
+  config: FightConfig = {}
 ): FightItem[] {
   const items: FightItem[] = [];
   const projectById = new Map(snap.projects.map((p) => [p.id, p]));
+  const stateFlags = config.stateFlags ?? DEFAULT_STATE_FLAGS;
+  const flagsOf = (state: string): StateSemantics => stateFlags[state] ?? MOVING;
+  const enabled = (type: FightType) => config.enabledRules?.[type] !== false;
 
-  // Stalled projects: ACTIVE/BLOCKED with no sign of life in t.stallDays.
+  // Stalled projects: stall-counted states with no sign of life in t.stallDays.
   for (const p of snap.projects) {
-    if (p.state !== "ACTIVE" && p.state !== "BLOCKED") continue;
+    if (!enabled("STALLED_PROJECT")) break;
+    if (!flagsOf(p.state).countsForStall) continue;
     const age = projectAgeDays(p, now);
     if (age > t.stallDays) {
       items.push({
@@ -202,7 +228,8 @@ export function computeFightList(
 
   // Paused projects past their revive date.
   for (const p of snap.projects) {
-    if (p.state !== "PAUSED" || !p.reviveDate) continue;
+    if (!enabled("PAST_REVIVE")) break;
+    if (!flagsOf(p.state).paused || !p.reviveDate) continue;
     const over = differenceInDays(now, p.reviveDate);
     if (over > 0) {
       items.push({
@@ -222,11 +249,11 @@ export function computeFightList(
   for (const b of snap.openBlockers) {
     if (b.status === "RESOLVED" || b.status === "CANCELLED") continue;
     const project = projectById.get(b.projectId);
-    if (!project || TERMINAL_OR_PAUSED.includes(project.state)) continue;
+    if (!project || flagsOf(project.state).frozen) continue;
 
     // Overdue blockers.
     const overdueDays = differenceInDays(now, b.deadline);
-    if (overdueDays > 0) {
+    if (overdueDays > 0 && enabled("OVERDUE_BLOCKER")) {
       items.push({
         type: "OVERDUE_BLOCKER",
         severity: 3,
@@ -243,7 +270,7 @@ export function computeFightList(
 
     // Unowned blockers past the grace period. An ESCALATED blocker is MORE
     // urgent, not less — escalating must never hide it from the list.
-    if (!b.ownerId) {
+    if (!b.ownerId && enabled("UNOWNED_BLOCKER")) {
       const unownedDays = differenceInDays(now, b.createdAt);
       if (unownedDays > t.unownedGraceDays || b.status === "ESCALATED") {
         items.push({
@@ -270,10 +297,10 @@ export function computeFightList(
   for (const dr of snap.openDataRequests) {
     if (dr.status === "DELIVERED" || dr.status === "CANCELLED") continue;
     const project = projectById.get(dr.projectId);
-    if (!project || TERMINAL_OR_PAUSED.includes(project.state)) continue;
+    if (!project || flagsOf(project.state).frozen) continue;
 
     const overdueDays = differenceInDays(now, dr.neededBy);
-    if (overdueDays > 0) {
+    if (overdueDays > 0 && enabled("OVERDUE_DATA_REQUEST")) {
       items.push({
         type: "OVERDUE_DATA_REQUEST",
         severity: 3,
@@ -288,7 +315,7 @@ export function computeFightList(
       continue; // overdue beats unowned — one fight per request
     }
 
-    if (!dr.assigneeId) {
+    if (!dr.assigneeId && enabled("UNOWNED_DATA_REQUEST")) {
       const unownedDays = differenceInDays(now, dr.createdAt);
       if (unownedDays > t.unownedGraceDays) {
         items.push({
@@ -311,9 +338,10 @@ export function computeFightList(
   // paused/finished projects neither fight nor auto-proceed (see
   // expireOverdueDecisions), so a pause freezes its open questions too.
   for (const d of snap.pendingDecisions) {
+    if (!enabled("PENDING_DECISION")) break;
     if (d.status !== "PENDING") continue;
     const project = projectById.get(d.projectId);
-    if (!project || TERMINAL_OR_PAUSED.includes(project.state)) continue;
+    if (!project || flagsOf(project.state).frozen) continue;
     const deadline = addHours(d.createdAt, t.decisionTimeoutHours);
     const minutesLeft = differenceInMinutes(deadline, now);
     const hoursLeft = Math.floor(minutesLeft / 60);
@@ -337,9 +365,10 @@ export function computeFightList(
 
   // Missed milestones on projects that are still supposed to be moving.
   for (const m of snap.openMilestones) {
+    if (!enabled("MISSED_MILESTONE")) break;
     if (m.status === "DONE" || m.status === "CANCELLED") continue;
     const project = projectById.get(m.projectId);
-    if (!project || TERMINAL_OR_PAUSED.includes(project.state)) continue;
+    if (!project || flagsOf(project.state).frozen) continue;
     const over = differenceInDays(now, m.dueDate);
     if (over > 0) {
       items.push({
@@ -364,9 +393,9 @@ export function computeFightList(
     const project = projectById.get(cr.projectId);
     if (!project) continue;
 
-    if (cr.status === "PENDING") {
+    if (cr.status === "PENDING" && enabled("PENDING_COMPUTE_REQUEST")) {
       // A pause freezes the project's requests, same as decisions.
-      if (TERMINAL_OR_PAUSED.includes(project.state)) continue;
+      if (flagsOf(project.state).frozen) continue;
       const hoursOld = differenceInHours(now, cr.createdAt);
       items.push({
         type: "PENDING_COMPUTE_REQUEST",
@@ -381,8 +410,8 @@ export function computeFightList(
       });
     }
 
-    if (cr.status === "APPROVED" && cr.windowEnd) {
-      // Deliberately NOT gated on TERMINAL_OR_PAUSED: the hours were burned,
+    if (cr.status === "APPROVED" && cr.windowEnd && enabled("OVERDUE_COMPUTE_RESULTS")) {
+      // Deliberately NOT gated on frozen states: the hours were burned,
       // so the results debt survives a pause or even a kill. This is the one
       // rule that deviates — don't "fix" it.
       const over = differenceInDays(now, cr.windowEnd);

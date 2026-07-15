@@ -4,19 +4,23 @@ import { subHours } from "date-fns";
 import { db } from "@/lib/db";
 import { decisions, projects } from "@/lib/db/schema";
 import { DECISION_TIMEOUT_HOURS } from "@/lib/thresholds";
+import { frozenStateKeys } from "@/lib/workflow";
+import { DEFAULT_WORKFLOW } from "@/lib/settings-defaults";
 
 /**
- * The one auto-mutation in the app: pending decisions older than 48h flip to
- * AUTO_PROCEEDED — the engineer goes ahead with their own recommendation.
- * Idempotent, one indexed UPDATE; called lazily from the read paths.
+ * The one auto-mutation in the app: pending decisions older than the timeout
+ * flip to AUTO_PROCEEDED — the engineer goes ahead with their own
+ * recommendation. Idempotent, one indexed UPDATE; called lazily from the
+ * read paths.
  *
- * Decisions on PAUSED/DONE/KILLED projects are exempt: nobody is proceeding
- * with anything on a paused project, so the 48h clock only applies while the
- * project is moving.
+ * Decisions on frozen projects (paused/terminal workflow states) are exempt:
+ * nobody is proceeding with anything on a paused project, so the clock only
+ * applies while the project is moving.
  */
 export function expireOverdueDecisions(
   now: Date = new Date(),
-  timeoutHours: number = DECISION_TIMEOUT_HOURS
+  timeoutHours: number = DECISION_TIMEOUT_HOURS,
+  frozenStates: readonly string[] = frozenStateKeys(DEFAULT_WORKFLOW)
 ): void {
   db.update(decisions)
     .set({ status: "AUTO_PROCEEDED", decidedAt: now })
@@ -29,7 +33,11 @@ export function expireOverdueDecisions(
           db
             .select({ id: projects.id })
             .from(projects)
-            .where(notInArray(projects.state, ["PAUSED", "DONE", "KILLED"]))
+            .where(
+              frozenStates.length
+                ? notInArray(projects.state, [...frozenStates])
+                : undefined
+            )
         )
       )
     )

@@ -7,8 +7,9 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { projects, stateTransitions } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
-import { getPolicy, projectEventGate } from "@/lib/policy-server";
-import { applyEvent, type ProjectEventType } from "@/lib/state-machine";
+import { getPolicy, transitionGate } from "@/lib/policy-server";
+import { applyEvent, initialStateKey, stateByKey, KEY_RE } from "@/lib/workflow";
+import { DEFAULT_WORKFLOW } from "@/lib/settings-defaults";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 import { canAccessProject } from "@/lib/visibility";
 
@@ -48,7 +49,7 @@ export async function createProject(formData: FormData): Promise<ActionResult> {
 
   const [project] = await db
     .insert(projects)
-    .values({ ...parsed.data, createdById: me.id })
+    .values({ ...parsed.data, createdById: me.id, state: initialStateKey(DEFAULT_WORKFLOW) })
     .returning();
   revalidatePath("/board");
   redirect(`/projects/${project.id}`);
@@ -83,7 +84,7 @@ export async function editProject(
 }
 
 const fireEventSchema = z.object({
-  type: z.enum(["APPROVE", "START", "BLOCK", "UNBLOCK", "PAUSE", "REVIVE", "COMPLETE", "KILL"]),
+  type: z.string().regex(KEY_RE),
   reason: z.string().trim().optional(),
   pauseReason: z.string().trim().optional(),
   reviveDate: z.coerce.date().optional(),
@@ -92,7 +93,7 @@ const fireEventSchema = z.object({
 export async function fireProjectEvent(
   projectId: string,
   input: {
-    type: ProjectEventType;
+    type: string;
     reason?: string;
     pauseReason?: string;
     reviveDate?: string;
@@ -108,20 +109,19 @@ export async function fireProjectEvent(
   if (!project) return { error: "Project not found." };
   if (!(await canAccessProject(user, projectId))) return { error: "Project not found." };
 
-  const now = new Date();
-  const event =
-    type === "PAUSE"
-      ? ({
-          type,
-          pauseReason: pauseReason ?? "",
-          reviveDate: reviveDate ?? now,
-          now,
-        } as const)
-      : ({ type } as const);
-
+  const workflow = DEFAULT_WORKFLOW;
   const policy = await getPolicy(user);
-  const result = applyEvent(project.state, event, projectEventGate(policy));
+  const result = applyEvent(
+    workflow,
+    project.state,
+    { type, pauseReason, reviveDate, now: new Date() },
+    transitionGate(user, policy)
+  );
   if (!result.ok) return { error: result.error };
+
+  // The pause columns belong to paused-flagged states only; entering any
+  // other state clears them.
+  const targetPaused = stateByKey(workflow, result.next)?.flags.paused ?? false;
 
   // Guard against a concurrent transition between our read and this write:
   // the UPDATE only applies if the project is still in the state we
@@ -132,8 +132,8 @@ export async function fireProjectEvent(
       .update(projects)
       .set({
         state: result.next,
-        pauseReason: result.next === "PAUSED" ? (pauseReason ?? null) : null,
-        reviveDate: result.next === "PAUSED" ? (reviveDate ?? null) : null,
+        pauseReason: targetPaused ? (pauseReason ?? null) : null,
+        reviveDate: targetPaused ? (reviveDate ?? null) : null,
       })
       .where(and(eq(projects.id, projectId), eq(projects.state, project.state)))
       .run();
@@ -147,7 +147,7 @@ export async function fireProjectEvent(
         fromState: project.state,
         toState: result.next,
         byUserId: user.id,
-        reason: type === "PAUSE" ? (pauseReason ?? null) : (reason ?? null),
+        reason: targetPaused ? (pauseReason ?? null) : (reason ?? null),
       })
       .run();
   });

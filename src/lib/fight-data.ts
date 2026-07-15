@@ -3,6 +3,8 @@ import { and, desc, eq, inArray, ne, notInArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { blockers, milestones, dataRequests, computeRequests, user } from "@/lib/db/schema";
 import type { LabSnapshot } from "@/lib/fight-engine";
+import { activationStateKeys } from "@/lib/workflow";
+import { DEFAULT_WORKFLOW } from "@/lib/settings-defaults";
 
 /**
  * Assemble the fight engine's input from a handful of cheap queries.
@@ -11,8 +13,13 @@ import type { LabSnapshot } from "@/lib/fight-engine";
  * projects are dropped by the engine's projectById lookups.
  */
 export async function loadLabSnapshot(
-  visibleIds: Set<string> | null = null
+  visibleIds: Set<string> | null = null,
+  /** States whose entry resets the stall clock (workflow resetsStallClock). */
+  activationStates: readonly string[] = activationStateKeys(DEFAULT_WORKFLOW)
 ): Promise<LabSnapshot> {
+  // inArray needs a non-empty list; a workflow with no activation states
+  // simply never resets the clock via transitions.
+  const activationKeys = activationStates.length ? [...activationStates] : ["__NONE__"];
   const [
     projectRows,
     blockerRows,
@@ -31,11 +38,12 @@ export async function loadLabSnapshot(
           orderBy: (u) => desc(u.createdAt),
           limit: 1,
         },
-        // Latest transition INTO ACTIVE — resets the stall clock so a fresh
-        // start/revive/unblock isn't counted as pre-existing silence.
+        // Latest transition INTO an activation state — resets the stall
+        // clock so a fresh start/revive/unblock isn't counted as
+        // pre-existing silence.
         transitions: {
           columns: { createdAt: true },
-          where: (t, { eq }) => eq(t.toState, "ACTIVE"),
+          where: (t, { inArray }) => inArray(t.toState, activationKeys),
           orderBy: (t) => desc(t.createdAt),
           limit: 1,
         },

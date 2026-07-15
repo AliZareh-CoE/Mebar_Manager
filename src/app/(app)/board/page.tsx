@@ -3,9 +3,16 @@ import { redirect } from "next/navigation";
 import { desc, asc, ne } from "drizzle-orm";
 import { format } from "date-fns";
 import { db } from "@/lib/db";
-import { user, type ProjectState, PROJECT_STATES } from "@/lib/db/schema";
+import { user } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/session";
 import { projectAgeDays } from "@/lib/fight-engine";
+import {
+  activationStateKeys,
+  hiddenFromBoardKeys,
+  resolveStateDisplay,
+  stateByKey,
+} from "@/lib/workflow";
+import { DEFAULT_WORKFLOW } from "@/lib/settings-defaults";
 import { getSettings } from "@/lib/settings";
 import { visibleProjectIds, isVisible } from "@/lib/visibility";
 import { StateBadge } from "@/components/state-badge";
@@ -31,6 +38,10 @@ export default async function BoardPage({
   const settings = await getSettings();
   const visibleIds = await visibleProjectIds(me, settings);
 
+  const workflow = DEFAULT_WORKFLOW;
+  const activationKeys = activationStateKeys(workflow);
+  const hiddenKeys = new Set(hiddenFromBoardKeys(workflow));
+
   const [projects, owners] = await Promise.all([
     db.query.projects.findMany({
       with: {
@@ -42,7 +53,8 @@ export default async function BoardPage({
         },
         transitions: {
           columns: { createdAt: true },
-          where: (t, { eq }) => eq(t.toState, "ACTIVE"),
+          where: (t, { inArray }) =>
+            inArray(t.toState, activationKeys.length ? activationKeys : ["__NONE__"]),
           orderBy: (t) => desc(t.createdAt),
           limit: 1,
         },
@@ -59,14 +71,16 @@ export default async function BoardPage({
   ]);
 
   const now = new Date();
-  const stateFilter = PROJECT_STATES.includes(state as ProjectState)
-    ? (state as ProjectState)
-    : null;
+  const stateFilter = state && stateByKey(workflow, state) ? state : null;
 
   const visible = projects
     .filter((p) => isVisible(visibleIds, p.id))
-    .filter((p) => (stateFilter ? p.state === stateFilter : p.state !== "KILLED"))
+    .filter((p) => (stateFilter ? p.state === stateFilter : !hiddenKeys.has(p.state)))
     .filter((p) => (owner ? p.ownerId === owner : true));
+
+  const filterStates = workflow.states
+    .filter((s) => !s.archived)
+    .map((s) => ({ key: s.key, label: s.label }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -78,7 +92,7 @@ export default async function BoardPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <BoardFilters owners={owners} />
+          <BoardFilters owners={owners} states={filterStates} />
           <Button
             size="sm"
             nativeButton={false}
@@ -105,14 +119,16 @@ export default async function BoardPage({
               },
               now
             );
-            const moving = p.state === "ACTIVE" || p.state === "BLOCKED";
+            const flags = stateByKey(workflow, p.state)?.flags;
+            const display = resolveStateDisplay(workflow, p.state);
+            const moving = flags?.countsForStall ?? false;
             return (
               <Link key={p.id} href={`/projects/${p.id}`} className="group">
                 <Card className="h-full transition-colors group-hover:border-foreground/20">
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between gap-2">
                       <CardTitle className="text-base leading-snug">{p.title}</CardTitle>
-                      <StateBadge state={p.state} />
+                      <StateBadge label={display.label} color={display.color} />
                     </div>
                   </CardHeader>
                   <CardContent className="flex flex-col gap-3">
@@ -136,7 +152,7 @@ export default async function BoardPage({
                         className="self-start"
                       />
                     )}
-                    {p.state === "PAUSED" && p.reviveDate && (
+                    {flags?.paused && p.reviveDate && (
                       <p className="text-xs text-amber-600 dark:text-amber-400">
                         revives {format(p.reviveDate, "MMM d, yyyy")}
                       </p>

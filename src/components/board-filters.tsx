@@ -8,14 +8,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PROJECT_STATES } from "@/lib/db/schema";
 
 const ALL = "ALL";
 
 export function BoardFilters({
   owners,
+  states,
 }: {
   owners: { id: string; name: string }[];
+  states: { key: string; label: string }[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -37,15 +38,15 @@ export function BoardFilters({
         <SelectTrigger size="sm" className="w-36">
           <SelectValue>
             {(v: string) =>
-              v === ALL ? "All states" : v.charAt(0) + v.slice(1).toLowerCase()
+              v === ALL ? "All states" : (states.find((s) => s.key === v)?.label ?? v)
             }
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={ALL}>All states</SelectItem>
-          {PROJECT_STATES.map((s) => (
-            <SelectItem key={s} value={s}>
-              {s.charAt(0) + s.slice(1).toLowerCase()}
+          {states.map((s) => (
+            <SelectItem key={s.key} value={s.key}>
+              {s.label}
             </SelectItem>
           ))}
         </SelectContent>

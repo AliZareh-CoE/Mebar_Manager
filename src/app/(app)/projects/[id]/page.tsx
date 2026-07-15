@@ -3,8 +3,14 @@ import { notFound } from "next/navigation";
 import { asc, desc, ne } from "drizzle-orm";
 import { format, formatDistanceStrict, addHours } from "date-fns";
 import { isOverdue, projectAgeDays } from "@/lib/fight-engine";
-import { availableEvents } from "@/lib/state-machine";
-import { getPolicy, projectEventGate } from "@/lib/policy-server";
+import {
+  activationStateKeys,
+  resolveStateDisplay,
+  stateByKey,
+  transitionDescriptors,
+} from "@/lib/workflow";
+import { DEFAULT_WORKFLOW } from "@/lib/settings-defaults";
+import { getPolicy, transitionGate } from "@/lib/policy-server";
 import { visibleProjectIds, isVisible } from "@/lib/visibility";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
@@ -106,11 +112,16 @@ export default async function ProjectPage({
     .map(({ id, name }) => ({ id, name }));
 
   const now = new Date();
+  const workflow = DEFAULT_WORKFLOW;
+  const activationKeys = activationStateKeys(workflow);
+  const stateFlags = stateByKey(workflow, project.state)?.flags;
+  const stateDisplay = resolveStateDisplay(workflow, project.state);
   const ageDays = projectAgeDays(
     {
       lastUpdateAt: project.updates[0]?.createdAt ?? null,
       lastActivatedAt:
-        project.transitions.find((t) => t.toState === "ACTIVE")?.createdAt ?? null,
+        project.transitions.find((t) => activationKeys.includes(t.toState))?.createdAt ??
+        null,
       createdAt: project.createdAt,
     },
     now
@@ -127,8 +138,8 @@ export default async function ProjectPage({
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">{project.title}</h1>
-          <StateBadge state={project.state} />
-          {(project.state === "ACTIVE" || project.state === "BLOCKED") && (
+          <StateBadge label={stateDisplay.label} color={stateDisplay.color} />
+          {stateFlags?.countsForStall && (
             <AgePill
               ageDays={ageDays}
               freshDays={settings.thresholds.ageFreshDays}
@@ -148,9 +159,11 @@ export default async function ProjectPage({
           </span>
           <span>started {format(project.createdAt, "MMM d, yyyy")}</span>
         </div>
-        {project.state === "PAUSED" && (
+        {stateFlags?.paused && (
           <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
-            <span className="font-medium text-amber-600 dark:text-amber-400">Paused:</span>{" "}
+            <span className="font-medium text-amber-600 dark:text-amber-400">
+              {stateDisplay.label}:
+            </span>{" "}
             {project.pauseReason}
             {project.reviveDate && (
               <span className="text-muted-foreground">
@@ -162,7 +175,11 @@ export default async function ProjectPage({
         )}
         <TransitionButtons
           projectId={project.id}
-          events={availableEvents(project.state, projectEventGate(policy))}
+          transitions={transitionDescriptors(
+            workflow,
+            project.state,
+            transitionGate(me, policy)
+          )}
         />
       </div>
 
@@ -812,19 +829,23 @@ export default async function ProjectPage({
             <p className="text-sm text-muted-foreground">No state changes yet.</p>
           ) : (
             <ol className="flex flex-col gap-3">
-              {project.transitions.map((t) => (
-                <li key={t.id} className="flex items-baseline gap-3 text-sm">
-                  <span className="w-28 shrink-0 text-xs text-muted-foreground">
-                    {format(t.createdAt, "MMM d, yyyy")}
-                  </span>
-                  <span>
-                    <span className="font-medium">{t.byUser.name}</span> moved it from{" "}
-                    <StateBadge state={t.fromState as never} className="mx-1" /> to{" "}
-                    <StateBadge state={t.toState as never} className="mx-1" />
-                    {t.reason && <span className="text-muted-foreground"> — {t.reason}</span>}
-                  </span>
-                </li>
-              ))}
+              {project.transitions.map((t) => {
+                const from = resolveStateDisplay(workflow, t.fromState);
+                const to = resolveStateDisplay(workflow, t.toState);
+                return (
+                  <li key={t.id} className="flex items-baseline gap-3 text-sm">
+                    <span className="w-28 shrink-0 text-xs text-muted-foreground">
+                      {format(t.createdAt, "MMM d, yyyy")}
+                    </span>
+                    <span>
+                      <span className="font-medium">{t.byUser.name}</span> moved it from{" "}
+                      <StateBadge label={from.label} color={from.color} className="mx-1" /> to{" "}
+                      <StateBadge label={to.label} color={to.color} className="mx-1" />
+                      {t.reason && <span className="text-muted-foreground"> — {t.reason}</span>}
+                    </span>
+                  </li>
+                );
+              })}
             </ol>
           )}
         </TabsContent>

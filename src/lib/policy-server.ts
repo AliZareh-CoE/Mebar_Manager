@@ -2,7 +2,7 @@ import "server-only";
 import { getSettings } from "@/lib/settings";
 import { can, type Capability, type PolicyCtx } from "@/lib/policy";
 import type { SessionUser } from "@/lib/session";
-import type { EventGate } from "@/lib/state-machine";
+import type { TransitionGateFn } from "@/lib/workflow";
 
 export type Policy = {
   can: (capability: Capability, ctx?: PolicyCtx) => boolean;
@@ -17,13 +17,21 @@ export async function getPolicy(user: SessionUser): Promise<Policy> {
 }
 
 /**
- * State-machine gate from policy: APPROVE and KILL map to their
- * capabilities; day-to-day transitions are open to everyone.
+ * Workflow gate from policy. "everyone" is bounded by project visibility
+ * (checked by the caller), not by role; the capability gates keep honoring
+ * the admin's permission-matrix overrides.
  */
-export function projectEventGate(policy: Policy, ctx?: PolicyCtx): EventGate {
-  return (e) => {
-    if (e === "APPROVE") return policy.can("project.approve", ctx);
-    if (e === "KILL") return policy.can("project.kill", ctx);
-    return true;
+export function transitionGate(user: SessionUser, policy: Policy): TransitionGateFn {
+  return (t) => {
+    switch (t.gate) {
+      case "everyone":
+        return true;
+      case "manager":
+        return user.role === "MANAGER";
+      case "project.approve":
+        return policy.can("project.approve");
+      case "project.kill":
+        return policy.can("project.kill");
+    }
   };
 }

@@ -16,16 +16,9 @@ const createdAt = () =>
     .notNull()
     .$defaultFn(() => new Date());
 
-export const PROJECT_STATES = [
-  "PROPOSAL",
-  "SCOPING",
-  "ACTIVE",
-  "BLOCKED",
-  "PAUSED",
-  "DONE",
-  "KILLED",
-] as const;
-export type ProjectState = (typeof PROJECT_STATES)[number];
+// Project states are admin-defined (see lib/workflow.ts) — the column is
+// plain TEXT holding a workflow state key. The stock keys live in
+// DEFAULT_WORKFLOW (lib/settings-defaults.ts).
 
 export const projects = sqliteTable(
   "projects",
@@ -41,7 +34,7 @@ export const projects = sqliteTable(
       .references(() => user.id),
     // who filed the proposal — counts as involvement for visibility
     createdById: text("created_by_id").references(() => user.id),
-    state: text("state", { enum: PROJECT_STATES }).notNull().default("PROPOSAL"),
+    state: text("state").notNull().default("PROPOSAL"),
     // required at app level whenever state === PAUSED
     pauseReason: text("pause_reason"),
     reviveDate: integer("revive_date", { mode: "timestamp_ms" }),

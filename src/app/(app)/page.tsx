@@ -1,9 +1,10 @@
 import { PartyPopper } from "lucide-react";
 import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
-import { getPolicy, projectEventGate } from "@/lib/policy-server";
+import { getPolicy, transitionGate } from "@/lib/policy-server";
 import { visibleProjectIds } from "@/lib/visibility";
-import { availableEvents } from "@/lib/state-machine";
+import { transitionDescriptors } from "@/lib/workflow";
+import { DEFAULT_WORKFLOW } from "@/lib/settings-defaults";
 import { expireOverdueDecisions } from "@/lib/maintenance";
 import { loadLabSnapshot, loadAllBlockerCauses } from "@/lib/fight-data";
 import {
@@ -121,8 +122,10 @@ export default async function FightListPage() {
     .map(({ id, name }) => ({ id, name }));
 
   const now = new Date();
+  const workflow = DEFAULT_WORKFLOW;
   const items = computeFightList(snapshot, now, settings.thresholds);
   const pareto = computeParetoData(causes);
+  const projectStateById = new Map(snapshot.projects.map((p) => [p.id, p.state]));
   const blockerById = new Map(snapshot.openBlockers.map((b) => [b.id, b]));
   const milestoneById = new Map(snapshot.openMilestones.map((m) => [m.id, m]));
   const dataRequestById = new Map(snapshot.openDataRequests.map((dr) => [dr.id, dr]));
@@ -141,7 +144,11 @@ export default async function FightListPage() {
         return (
           <TransitionButtons
             projectId={item.projectId}
-            events={availableEvents("PAUSED", projectEventGate(policy))}
+            transitions={transitionDescriptors(
+              workflow,
+              projectStateById.get(item.projectId) ?? "PAUSED",
+              transitionGate(me!, policy)
+            )}
           />
         );
       case "OVERDUE_BLOCKER":
