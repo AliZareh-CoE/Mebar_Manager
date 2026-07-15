@@ -13,6 +13,7 @@ import { db } from "../src/lib/db";
 import {
   user,
   account,
+  labSettings,
   projects,
   stateTransitions,
   milestones,
@@ -421,6 +422,7 @@ async function seedDemo() {
   // Resolved blockers for the Pareto — decisions dominate, deliberately.
   const resolved = (
     projectId: string,
+    ownerId: string,
     causeTag: (typeof blockers.$inferInsert)["causeTag"],
     daysAgo: number,
     description: string,
@@ -429,7 +431,7 @@ async function seedDemo() {
     projectId,
     description,
     causeTag,
-    ownerId: sara,
+    ownerId,
     deadline: subDays(new Date(), daysAgo - 3),
     status: "RESOLVED",
     resolutionNote,
@@ -438,14 +440,14 @@ async function seedDemo() {
   });
   db.insert(blockers)
     .values([
-      resolved(p1.id, "WAITING_DECISION", 70, "Which controller architecture?", "Prof picked FPGA after the one-pager."),
-      resolved(p2.id, "WAITING_DECISION", 60, "SLM vendor choice pending.", "Went with Meadowlark after demo."),
-      resolved(p3.id, "WAITING_DECISION", 45, "Labeling budget approval.", "Approved at monthly review."),
-      resolved(p6.id, "WAITING_DECISION", 90, "Open-source license choice.", "MIT, cleared with tech transfer."),
-      resolved(p1.id, "WAITING_EQUIPMENT", 50, "Accelerometer back-ordered.", "Borrowed one from mech eng."),
-      resolved(p2.id, "TECHNICAL", 30, "SLM flicker at 60 Hz.", "Synced refresh to the laser trigger."),
-      resolved(p6.id, "TECHNICAL", 80, "ADC clock jitter.", "External clock distribution board."),
-      resolved(p3.id, "KNOWLEDGE_GAP", 40, "Nobody knew the augmentation library.", "Lena ran a lunch tutorial; notes in the FAQ."),
+      resolved(p1.id, sara, "WAITING_DECISION", 70, "Which controller architecture?", "Prof picked FPGA after the one-pager."),
+      resolved(p2.id, omid, "WAITING_DECISION", 60, "SLM vendor choice pending.", "Went with Meadowlark after demo."),
+      resolved(p3.id, lena, "WAITING_DECISION", 45, "Labeling budget approval.", "Approved at monthly review."),
+      resolved(p6.id, dan, "WAITING_DECISION", 90, "Open-source license choice.", "MIT, cleared with tech transfer."),
+      resolved(p1.id, sara, "WAITING_EQUIPMENT", 50, "Accelerometer back-ordered.", "Borrowed one from mech eng."),
+      resolved(p2.id, omid, "TECHNICAL", 30, "SLM flicker at 60 Hz.", "Synced refresh to the laser trigger."),
+      resolved(p6.id, dan, "TECHNICAL", 80, "ADC clock jitter.", "External clock distribution board."),
+      resolved(p3.id, lena, "KNOWLEDGE_GAP", 40, "Nobody knew the augmentation library.", "Lena ran a lunch tutorial; notes in the FAQ."),
     ])
     .run();
 
@@ -564,6 +566,15 @@ async function seedDemo() {
         createdAt: subDays(new Date(), 15),
       },
     ])
+    .run();
+
+  // Settings row proves the wordmark/settings render from the DB.
+  db.insert(labSettings)
+    .values({ id: 1, data: { labName: "Mebar Lab" }, updatedAt: new Date() })
+    .onConflictDoUpdate({
+      target: labSettings.id,
+      set: { data: { labName: "Mebar Lab" }, updatedAt: new Date() },
+    })
     .run();
 
   console.log("Demo lab loaded:");

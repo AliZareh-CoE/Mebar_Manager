@@ -243,14 +243,194 @@ async function main() {
       (await noaPage.locator("button:has-text('Approve')").count()) === 0
   );
 
-  // 18. Engineer can open the compute request form
+  // 18. Engineer can open the compute request form (own project only —
+  // restricted visibility hides the rest)
   await engPage.goto(BASE + "/board");
-  await engPage.click("text=Femtosecond pulse shaper");
+  await engPage.click("text=Cryo-stage vibration isolation");
   await engPage.waitForSelector("text=The Heilmeier questions");
   await engPage.click("text=Compute (");
   await engPage.click("text=Request compute");
   await engPage.waitForSelector("text=The bar for an approval");
   check("engineer reaches the compute request form", true);
+
+  // 19. Theme: dark default, toggle to light and back
+  await page.goto(BASE + "/");
+  check("dark theme by default", ((await page.getAttribute("html", "class")) ?? "").includes("dark"));
+  await page.click("button[aria-label='Toggle theme']");
+  await page.waitForTimeout(400);
+  check(
+    "toggle switches to light",
+    ((await page.getAttribute("html", "class")) ?? "").includes("light")
+  );
+  await page.screenshot({ path: SHOTS + "/06-light-mode.png", fullPage: true });
+  await page.click("button[aria-label='Toggle theme']");
+  await page.waitForTimeout(400);
+  check(
+    "toggle back to dark",
+    ((await page.getAttribute("html", "class")) ?? "").includes("dark")
+  );
+
+  // 20. Lab name renders from settings (seeded as "Mebar Lab")
+  check("wordmark from settings", (await page.textContent("header"))!.includes("Mebar Lab"));
+
+  // 21. /data page
+  await page.goto(BASE + "/data");
+  const dataBody = await page.textContent("body");
+  check("/data names the analyst", dataBody!.includes("Lena Fischer"));
+  check("/data shows groups", dataBody!.includes("Open") && dataBody!.includes("Delivered"));
+
+  // 22. Settings: raising the unowned grace hides the unowned-blocker fight
+  await page.goto(BASE + "/admin/settings");
+  const thresholdForm = page.locator("form", { has: page.locator("input[name=unownedGraceDays]") });
+  await thresholdForm.locator("input[name=unownedGraceDays]").fill("30");
+  await thresholdForm.locator("button[type=submit]").click();
+  await page.waitForTimeout(1500);
+  await page.goto(BASE + "/");
+  check(
+    "raised grace hides unowned blockers",
+    !(await page.textContent("body"))!.includes("Unowned blockers")
+  );
+  await page.goto(BASE + "/admin/settings");
+  await thresholdForm.locator("input[name=unownedGraceDays]").fill("2");
+  await thresholdForm.locator("button[type=submit]").click();
+  await page.waitForTimeout(1500);
+  await page.goto(BASE + "/");
+  check(
+    "restored grace brings them back",
+    (await page.textContent("body"))!.includes("Unowned blockers")
+  );
+
+  // 23. Restricted visibility: sara sees only her project
+  await engPage.goto(BASE + "/board");
+  const saraBoard = await engPage.textContent("body");
+  check("sara sees her own project", saraBoard!.includes("Cryo-stage vibration isolation"));
+  check("sara can't see others' projects", !saraBoard!.includes("Terahertz imaging line"));
+  const hiddenHref = await page
+    .goto(BASE + "/board")
+    .then(() => page.locator("a", { hasText: "Femtosecond pulse shaper" }).first().getAttribute("href"));
+  const hiddenResp = await engPage.goto(BASE + hiddenHref);
+  check("direct URL to hidden project 404s", hiddenResp?.status() === 404);
+
+  // 24. Managers see everything; OPEN mode opens it up for everyone
+  const noaPage2 = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
+  await noaPage2.goto(BASE + "/login");
+  await noaPage2.fill("#email", "noa@lab.local");
+  await noaPage2.fill("#password", "mebar-demo");
+  await noaPage2.click("button[type=submit]");
+  await noaPage2.waitForURL(BASE + "/");
+  await noaPage2.goto(BASE + "/board");
+  check(
+    "manager noa sees all projects",
+    (await noaPage2.textContent("body"))!.includes("Terahertz imaging line")
+  );
+  await page.goto(BASE + "/admin/settings");
+  const visForm = page.locator("form", { has: page.locator("[name=visibilityMode]") });
+  await visForm.locator("button[type=button]").first().click(); // open the select
+  await page.click("text=Open — everyone sees everything");
+  await visForm.locator("button[type=submit]").click();
+  await page.waitForTimeout(1500);
+  await engPage.goto(BASE + "/board");
+  check(
+    "OPEN mode: sara sees everything",
+    (await engPage.textContent("body"))!.includes("Terahertz imaging line")
+  );
+  await page.goto(BASE + "/admin/settings");
+  await visForm.locator("button[type=button]").first().click();
+  await page.click("text=Restricted — researchers see only their projects");
+  await visForm.locator("button[type=submit]").click();
+  await page.waitForTimeout(1500);
+  await engPage.goto(BASE + "/board");
+  check(
+    "back to RESTRICTED: hidden again",
+    !(await engPage.textContent("body"))!.includes("Terahertz imaging line")
+  );
+
+  // 25. Cancel a blocker → its fight clears
+  await page.goto(BASE + "/board?state=BLOCKED");
+  await page.click("text=ML defect classifier");
+  await page.waitForSelector("text=The Heilmeier questions");
+  await page.click("text=Blockers (");
+  await page.click("button:has-text('Cancel…')");
+  await page.fill("textarea[name=reason]", "Cluster quota restored by IT — no longer blocked.");
+  await page.click("div[role=dialog] button:has-text('Cancel blocker')");
+  await page.waitForTimeout(1500);
+  await page.goto(BASE + "/");
+  check(
+    "cancelling the blocker clears its fight",
+    !(await page.textContent("body"))!.includes("Unowned blockers")
+  );
+
+  // 26. Engineer submits a compute request, then withdraws it
+  await engPage.goto(BASE + "/board");
+  await engPage.click("text=Cryo-stage vibration isolation");
+  await engPage.click("text=Compute (");
+  await engPage.click("text=Request compute");
+  await engPage.waitForSelector("text=The bar for an approval");
+  await engPage.fill("input[name=hoursNeeded]", "8");
+  await engPage.fill(
+    "textarea[name=justification]",
+    "Quick sweep of controller gains on recorded telemetry; success = stable gains shortlist."
+  );
+  await engPage.fill("input[name=datasetSize]", "2 GB telemetry");
+  await engPage.fill("input[name=preprocessingNote]", "Telemetry cleaned and windowed.");
+  await engPage.fill("textarea[name=dryRunEvidence]", "Ran on 5% locally in 10 minutes.");
+  await engPage.fill("textarea[name=expectedResults]", "Shortlist of 3 gain configurations.");
+  await engPage.click("button:has-text('Submit request')");
+  await engPage.waitForTimeout(1500);
+  await engPage.click("text=Compute (");
+  await engPage.click("button:has-text('Withdraw…')");
+  await engPage.click("div[role=dialog] button:has-text('Withdraw')");
+  await engPage.waitForTimeout(1500);
+  await page.goto(BASE + "/compute");
+  check(
+    "withdrawn request shows in /compute history",
+    (await page.textContent("body"))!.includes("Withdrawn")
+  );
+
+  // 27. Nav: Settings manager-only, Data for everyone
+  check("manager nav has Settings", (await page.textContent("header"))!.includes("Settings"));
+  check("engineer nav lacks Settings", !(await engPage.textContent("header"))!.includes("Settings"));
+  check("engineer nav has Data", (await engPage.textContent("header"))!.includes("Data"));
+
+  // 28. Password change (dan) + manager reset (omid)
+  const danPage = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
+  await danPage.goto(BASE + "/login");
+  await danPage.fill("#email", "dan@lab.local");
+  await danPage.fill("#password", "mebar-demo");
+  await danPage.click("button[type=submit]");
+  await danPage.waitForURL(BASE + "/");
+  await danPage.goto(BASE + "/account");
+  await danPage.fill("input[name=currentPassword]", "mebar-demo");
+  await danPage.fill("input[name=newPassword]", "fresh-password-1");
+  await danPage.fill("input[name=confirm]", "fresh-password-1");
+  await danPage.click("button:has-text('Change password')");
+  await danPage.waitForTimeout(1500);
+  const danOld = await (await browser.newContext()).newPage();
+  await danOld.goto(BASE + "/login");
+  await danOld.fill("#email", "dan@lab.local");
+  await danOld.fill("#password", "mebar-demo");
+  await danOld.click("button[type=submit]");
+  await danOld.waitForTimeout(1200);
+  check("old password rejected after change", danOld.url().includes("/login"));
+  await danOld.fill("#password", "fresh-password-1");
+  await danOld.click("button[type=submit]");
+  await danOld.waitForURL(BASE + "/");
+  check("new password works", true);
+
+  await page.goto(BASE + "/admin/users");
+  await page.click("button[aria-label='Manage Omid Rahimi']");
+  await page.click("text=Reset password");
+  await page.click("div[role=dialog] button:has-text('Reset password')");
+  await page.waitForSelector("div[role=dialog] code");
+  const tempPassword = (await page.textContent("div[role=dialog] code"))!.trim();
+  check("temp password displayed once", tempPassword.length >= 12);
+  const omidPage = await (await browser.newContext()).newPage();
+  await omidPage.goto(BASE + "/login");
+  await omidPage.fill("#email", "omid@lab.local");
+  await omidPage.fill("#password", tempPassword);
+  await omidPage.click("button[type=submit]");
+  await omidPage.waitForURL(BASE + "/");
+  check("temp password signs omid in", true);
 
   await browser.close();
   console.log(results.join("\n"));

@@ -108,6 +108,25 @@ src/app/(app)/             # Fight List (/), /board, /projects/[id], /admin/user
 scripts/seed.ts            # admin + relative-to-now demo lab
 ```
 
+## Administration & customization
+
+- **/admin/settings** (managers): lab name, default theme (light/dark — every
+  user also has their own toggle), all fight thresholds, visibility mode, and
+  the permission matrix (minimum role per action; people can always act on
+  their own things; user management, settings, deciding decisions, and
+  compute approval stay fixed).
+- **Visibility**: RESTRICTED (default) — managers see everything, researchers
+  see only projects they're involved in (owner, advisor, creator, blocker
+  owner, data-request requester/assignee, compute requester). OPEN shows
+  everything to everyone.
+- **Accounts**: everyone has an /account page (change name/password, see
+  their own fights). Managers reset passwords, rename, promote/demote from
+  the People page. "Forgot password" emails a reset link when SMTP_* env vars
+  are set (see `.env.example`); otherwise it points at the coordinator reset.
+- **No hard deletes**: everything closes with a status and a reason —
+  blockers/milestones/decisions/data requests cancel, compute requests
+  withdraw, projects are killed. History stays on the record.
+
 Auth accounts are created by managers at **People** — there is no self-signup.
 Deactivating a person revokes their sessions. See `.env.example` for
 production configuration (set `BETTER_AUTH_SECRET`).
