@@ -50,6 +50,23 @@ Three base roles — **Manager** (coordinator), **Engineer** (researcher), and
   join the Fight List. Secretaries see ONLY their own task list — no
   projects, board, or compute — while managers see everything of everyone.
 
+**Leadership** (managers + the compute coordinator) additionally get:
+
+- **Initiatives** (`/initiatives`): the weekly meeting's big fights —
+  equipment, budgets, university management. Filed and assigned within
+  leadership, with deadlines; overdue and unowned initiatives escalate on
+  the Fight List; closed as WON or LOST with the story on the record.
+- **Performance** (`/performance`): automatic scores for everyone —
+  "we spare no one" — computed from the record over a rolling window:
+  Delivery (things closed, on-time bonuses, compute verdicts, initiatives
+  won), Discipline (weekly updates minus whatever is currently overdue on
+  you or auto-proceeded past you), and Initiative-taking (fights started).
+  Weights, window, and the anti-spam update cap are tunable in Settings →
+  Performance; every person sees their own breakdown on `/account`.
+
+Everyone gets the **feedback button** in the header (bug reports / feature
+ideas, with your name attached); managers triage them at `/admin/feedback`.
+
 - **Data analyst** (add-on, any engineer): researchers file **data requests**
   on their projects; the assigned analyst (or a self-claiming one) is
   responsible for delivering. Data requests obey all anti-stall rules.
@@ -119,7 +136,7 @@ scripts/seed.ts              # admin + relative-to-now demo lab
 
 ## Administration & customization
 
-Everything is admin-editable at **/admin/settings** (managers), across six
+Everything is admin-editable at **/admin/settings** (managers), across seven
 tabs — removals are always *archive*, never delete, so history keeps
 rendering:
 
@@ -139,6 +156,8 @@ rendering:
   own questions; answers to custom questions live with the project.
 - **Fight rules**: all thresholds, plus per-rule on/off switches, section
   titles/blurbs, and the Fight List section order.
+- **Performance**: the scoring window, the per-project-per-week update
+  credit cap, and all 20 metric weights.
 - **Permissions**: minimum role per action (people can always act on their
   own things; user management, settings, deciding decisions, and compute
   approval stay fixed).
