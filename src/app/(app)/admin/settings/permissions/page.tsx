@@ -23,7 +23,7 @@ const ROLE_OPTIONS = [
 export default async function AdminSettingsPermissionsPage() {
   const me = await getCurrentUser();
   if (!me) redirect("/login");
-  if (me.role !== "MANAGER") redirect("/");
+  if (me.role !== "ADMIN") redirect("/");
 
   const settings = await getSettings();
 

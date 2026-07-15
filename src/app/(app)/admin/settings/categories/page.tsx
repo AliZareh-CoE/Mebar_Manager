@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminSettingsCategoriesPage() {
   const me = await getCurrentUser();
   if (!me) redirect("/login");
-  if (me.role !== "MANAGER") redirect("/");
+  if (me.role !== "ADMIN") redirect("/");
 
   const settings = await getSettings();
   const activePractices = settings.practices

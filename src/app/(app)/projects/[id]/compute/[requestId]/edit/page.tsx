@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { computeRequests, projects } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/session";
+import { isManagerOrAbove } from "@/lib/policy";
 import { getSettings } from "@/lib/settings";
 import { visibleProjectIds, isVisible } from "@/lib/visibility";
 import { ComputeRequestForm } from "@/components/forms/compute-request-form";
@@ -30,7 +31,7 @@ export default async function EditComputeRequestPage({
   if (!isVisible(visibleIds, project.id)) notFound();
 
   if (request.status !== "PENDING") redirect(`/projects/${project.id}`);
-  if (me.id !== request.requesterId && me.role !== "MANAGER") {
+  if (me.id !== request.requesterId && !isManagerOrAbove(me)) {
     redirect(`/projects/${project.id}`);
   }
 

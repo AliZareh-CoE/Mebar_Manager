@@ -69,6 +69,7 @@ export default async function PerformancePage() {
                 <span className="tabular-nums text-muted-foreground">{index + 1}</span>
                 <span className="flex flex-wrap items-center gap-1.5 font-medium">
                   {s.person.name}
+                  {s.person.role === "ADMIN" && <Badge variant="default">Admin</Badge>}
                   {s.person.role === "MANAGER" && <Badge variant="default">Manager</Badge>}
                   {s.person.role === "SECRETARY" && (
                     <Badge variant="secondary">Secretary</Badge>

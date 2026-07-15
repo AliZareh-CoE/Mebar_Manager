@@ -11,7 +11,7 @@ import {
   transitionDescriptors,
 } from "@/lib/workflow";
 import { getPolicy, transitionGate } from "@/lib/policy-server";
-import { isLabLeadership } from "@/lib/policy";
+import { isLabLeadership, isManagerOrAbove } from "@/lib/policy";
 import { visibleProjectIds, isVisible } from "@/lib/visibility";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
@@ -595,7 +595,7 @@ export default async function ProjectPage({
                           </FormDialog>
                         </div>
                       )}
-                      {d.status === "PENDING" && me.role === "MANAGER" && (
+                      {d.status === "PENDING" && isManagerOrAbove(me) && (
                         <FormDialog
                           trigger={<Button size="sm" className="self-start">Decide now</Button>}
                           title="Decide"

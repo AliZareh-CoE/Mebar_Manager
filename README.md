@@ -53,8 +53,14 @@ Other opinions built in:
 
 ## Roles
 
-Three base roles — **Manager** (coordinator), **Engineer** (researcher), and
-**Secretary** (lab staff) — plus add-ons granted on the People page:
+Four base roles — **Admin** (the PI), **Manager** (coordinator), **Engineer**
+(researcher), and **Secretary** (lab staff) — plus add-ons granted on the
+People page:
+
+- **Admin**: exactly one person owns the dangerous stuff — creating and
+  editing accounts, every settings tab, and the feedback triage. Managers
+  cannot touch any of it (enforced at the auth API, not just the UI). The
+  admin also holds full manager powers everywhere else.
 
 - **Secretary**: receives **tasks** — anything with a deadline (orders,
   bookings, paperwork), filed by anyone from `/tasks`, optionally linked to a
@@ -77,7 +83,7 @@ Three base roles — **Manager** (coordinator), **Engineer** (researcher), and
   Performance; every person sees their own breakdown on `/account`.
 
 Everyone gets the **feedback button** in the header (bug reports / feature
-ideas, with your name attached); managers triage them at `/admin/feedback`.
+ideas, with your name attached); the admin triages them at `/admin/feedback`.
 
 - **Data analyst** (add-on, any engineer): researchers file **data requests**
   on their projects; the assigned analyst (or a self-claiming one) is
@@ -103,7 +109,7 @@ self-signup) · zod · date-fns · recharts · vitest · Playwright (e2e).
 ```bash
 npm install
 npm run db:migrate       # create ./data/mebar.db from the committed migrations
-npm run db:seed          # creates the first manager and prints its password once
+npm run db:seed          # creates the first ADMIN account and prints its password once
 npm run dev
 ```
 
@@ -114,7 +120,7 @@ Want a lab that already looks alive (every fight rule triggered)?
 
 ```bash
 npm run db:seed -- --demo
-# prof@lab.local / mebar-demo (manager + compute coordinator)
+# prof@lab.local / mebar-demo (ADMIN + compute coordinator)
 # noa@lab.local / mebar-demo (manager, not coordinator)
 # taylor@lab.local / mebar-demo (secretary)
 # sara@ / omid@ / lena@ / dan@lab.local / mebar-demo (engineers)
@@ -150,8 +156,8 @@ scripts/seed.ts              # admin + relative-to-now demo lab
 
 ## Administration & customization
 
-Everything is admin-editable at **/admin/settings** (managers), across seven
-tabs — removals are always *archive*, never delete, so history keeps
+Everything is admin-editable at **/admin/settings** (the admin alone), across
+seven tabs — removals are always *archive*, never delete, so history keeps
 rendering:
 
 - **General**: lab name, login tagline, default theme (light/dark — every
@@ -180,8 +186,8 @@ rendering:
   owner, data-request requester/assignee, compute requester, or listed on the
   project's People lineup). OPEN shows everything to everyone.
 - **Accounts**: everyone has an /account page (change name/password, see
-  their own fights). Managers reset passwords, rename, promote/demote from
-  the People page. "Forgot password" emails a reset link when SMTP_* env vars
+  their own fights). The admin resets passwords, renames, promotes/demotes
+  from the People page. "Forgot password" emails a reset link when SMTP_* env vars
   are set (see `.env.example`); otherwise it points at the coordinator reset.
 - **Watcher emails**: people on a project's People tab with the bell toggled
   on get a plain-text email on big events — state changes, milestones
@@ -192,7 +198,7 @@ rendering:
   blockers/milestones/decisions/data requests cancel, compute requests
   withdraw, projects are killed. History stays on the record.
 
-Auth accounts are created by managers at **People** — there is no self-signup.
+Auth accounts are created by the admin at **People** — there is no self-signup.
 Deactivating a person revokes their sessions. See `.env.example` for
 production configuration (set `BETTER_AUTH_SECRET`).
 

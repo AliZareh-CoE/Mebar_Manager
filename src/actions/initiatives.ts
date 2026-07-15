@@ -18,7 +18,7 @@ function revalidateInitiative() {
 async function verifyLeadership(userId: string): Promise<string | null> {
   const target = await db.select().from(user).where(eq(user.id, userId)).get();
   if (!target || target.banned) return "That account is not available.";
-  if (target.role !== "MANAGER" && !target.isComputeCoordinator) {
+  if (target.role !== "MANAGER" && target.role !== "ADMIN" && !target.isComputeCoordinator) {
     return "Initiatives are assigned to a manager or the compute coordinator.";
   }
   return null;

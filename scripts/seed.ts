@@ -33,7 +33,7 @@ async function createUserRaw(input: {
   name: string;
   email: string;
   password: string;
-  role: "MANAGER" | "ENGINEER" | "SECRETARY";
+  role: "ADMIN" | "MANAGER" | "ENGINEER" | "SECRETARY";
 }): Promise<string> {
   const existing = await db
     .select()
@@ -41,12 +41,17 @@ async function createUserRaw(input: {
     .where(eq(user.email, input.email))
     .get();
   if (existing) {
-    // Reseeding resets the credential to the known password so demo runs
-    // (and the e2e suite) stay idempotent even after password changes.
-    // Only seedDemo reaches this branch — seedAdmin returns before calling.
+    // Reseeding resets the credential to the known password AND the role so
+    // demo runs (and the e2e suite) stay idempotent even after password or
+    // role changes. Only seedDemo reaches this branch — seedAdmin returns
+    // before calling.
     db.update(account)
       .set({ password: await hashPassword(input.password), updatedAt: new Date() })
       .where(eq(account.userId, existing.id))
+      .run();
+    db.update(user)
+      .set({ role: input.role, updatedAt: new Date() })
+      .where(eq(user.id, existing.id))
       .run();
     return existing.id;
   }
@@ -98,7 +103,7 @@ async function seedAdmin() {
     return;
   }
 
-  await createUserRaw({ name: "Lab Manager", email, password, role: "MANAGER" });
+  await createUserRaw({ name: "Lab Admin", email, password, role: "ADMIN" });
   console.log(`Manager account created: ${email} / ${password}`);
   if (generated) {
     console.log("(random password — save it now, it is not stored anywhere else)");
@@ -122,11 +127,13 @@ async function seedDemo() {
   db.delete(projects).run();
 
   const password = "mebar-demo";
+  // The PI: admin + compute coordinator + advisor on most projects — the
+  // multi-hat persona the role-access tests pin.
   const prof = await createUserRaw({
     name: "Prof. Mebar",
     email: "prof@lab.local",
     password,
-    role: "MANAGER",
+    role: "ADMIN",
   });
   const sara = await createUserRaw({
     name: "Sara Kim",
@@ -799,7 +806,7 @@ async function seedDemo() {
     .run();
 
   console.log("Demo lab loaded:");
-  console.log("  prof@lab.local / mebar-demo   (manager + compute coordinator)");
+  console.log("  prof@lab.local / mebar-demo   (ADMIN + compute coordinator)");
   console.log("  noa@lab.local / mebar-demo    (manager, not coordinator)");
   console.log("  lena@lab.local / mebar-demo   (engineer + data analyst)");
   console.log("  taylor@lab.local / mebar-demo (secretary — own tasks only)");

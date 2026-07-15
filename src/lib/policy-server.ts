@@ -1,6 +1,6 @@
 import "server-only";
 import { getSettings } from "@/lib/settings";
-import { can, type Capability, type PolicyCtx } from "@/lib/policy";
+import { can, isManagerOrAbove, type Capability, type PolicyCtx } from "@/lib/policy";
 import type { SessionUser } from "@/lib/session";
 import type { TransitionGateFn } from "@/lib/workflow";
 
@@ -27,7 +27,7 @@ export function transitionGate(user: SessionUser, policy: Policy): TransitionGat
       case "everyone":
         return true;
       case "manager":
-        return user.role === "MANAGER";
+        return isManagerOrAbove(user);
       case "project.approve":
         return policy.can("project.approve");
       case "project.kill":

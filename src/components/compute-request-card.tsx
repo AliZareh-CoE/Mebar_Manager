@@ -1,3 +1,4 @@
+import { isManagerOrAbove } from "@/lib/policy";
 import Link from "next/link";
 import { format } from "date-fns";
 import {
@@ -45,10 +46,10 @@ export function ComputeRequestCard({
 }) {
   const status = request.status as ComputeRequestStatus;
   const canSeeAccess =
-    me.id === request.requesterId || me.role === "MANAGER" || me.isComputeCoordinator;
-  const canSubmitResults = me.id === request.requesterId || me.role === "MANAGER";
+    me.id === request.requesterId || isManagerOrAbove(me) || me.isComputeCoordinator;
+  const canSubmitResults = me.id === request.requesterId || isManagerOrAbove(me);
   const canEditRequest =
-    status === "PENDING" && (me.id === request.requesterId || me.role === "MANAGER");
+    status === "PENDING" && (me.id === request.requesterId || isManagerOrAbove(me));
 
   return (
     <Card>

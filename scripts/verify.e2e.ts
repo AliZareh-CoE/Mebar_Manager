@@ -721,6 +721,26 @@ async function main() {
     "matrix: multi-hat prof is scored too",
     (await page.textContent("body"))!.includes("Prof. Mebar")
   );
+
+  // The dangerous stuff is the ADMIN's alone: a MANAGER (noa) keeps the
+  // leadership surfaces but is locked out of settings, users, and feedback.
+  const noaMx = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
+  await noaMx.goto(BASE + "/login");
+  await noaMx.fill("#email", "noa@lab.local");
+  await noaMx.fill("#password", "mebar-demo");
+  await noaMx.click("button[type=submit]");
+  await noaMx.waitForURL(BASE + "/");
+  const noaNav = await navSet(noaMx);
+  for (const item of ["Initiatives", "Performance"]) {
+    check(`matrix: manager (noa) nav has ${item}`, noaNav.includes(item));
+  }
+  for (const item of ["People", "Feedback", "Settings"]) {
+    check(`matrix: manager (noa) nav lacks ${item}`, !noaNav.includes(item));
+  }
+  for (const route of ["/admin/users", "/admin/feedback", "/admin/settings"]) {
+    check(`matrix: manager (noa) ${route} → /`, (await routeLandsOn(noaMx, route)) === "/");
+  }
+  await noaMx.close();
   await lenaPage.close();
 
   // 27c. v6 SWEEP — lineups, activation checkpoint, papers, underload,

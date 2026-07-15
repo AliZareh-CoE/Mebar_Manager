@@ -20,8 +20,10 @@ import {
  */
 
 const PERSONAS = {
+  adminCoordinator: { role: "ADMIN", isComputeCoordinator: true }, // the PI's multi-hat
+  admin: { role: "ADMIN", isComputeCoordinator: false },
   manager: { role: "MANAGER", isComputeCoordinator: false },
-  managerCoordinator: { role: "MANAGER", isComputeCoordinator: true }, // the PI's multi-hat
+  managerCoordinator: { role: "MANAGER", isComputeCoordinator: true },
   engineer: { role: "ENGINEER", isComputeCoordinator: false },
   engineerCoordinator: { role: "ENGINEER", isComputeCoordinator: true },
   secretary: { role: "SECRETARY", isComputeCoordinator: false },
@@ -30,6 +32,8 @@ type Persona = keyof typeof PERSONAS;
 
 describe("project visibility scope", () => {
   const expected: Record<Persona, Record<VisibilityMode, ProjectScope>> = {
+    adminCoordinator: { RESTRICTED: "ALL", OPEN: "ALL" },
+    admin: { RESTRICTED: "ALL", OPEN: "ALL" },
     manager: { RESTRICTED: "ALL", OPEN: "ALL" },
     managerCoordinator: { RESTRICTED: "ALL", OPEN: "ALL" },
     engineer: { RESTRICTED: "INVOLVED", OPEN: "ALL" },
@@ -50,6 +54,8 @@ describe("project visibility scope", () => {
 
 describe("task visibility scope", () => {
   const expected: Record<Persona, Record<VisibilityMode, TaskScope>> = {
+    adminCoordinator: { RESTRICTED: "ALL", OPEN: "ALL" },
+    admin: { RESTRICTED: "ALL", OPEN: "ALL" },
     manager: { RESTRICTED: "ALL", OPEN: "ALL" },
     managerCoordinator: { RESTRICTED: "ALL", OPEN: "ALL" },
     engineer: { RESTRICTED: "INVOLVED", OPEN: "ALL" },
@@ -70,6 +76,8 @@ describe("task visibility scope", () => {
 
 describe("leadership surfaces (initiatives, performance)", () => {
   const expected: Record<Persona, boolean> = {
+    adminCoordinator: true,
+    admin: true,
     manager: true,
     managerCoordinator: true,
     engineer: false,
@@ -86,15 +94,26 @@ describe("leadership surfaces (initiatives, performance)", () => {
 
 describe("route access grid", () => {
   const expected: Record<Persona, Record<GuardedRoute, boolean>> = {
-    manager: {
+    adminCoordinator: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
       "/initiatives": true, "/performance": true,
       "/admin/users": true, "/admin/feedback": true, "/admin/settings": true,
     },
-    managerCoordinator: {
+    admin: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
       "/initiatives": true, "/performance": true,
       "/admin/users": true, "/admin/feedback": true, "/admin/settings": true,
+    },
+    // Managers run the lab's work — the dangerous stuff is the admin's alone.
+    manager: {
+      "/board": true, "/data": true, "/compute": true, "/tasks": true,
+      "/initiatives": true, "/performance": true,
+      "/admin/users": false, "/admin/feedback": false, "/admin/settings": false,
+    },
+    managerCoordinator: {
+      "/board": true, "/data": true, "/compute": true, "/tasks": true,
+      "/initiatives": true, "/performance": true,
+      "/admin/users": false, "/admin/feedback": false, "/admin/settings": false,
     },
     engineer: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
@@ -104,7 +123,7 @@ describe("route access grid", () => {
     engineerCoordinator: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
       "/initiatives": true, "/performance": true,
-      // Coordinator sees the lab, but admin pages stay manager-only.
+      // Coordinator sees the lab, but admin pages stay admin-only.
       "/admin/users": false, "/admin/feedback": false, "/admin/settings": false,
     },
     secretary: {

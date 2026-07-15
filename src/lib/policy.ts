@@ -4,12 +4,18 @@ import type { SessionUser } from "@/lib/session";
 
 // Mirrors ROLES in lib/auth.ts — inlined so this pure module never imports
 // the auth/db stack (keeps unit tests and client bundles clean).
-// The matrix stays two-valued: "ENGINEER" reads as "everyone of at least
-// engineer rank", which secretaries (rank 0) never reach — they act only
-// through involvement (their own tasks).
+// The matrix stays two-valued: "MANAGER" reads as "manager rank or above"
+// (which includes the ADMIN) and "ENGINEER" as "engineer rank or above";
+// secretaries (rank 0) never reach either — they act only through
+// involvement (their own tasks).
 const MATRIX_ROLES = ["MANAGER", "ENGINEER"] as const;
 
-const ROLE_RANK: Record<Role, number> = { MANAGER: 2, ENGINEER: 1, SECRETARY: 0 };
+const ROLE_RANK: Record<Role, number> = { ADMIN: 3, MANAGER: 2, ENGINEER: 1, SECRETARY: 0 };
+
+/** Manager-rank or above (ADMIN included) — the lab-running tier. */
+export function isManagerOrAbove(u: Pick<SessionUser, "role">): boolean {
+  return ROLE_RANK[u.role] >= ROLE_RANK.MANAGER;
+}
 
 /**
  * Central authorization. Every server action asks `can()` — never inline
@@ -58,14 +64,14 @@ export type FixedCapability =
   | "initiative.edit";
 
 /**
- * Managers and the compute coordinator — the people who run the lab's big
- * fights, see everything, and appear on /performance. Pure so nav, pages,
- * loaders, and tests can all share it.
+ * The admin, managers, and the compute coordinator — the people who run the
+ * lab's big fights, see everything, and appear on /performance. Pure so nav,
+ * pages, loaders, and tests can all share it.
  */
 export function isLabLeadership(
   u: Pick<SessionUser, "role" | "isComputeCoordinator">
 ): boolean {
-  return u.role === "MANAGER" || u.isComputeCoordinator;
+  return isManagerOrAbove(u) || u.isComputeCoordinator;
 }
 
 export type Capability = ConfigurableCapability | FixedCapability;
@@ -134,19 +140,22 @@ export function can(
   if (ctx?.involvedUserIds?.includes(user.id)) return true;
 
   switch (capability) {
+    // The dangerous stuff — reshaping the system and its people — belongs
+    // to the ADMIN alone. Managers run the lab; they don't rewire it.
     case "users.manage":
     case "settings.manage":
+      return user.role === "ADMIN";
     case "decision.decide":
-      return user.role === "MANAGER";
+      return isManagerOrAbove(user);
     // THE coordinator decides compute — deliberately no manager fallback.
     case "compute.decide":
       return user.isComputeCoordinator;
     case "dataRequest.deliver":
-      return user.role === "MANAGER"; // assignee covered by involvement
+      return isManagerOrAbove(user); // assignee covered by involvement
     case "initiative.file":
       return isLabLeadership(user);
     case "initiative.edit":
-      return user.role === "MANAGER"; // requester/assignee covered by involvement
+      return isManagerOrAbove(user); // requester/assignee covered by involvement
     default:
       // Rank comparison, not equality: "ENGINEER" in the matrix means
       // "engineer or above" — secretaries (rank 0) are always below it.

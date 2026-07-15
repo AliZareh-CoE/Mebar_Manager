@@ -7,7 +7,7 @@ import { isLabLeadership } from "@/lib/policy";
  */
 
 export type AccessUser = {
-  role: "MANAGER" | "ENGINEER" | "SECRETARY";
+  role: "ADMIN" | "MANAGER" | "ENGINEER" | "SECRETARY";
   isComputeCoordinator: boolean;
 };
 
@@ -70,9 +70,11 @@ export function routeAllowed(user: AccessUser, route: GuardedRoute): boolean {
       return canSeeInitiatives(user);
     case "/performance":
       return canSeePerformance(user);
+    // The dangerous stuff — the ADMIN alone. Managers run projects; they
+    // don't manage accounts, rewrite settings, or triage feedback.
     case "/admin/users":
     case "/admin/feedback":
     case "/admin/settings":
-      return user.role === "MANAGER";
+      return user.role === "ADMIN";
   }
 }

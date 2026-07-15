@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { labSettings } from "@/lib/db/schema";
-import { requireManager } from "@/lib/session";
+import { requireAdmin } from "@/lib/session";
 import {
   getSettings,
   labSettingsSchema,
@@ -47,7 +47,7 @@ async function patchSettings(patch: Record<string, unknown>): Promise<ActionResu
 }
 
 export async function updateLabIdentity(formData: FormData): Promise<ActionResult> {
-  await requireManager();
+  await requireAdmin();
   const schema = z.object({
     labName: z.string().trim().min(1, "The lab needs a name").max(40),
     tagline: z.string().trim().max(120).default(""),
@@ -59,7 +59,7 @@ export async function updateLabIdentity(formData: FormData): Promise<ActionResul
 }
 
 export async function updateFightRules(formData: FormData): Promise<ActionResult> {
-  await requireManager();
+  await requireAdmin();
   // One ordered array carries both the per-rule config and the section order.
   const itemSchema = fightRuleSchema.extend({ type: z.enum(FIGHT_TYPES) });
   const parsed = z
@@ -75,7 +75,7 @@ export async function updateFightRules(formData: FormData): Promise<ActionResult
 }
 
 export async function updateThresholds(formData: FormData): Promise<ActionResult> {
-  await requireManager();
+  await requireAdmin();
   const parsed = thresholdSettingsSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
@@ -85,7 +85,7 @@ export async function updateThresholds(formData: FormData): Promise<ActionResult
 }
 
 export async function updateVisibility(formData: FormData): Promise<ActionResult> {
-  await requireManager();
+  await requireAdmin();
   const parsed = z
     .object({ visibilityMode: z.enum(["RESTRICTED", "OPEN"]) })
     .safeParse(Object.fromEntries(formData.entries()));
@@ -94,7 +94,7 @@ export async function updateVisibility(formData: FormData): Promise<ActionResult
 }
 
 export async function updateWorkflow(formData: FormData): Promise<ActionResult> {
-  await requireManager();
+  await requireAdmin();
   let raw: unknown;
   try {
     raw = JSON.parse(String(formData.get("workflow") ?? ""));
@@ -115,21 +115,21 @@ function parseJsonField(formData: FormData, field: string): unknown {
 }
 
 export async function updateCauseTags(formData: FormData): Promise<ActionResult> {
-  await requireManager();
+  await requireAdmin();
   const parsed = causeTagListSchema.safeParse(parseJsonField(formData, "items"));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   return patchSettings({ causeTags: parsed.data });
 }
 
 export async function updatePractices(formData: FormData): Promise<ActionResult> {
-  await requireManager();
+  await requireAdmin();
   const parsed = practiceListSchema.safeParse(parseJsonField(formData, "items"));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   return patchSettings({ practices: parsed.data });
 }
 
 export async function updateServerTypes(formData: FormData): Promise<ActionResult> {
-  await requireManager();
+  await requireAdmin();
   const parsed = serverTypeListSchema.safeParse(parseJsonField(formData, "items"));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   // Cross-slice check: mandatory practices must reference existing practices.
@@ -145,7 +145,7 @@ export async function updateServerTypes(formData: FormData): Promise<ActionResul
 }
 
 export async function updateProposalQuestions(formData: FormData): Promise<ActionResult> {
-  await requireManager();
+  await requireAdmin();
   const raw = parseJsonField(formData, "items");
   // The editor doesn't carry the builtin flag — re-derive it from the key so
   // a crafted payload can't flip a built-in to custom (or vice versa).
@@ -163,7 +163,7 @@ export async function updateProposalQuestions(formData: FormData): Promise<Actio
 }
 
 export async function updatePerformanceSettings(formData: FormData): Promise<ActionResult> {
-  await requireManager();
+  await requireAdmin();
   const parsed = performanceSettingsSchema.safeParse({
     windowDays: formData.get("windowDays"),
     updatesCapPerProjectPerWeek: formData.get("updatesCapPerProjectPerWeek"),
@@ -177,7 +177,7 @@ export async function updatePerformanceSettings(formData: FormData): Promise<Act
 }
 
 export async function updatePermissions(formData: FormData): Promise<ActionResult> {
-  await requireManager();
+  await requireAdmin();
   const raw = Object.fromEntries(
     CONFIGURABLE_CAPABILITIES.map((c) => [c, formData.get(c)])
   );

@@ -20,7 +20,7 @@ export function NewProjectForm({
   questions: { key: string; label: string; builtin: boolean }[];
 }) {
   const [pending, setPending] = useState(false);
-  const managers = people.filter((p) => p.role === "MANAGER");
+  const managers = people.filter((p) => p.role === "MANAGER" || p.role === "ADMIN");
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { feedback, FEEDBACK_KINDS, FEEDBACK_STATUSES } from "@/lib/db/schema";
-import { requireUser, requireManager } from "@/lib/session";
+import { requireUser, requireAdmin } from "@/lib/session";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 
 const submitFeedbackSchema = z.object({
@@ -38,7 +38,7 @@ export async function respondToFeedback(
   feedbackId: string,
   formData: FormData
 ): Promise<ActionResult> {
-  const me = await requireManager();
+  const me = await requireAdmin();
 
   const parsed = parseForm(respondSchema, formData);
   if (!parsed.success) return { error: parsed.error };

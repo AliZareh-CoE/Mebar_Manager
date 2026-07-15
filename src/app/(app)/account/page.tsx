@@ -69,12 +69,14 @@ export default async function AccountPage() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">{me.name}</h1>
-        <Badge variant={me.role === "MANAGER" ? "default" : "secondary"}>
-          {me.role === "MANAGER"
-            ? "Manager"
-            : me.role === "SECRETARY"
-              ? "Secretary"
-              : "Engineer"}
+        <Badge variant={me.role === "MANAGER" || me.role === "ADMIN" ? "default" : "secondary"}>
+          {me.role === "ADMIN"
+            ? "Admin"
+            : me.role === "MANAGER"
+              ? "Manager"
+              : me.role === "SECRETARY"
+                ? "Secretary"
+                : "Engineer"}
         </Badge>
         {me.isDataAnalyst && (
           <Badge variant="outline" className="text-blue-600 dark:text-blue-400">

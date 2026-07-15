@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminUsersPage() {
   const me = await getCurrentUser();
   if (!me) redirect("/login");
-  if (me.role !== "MANAGER") redirect("/");
+  if (me.role !== "ADMIN") redirect("/");
 
   const allUsers = await db.select().from(user).orderBy(asc(user.createdAt));
   const coordinator = allUsers.find((u) => u.isComputeCoordinator && !u.banned) ?? null;
@@ -66,12 +66,14 @@ export default async function AdminUsersPage() {
               <TableCell className="font-medium">{u.name}</TableCell>
               <TableCell className="text-muted-foreground">{u.email}</TableCell>
               <TableCell>
-                <Badge variant={u.role === "MANAGER" ? "default" : "secondary"}>
-                  {u.role === "MANAGER"
-                    ? "Manager"
-                    : u.role === "SECRETARY"
-                      ? "Secretary"
-                      : "Engineer"}
+                <Badge variant={u.role === "MANAGER" || u.role === "ADMIN" ? "default" : "secondary"}>
+                  {u.role === "ADMIN"
+                    ? "Admin"
+                    : u.role === "MANAGER"
+                      ? "Manager"
+                      : u.role === "SECRETARY"
+                        ? "Secretary"
+                        : "Engineer"}
                 </Badge>
               </TableCell>
               <TableCell>
@@ -103,7 +105,7 @@ export default async function AdminUsersPage() {
                   {!u.banned && u.role !== "SECRETARY" && (
                     <AnalystToggle userId={u.id} isAnalyst={Boolean(u.isDataAnalyst)} />
                   )}
-                  {!u.banned && u.role === "MANAGER" && !u.isComputeCoordinator && (
+                  {!u.banned && (u.role === "MANAGER" || u.role === "ADMIN") && !u.isComputeCoordinator && (
                     <MakeCoordinatorButton
                       userId={u.id}
                       name={u.name}

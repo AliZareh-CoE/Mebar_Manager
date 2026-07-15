@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
-import { requireManager } from "@/lib/session";
+import { requireAdmin } from "@/lib/session";
 import type { ActionResult } from "@/lib/action-utils";
 
 /** Grant or revoke the data-analyst add-on. Manager-only. */
@@ -12,7 +12,7 @@ export async function setDataAnalyst(
   userId: string,
   isAnalyst: boolean
 ): Promise<ActionResult> {
-  await requireManager();
+  await requireAdmin();
 
   const target = await db.select().from(user).where(eq(user.id, userId)).get();
   if (!target) return { error: "User not found." };
@@ -29,11 +29,11 @@ export async function setDataAnalyst(
  * setting it clears the previous holder in the same transaction.
  */
 export async function setComputeCoordinator(userId: string): Promise<ActionResult> {
-  await requireManager();
+  await requireAdmin();
 
   const target = await db.select().from(user).where(eq(user.id, userId)).get();
   if (!target) return { error: "User not found." };
-  if (target.role !== "MANAGER") {
+  if (target.role !== "MANAGER" && target.role !== "ADMIN") {
     return { error: "The compute coordinator must be a coordinator (manager) account." };
   }
   if (target.banned) return { error: "Reactivate the account first." };

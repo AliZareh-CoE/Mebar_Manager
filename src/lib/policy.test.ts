@@ -81,10 +81,29 @@ describe("fixed capabilities", () => {
     expect(can(engineer, "compute.decide", matrix)).toBe(false);
   });
 
-  it("users.manage / settings.manage / decision.decide are manager-fixed", () => {
-    for (const cap of ["users.manage", "settings.manage", "decision.decide"] as const) {
-      expect(can(manager, cap, matrix)).toBe(true);
+  it("users.manage / settings.manage are ADMIN-fixed — managers are locked out", () => {
+    const admin: SessionUser = { ...engineer, id: "u-admin", role: "ADMIN" };
+    for (const cap of ["users.manage", "settings.manage"] as const) {
+      expect(can(admin, cap, matrix)).toBe(true);
+      expect(can(manager, cap, matrix)).toBe(false);
       expect(can(engineer, cap, matrix)).toBe(false);
+    }
+  });
+
+  it("decision.decide is manager rank or above (admin included)", () => {
+    const admin: SessionUser = { ...engineer, id: "u-admin", role: "ADMIN" };
+    expect(can(admin, "decision.decide", matrix)).toBe(true);
+    expect(can(manager, "decision.decide", matrix)).toBe(true);
+    expect(can(engineer, "decision.decide", matrix)).toBe(false);
+  });
+
+  it("the admin passes every configurable capability via rank", () => {
+    const admin: SessionUser = { ...engineer, id: "u-admin", role: "ADMIN" };
+    const allManager = permissionMatrixSchema.parse(
+      Object.fromEntries(CONFIGURABLE_CAPABILITIES.map((c) => [c, "MANAGER"]))
+    );
+    for (const cap of CONFIGURABLE_CAPABILITIES) {
+      expect(can(admin, cap, allManager)).toBe(true);
     }
   });
 

@@ -1,5 +1,6 @@
 "use server";
 
+import { isManagerOrAbove } from "@/lib/policy";
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -156,7 +157,7 @@ export async function submitComputeResults(
   if (request.status !== "APPROVED") {
     return { error: "Results are submitted on approved requests." };
   }
-  if (me.id !== request.requesterId && me.role !== "MANAGER") {
+  if (me.id !== request.requesterId && !isManagerOrAbove(me)) {
     return { error: "Only the requester (or a manager) can submit results." };
   }
 

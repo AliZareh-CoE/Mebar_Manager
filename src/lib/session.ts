@@ -48,9 +48,16 @@ export async function requireUser(): Promise<SessionUser> {
   return user;
 }
 
-/** Auth guard for manager-only mutations. */
+/** Auth guard for manager-rank-and-above mutations (ADMIN included). */
 export async function requireManager(): Promise<SessionUser> {
   const user = await requireUser();
-  if (user.role !== "MANAGER") throw new Error("Managers only");
+  if (user.role !== "MANAGER" && user.role !== "ADMIN") throw new Error("Managers only");
+  return user;
+}
+
+/** Auth guard for the dangerous stuff — settings, users, feedback triage. */
+export async function requireAdmin(): Promise<SessionUser> {
+  const user = await requireUser();
+  if (user.role !== "ADMIN") throw new Error("Admin only");
   return user;
 }

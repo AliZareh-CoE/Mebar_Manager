@@ -3,12 +3,14 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/lib/db";
-import { ac, managerRole, engineerRole, secretaryRole } from "@/lib/permissions";
+import { ac, adminRole, managerRole, engineerRole, secretaryRole } from "@/lib/permissions";
 import { smtpConfigured, sendPasswordResetEmail } from "@/lib/email";
 
-// SECRETARY is lab staff who receive tasks: they see only their own task
-// list (no projects/board/compute) while managers see everything.
-export const ROLES = ["MANAGER", "ENGINEER", "SECRETARY"] as const;
+// ADMIN is the one person who owns the dangerous stuff — settings, user
+// management, feedback triage. Managers (coordinators) run the lab's work
+// but can't reshape the system. SECRETARY is lab staff who receive tasks:
+// they see only their own task list (no projects/board/compute).
+export const ROLES = ["ADMIN", "MANAGER", "ENGINEER", "SECRETARY"] as const;
 export type Role = (typeof ROLES)[number];
 
 if (
@@ -53,8 +55,15 @@ export const auth = betterAuth({
   plugins: [
     admin({
       ac,
-      roles: { MANAGER: managerRole, ENGINEER: engineerRole, SECRETARY: secretaryRole },
-      adminRoles: ["MANAGER"],
+      roles: {
+        ADMIN: adminRole,
+        MANAGER: managerRole,
+        ENGINEER: engineerRole,
+        SECRETARY: secretaryRole,
+      },
+      // Only the ADMIN may hit the user-management API (create users, set
+      // passwords, ban, change roles) — enforced here, not just in the UI.
+      adminRoles: ["ADMIN"],
       defaultRole: "ENGINEER",
     }),
     nextCookies(),

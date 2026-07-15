@@ -109,6 +109,28 @@ export async function runMigrations(
       migrate(drizzle(sqlite), { migrationsFolder });
     }
 
+    // Data repair, not schema: databases created before the ADMIN role
+    // (v6.1) have only MANAGERs. The dangerous stuff (settings, user
+    // management) is admin-only now, so a database with no admin would lock
+    // everyone out of it — promote the oldest manager (the founding account
+    // on every install so far). No-op when an admin already exists.
+    if (tableExists(sqlite, "user")) {
+      const hasAdmin = sqlite
+        .prepare("SELECT 1 FROM user WHERE role = 'ADMIN' LIMIT 1")
+        .get();
+      if (!hasAdmin) {
+        const promoted = sqlite
+          .prepare(
+            "UPDATE user SET role = 'ADMIN' WHERE id = " +
+              "(SELECT id FROM user WHERE role = 'MANAGER' ORDER BY created_at ASC LIMIT 1)"
+          )
+          .run();
+        if (promoted.changes > 0) {
+          console.log("No admin existed — promoted the oldest manager to ADMIN.");
+        }
+      }
+    }
+
     return { adoptedBaseline, applied: pending, backupPath };
   } finally {
     sqlite.close();

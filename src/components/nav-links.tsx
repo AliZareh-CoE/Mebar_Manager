@@ -9,12 +9,12 @@ export function NavLinks({
   isCoordinator,
   fightCount,
 }: {
-  role: "MANAGER" | "ENGINEER" | "SECRETARY";
+  role: "ADMIN" | "MANAGER" | "ENGINEER" | "SECRETARY";
   isCoordinator: boolean;
   fightCount: number;
 }) {
   const pathname = usePathname();
-  const isLeadership = role === "MANAGER" || isCoordinator;
+  const isLeadership = role === "ADMIN" || role === "MANAGER" || isCoordinator;
   // Secretaries live in their task list — no projects, board, or compute.
   const links =
     role === "SECRETARY"
@@ -34,7 +34,8 @@ export function NavLinks({
                 { href: "/performance", label: "Performance" },
               ]
             : []),
-          ...(role === "MANAGER"
+          // The dangerous stuff — admin only.
+          ...(role === "ADMIN"
             ? [
                 { href: "/admin/users", label: "People" },
                 { href: "/admin/feedback", label: "Feedback" },

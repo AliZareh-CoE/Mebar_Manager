@@ -3,7 +3,7 @@ import { PartyPopper } from "lucide-react";
 import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { getPolicy, transitionGate } from "@/lib/policy-server";
-import { isLabLeadership } from "@/lib/policy";
+import { isLabLeadership, isManagerOrAbove } from "@/lib/policy";
 import { visibleProjectIds, visibleTaskIds } from "@/lib/visibility";
 import {
   activationStateKeys,
@@ -113,7 +113,7 @@ export default async function FightListPage() {
     (snapshot.openInitiatives ?? []).map((i) => [i.id, i])
   );
   const leadership = allPeople
-    .filter((p) => p.role === "MANAGER" || p.isComputeCoordinator)
+    .filter((p) => p.role === "MANAGER" || p.role === "ADMIN" || p.isComputeCoordinator)
     .map(({ id, name }) => ({ id, name }));
 
   function actionFor(item: FightItem) {
@@ -180,7 +180,7 @@ export default async function FightListPage() {
       case "OVERDUE_COMPUTE_RESULTS": {
         const request = computeRequestById.get(item.entityId);
         if (!request) return null;
-        if (me!.id !== request.requester.id && me!.role !== "MANAGER") {
+        if (me!.id !== request.requester.id && !isManagerOrAbove(me!)) {
           return (
             <span className="text-sm text-muted-foreground">
               waiting on {item.responsible?.name}

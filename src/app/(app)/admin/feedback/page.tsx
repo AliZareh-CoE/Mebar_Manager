@@ -36,7 +36,7 @@ const STATUS_OPTIONS = GROUP_ORDER.map((s) => ({ value: s, label: GROUPS[s].titl
 export default async function AdminFeedbackPage() {
   const me = await getCurrentUser();
   if (!me) redirect("/login");
-  if (me.role !== "MANAGER") redirect("/");
+  if (me.role !== "ADMIN") redirect("/");
 
   const rows = await db.query.feedback.findMany({
     with: {

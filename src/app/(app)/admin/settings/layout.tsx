@@ -21,7 +21,7 @@ export default async function AdminSettingsLayout({
   // but keep the first line of defense here.
   const me = await getCurrentUser();
   if (!me) redirect("/login");
-  if (me.role !== "MANAGER") redirect("/");
+  if (me.role !== "ADMIN") redirect("/");
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
