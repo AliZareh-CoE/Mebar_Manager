@@ -32,6 +32,7 @@ export function NavLinks({
           ...(role === "MANAGER"
             ? [
                 { href: "/admin/users", label: "People" },
+                { href: "/admin/feedback", label: "Feedback" },
                 { href: "/admin/settings", label: "Settings" },
               ]
             : []),

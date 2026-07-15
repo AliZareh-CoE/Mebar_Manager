@@ -13,6 +13,7 @@ import {
   engineStateFlags,
   frozenStateKeys,
 } from "@/lib/workflow";
+import { FeedbackButton } from "@/components/feedback-button";
 import { NavLinks } from "@/components/nav-links";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -77,6 +78,7 @@ export default async function AppLayout({
             >
               {user.name}
             </Link>
+            <FeedbackButton />
             <ThemeToggle />
             <SignOutButton />
           </div>

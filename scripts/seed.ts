@@ -24,6 +24,7 @@ import {
   computeRequests,
   tasks,
   initiatives,
+  feedback,
 } from "../src/lib/db/schema";
 
 async function createUserRaw(input: {
@@ -113,6 +114,7 @@ async function seedDemo() {
   db.delete(computeRequests).run();
   db.delete(tasks).run();
   db.delete(initiatives).run();
+  db.delete(feedback).run();
   db.delete(projects).run();
 
   const password = "mebar-demo";
@@ -664,6 +666,31 @@ async function seedDemo() {
           "Space committee approved room B214 after the utilization report. Keys in September.",
         createdAt: subDays(new Date(), 60),
         closedAt: subDays(new Date(), 8),
+      },
+    ])
+    .run();
+
+  // Feedback — one untriaged bug, one answered idea.
+  db.insert(feedback)
+    .values([
+      {
+        kind: "BUG",
+        title: "Board filter resets when I use the back button",
+        body: "Filter by Blocked, open a project, go back — the filter is cleared.",
+        submitterId: taylor,
+        status: "NEW",
+        createdAt: subDays(new Date(), 2),
+      },
+      {
+        kind: "IDEA",
+        title: "Email me when one of my fights turns red",
+        body: "I don't always have the tab open; a daily digest would catch stalls earlier.",
+        submitterId: sara,
+        status: "PLANNED",
+        adminResponse: "Agreed — escalation notifications are on the roadmap.",
+        respondedById: prof,
+        createdAt: subDays(new Date(), 6),
+        respondedAt: subDays(new Date(), 5),
       },
     ])
     .run();

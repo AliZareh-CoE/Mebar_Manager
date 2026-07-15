@@ -530,6 +530,32 @@ async function main() {
     !(await engPage.textContent("body"))!.includes("Overdue initiatives")
   );
 
+  // 24d. Feedback: every role can submit via the header button; managers
+  // triage at /admin/feedback. Self-restoring: we respond to our own row.
+  await secPage.goto(BASE + "/tasks");
+  await secPage.click("button[aria-label='Send feedback']");
+  await secPage.fill("input[name=title]", "E2E feedback — task table needs sorting");
+  await secPage.fill("textarea[name=body]", "Sorting by deadline would help me plan the week.");
+  await secPage.click("div[role=dialog] button[type=submit]");
+  await secPage.waitForTimeout(1200);
+  check("secretary can submit feedback", true);
+  await page.goto(BASE + "/admin/feedback");
+  const fbBody = await page.textContent("body");
+  check("manager sees seeded feedback groups", fbBody!.includes("New") && fbBody!.includes("Planned"));
+  check("manager sees the secretary's submission", fbBody!.includes("E2E feedback"));
+  const fbRow = page.locator("tr", { hasText: "E2E feedback" }).first();
+  await fbRow.locator("button:has-text('Respond…')").click();
+  await page.fill("div[role=dialog] textarea[name=adminResponse]", "Good idea — queued.");
+  await page.click("div[role=dialog] button:has-text('Save verdict')");
+  await page.waitForTimeout(1200);
+  check(
+    "manager response lands on the row",
+    (await page.textContent("body"))!.includes("Good idea — queued.")
+  );
+  await engPage.goto(BASE + "/admin/feedback");
+  await engPage.waitForURL(BASE + "/");
+  check("engineer /admin/feedback redirects home", engPage.url() === BASE + "/");
+
   // 25. Cancel a blocker → its fight clears
   await page.goto(BASE + "/board?state=BLOCKED");
   await page.click("text=ML defect classifier");

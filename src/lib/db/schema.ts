@@ -345,6 +345,43 @@ export const initiativesRelations = relations(initiatives, ({ one }) => ({
   }),
 }));
 
+export const FEEDBACK_KINDS = ["BUG", "IDEA"] as const;
+export type FeedbackKind = (typeof FEEDBACK_KINDS)[number];
+export const FEEDBACK_STATUSES = ["NEW", "PLANNED", "DONE", "DECLINED"] as const;
+export type FeedbackStatus = (typeof FEEDBACK_STATUSES)[number];
+
+// Bug reports and feature ideas from anyone in the lab; managers triage.
+// Never deleted — declined items keep their reasons on the record.
+export const feedback = sqliteTable(
+  "feedback",
+  {
+    id: id(),
+    kind: text("kind", { enum: FEEDBACK_KINDS }).notNull(),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    submitterId: text("submitter_id")
+      .notNull()
+      .references(() => user.id),
+    status: text("status", { enum: FEEDBACK_STATUSES }).notNull().default("NEW"),
+    adminResponse: text("admin_response"),
+    respondedById: text("responded_by_id").references(() => user.id),
+    createdAt: createdAt(),
+    respondedAt: integer("responded_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [index("feedback_status_idx").on(t.status)]
+);
+
+export const feedbackRelations = relations(feedback, ({ one }) => ({
+  submitter: one(user, {
+    fields: [feedback.submitterId],
+    references: [user.id],
+  }),
+  respondedBy: one(user, {
+    fields: [feedback.respondedById],
+    references: [user.id],
+  }),
+}));
+
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   owner: one(user, {
     fields: [projects.ownerId],
@@ -475,3 +512,4 @@ export type Update = typeof updates.$inferSelect;
 export type Decision = typeof decisions.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type Initiative = typeof initiatives.$inferSelect;
+export type Feedback = typeof feedback.$inferSelect;
