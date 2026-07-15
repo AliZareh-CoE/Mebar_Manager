@@ -7,11 +7,13 @@ import { getSessionCookie } from "better-auth/cookies";
 // a stale/invalid cookie (deactivation, revocation) would otherwise bounce
 // between / and /login forever; the login page itself redirects users whose
 // session actually validates.
+const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password"];
+
 export function proxy(request: NextRequest) {
   const hasSession = Boolean(getSessionCookie(request));
-  const isLogin = request.nextUrl.pathname === "/login";
+  const isPublic = PUBLIC_PATHS.includes(request.nextUrl.pathname);
 
-  if (!hasSession && !isLogin) {
+  if (!hasSession && !isPublic) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
   return NextResponse.next();

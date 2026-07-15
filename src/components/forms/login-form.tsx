@@ -70,6 +70,12 @@ export function LoginForm() {
           <Button type="submit" disabled={pending}>
             {pending ? "Signing in…" : "Sign in"}
           </Button>
+          <a
+            href="/forgot-password"
+            className="text-center text-xs text-muted-foreground underline-offset-4 hover:underline"
+          >
+            Forgot password?
+          </a>
         </form>
       </CardContent>
     </Card>

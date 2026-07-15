@@ -4,6 +4,7 @@ import { admin } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/lib/db";
 import { ac, managerRole, engineerRole } from "@/lib/permissions";
+import { smtpConfigured, sendPasswordResetEmail } from "@/lib/email";
 
 export const ROLES = ["MANAGER", "ENGINEER"] as const;
 export type Role = (typeof ROLES)[number];
@@ -29,6 +30,15 @@ export const auth = betterAuth({
     enabled: true,
     // No self-signup: accounts are created by a manager via the admin plugin.
     disableSignUp: true,
+    // Email reset links activate only when SMTP is configured; otherwise the
+    // /forgot-password page tells people to ask a coordinator.
+    ...(smtpConfigured
+      ? {
+          sendResetPassword: async ({ user, url }: { user: { email: string }; url: string }) => {
+            await sendPasswordResetEmail(user.email, url);
+          },
+        }
+      : {}),
   },
   plugins: [
     admin({

@@ -15,6 +15,7 @@ import {
 import { CreateUserDialog } from "@/components/forms/create-user-dialog";
 import { UserActiveToggle } from "@/components/user-active-toggle";
 import { AnalystToggle, MakeCoordinatorButton } from "@/components/role-flag-controls";
+import { UserAdminActions } from "@/components/user-admin-actions";
 import { format } from "date-fns";
 
 export const dynamic = "force-dynamic";
@@ -107,6 +108,15 @@ export default async function AdminUsersPage() {
                   )}
                   {u.id !== me.id && (
                     <UserActiveToggle userId={u.id} banned={Boolean(u.banned)} />
+                  )}
+                  {!u.banned && (
+                    <UserAdminActions
+                      userId={u.id}
+                      name={u.name}
+                      role={u.role ?? "ENGINEER"}
+                      isCoordinator={Boolean(u.isComputeCoordinator)}
+                      isSelf={u.id === me.id}
+                    />
                   )}
                 </div>
               </TableCell>
