@@ -3,6 +3,8 @@ import { and, desc, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { user, type ComputeRequestStatus } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/session";
+import { getSettings } from "@/lib/settings";
+import { visibleProjectIds, isVisible } from "@/lib/visibility";
 import { COMPUTE_STATUS_LABELS } from "@/lib/labels";
 import { ComputeRequestCard } from "@/components/compute-request-card";
 
@@ -20,8 +22,10 @@ const GROUP_BLURBS: Record<ComputeRequestStatus, string> = {
 export default async function ComputePage() {
   const me = await getCurrentUser();
   if (!me) redirect("/login");
+  const settings = await getSettings();
+  const visibleIds = await visibleProjectIds(me, settings);
 
-  const [requests, coordinator] = await Promise.all([
+  const [allRequests, coordinator] = await Promise.all([
     db.query.computeRequests.findMany({
       with: {
         project: { columns: { id: true, title: true } },
@@ -35,6 +39,8 @@ export default async function ComputePage() {
       .where(and(eq(user.isComputeCoordinator, true), ne(user.banned, true)))
       .get(),
   ]);
+
+  const requests = allRequests.filter((r) => isVisible(visibleIds, r.projectId));
 
   return (
     <div className="flex flex-col gap-8">

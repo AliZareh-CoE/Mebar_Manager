@@ -45,7 +45,10 @@ export async function createProject(formData: FormData): Promise<ActionResult> {
   const parsed = parseForm(createProjectSchema, formData);
   if (!parsed.success) return { error: parsed.error };
 
-  const [project] = await db.insert(projects).values(parsed.data).returning();
+  const [project] = await db
+    .insert(projects)
+    .values({ ...parsed.data, createdById: me.id })
+    .returning();
   revalidatePath("/board");
   redirect(`/projects/${project.id}`);
 }

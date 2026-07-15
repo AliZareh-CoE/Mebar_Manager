@@ -7,6 +7,7 @@ import { user, type ProjectState, PROJECT_STATES } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/session";
 import { projectAgeDays } from "@/lib/fight-engine";
 import { getSettings } from "@/lib/settings";
+import { visibleProjectIds, isVisible } from "@/lib/visibility";
 import { StateBadge } from "@/components/state-badge";
 import { AgePill } from "@/components/age-pill";
 import { Initials } from "@/components/initials";
@@ -28,6 +29,7 @@ export default async function BoardPage({
 
   const { state, owner } = await searchParams;
   const settings = await getSettings();
+  const visibleIds = await visibleProjectIds(me, settings);
 
   const [projects, owners] = await Promise.all([
     db.query.projects.findMany({
@@ -62,6 +64,7 @@ export default async function BoardPage({
     : null;
 
   const visible = projects
+    .filter((p) => isVisible(visibleIds, p.id))
     .filter((p) => (stateFilter ? p.state === stateFilter : p.state !== "KILLED"))
     .filter((p) => (owner ? p.ownerId === owner : true));
 

@@ -39,6 +39,8 @@ export const projects = sqliteTable(
     advisorId: text("advisor_id")
       .notNull()
       .references(() => user.id),
+    // who filed the proposal — counts as involvement for visibility
+    createdById: text("created_by_id").references(() => user.id),
     state: text("state", { enum: PROJECT_STATES }).notNull().default("PROPOSAL"),
     // required at app level whenever state === PAUSED
     pauseReason: text("pause_reason"),

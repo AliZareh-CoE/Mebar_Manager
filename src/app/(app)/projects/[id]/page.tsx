@@ -5,6 +5,7 @@ import { format, formatDistanceStrict, addHours } from "date-fns";
 import { isOverdue, projectAgeDays } from "@/lib/fight-engine";
 import { availableEvents } from "@/lib/state-machine";
 import { getPolicy, projectEventGate } from "@/lib/policy-server";
+import { visibleProjectIds, isVisible } from "@/lib/visibility";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/session";
@@ -93,6 +94,8 @@ export default async function ProjectPage({
     },
   });
   if (!project) notFound();
+  const visibleIds = await visibleProjectIds(me, settings);
+  if (!isVisible(visibleIds, project.id)) notFound();
 
   const allPeople = await db
     .select({ id: user.id, name: user.name, isDataAnalyst: user.isDataAnalyst })

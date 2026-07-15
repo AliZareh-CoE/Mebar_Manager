@@ -2,6 +2,7 @@ import { PartyPopper } from "lucide-react";
 import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { getPolicy, projectEventGate } from "@/lib/policy-server";
+import { visibleProjectIds } from "@/lib/visibility";
 import { availableEvents } from "@/lib/state-machine";
 import { expireOverdueDecisions } from "@/lib/maintenance";
 import { loadLabSnapshot, loadAllBlockerCauses } from "@/lib/fight-data";
@@ -104,9 +105,10 @@ export default async function FightListPage() {
   const policy = await getPolicy(me);
   expireOverdueDecisions(new Date(), settings.thresholds.decisionTimeoutHours);
 
+  const visibleIds = await visibleProjectIds(me, settings);
   const [snapshot, causes, allPeople] = await Promise.all([
-    loadLabSnapshot(),
-    loadAllBlockerCauses(),
+    loadLabSnapshot(visibleIds),
+    loadAllBlockerCauses(visibleIds),
     db
       .select({ id: user.id, name: user.name, isDataAnalyst: user.isDataAnalyst })
       .from(user)

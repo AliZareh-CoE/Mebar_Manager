@@ -4,6 +4,8 @@ import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { projects, user } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/session";
+import { getSettings } from "@/lib/settings";
+import { visibleProjectIds, isVisible } from "@/lib/visibility";
 import { ComputeRequestForm } from "@/components/forms/compute-request-form";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +21,8 @@ export default async function NewComputeRequestPage({
 
   const project = await db.select().from(projects).where(eq(projects.id, id)).get();
   if (!project) notFound();
+  const visibleIds = await visibleProjectIds(me, await getSettings());
+  if (!isVisible(visibleIds, project.id)) notFound();
 
   const coordinator = await db
     .select({ name: user.name })

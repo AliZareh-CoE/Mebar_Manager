@@ -4,8 +4,15 @@ import { db } from "@/lib/db";
 import { blockers, milestones, dataRequests, computeRequests, user } from "@/lib/db/schema";
 import type { LabSnapshot } from "@/lib/fight-engine";
 
-/** Assemble the fight engine's input from a handful of cheap queries. */
-export async function loadLabSnapshot(): Promise<LabSnapshot> {
+/**
+ * Assemble the fight engine's input from a handful of cheap queries.
+ * Pass a visible-project-id set (from visibleProjectIds) to scope the
+ * snapshot to what the viewer may see — dependent items of filtered-out
+ * projects are dropped by the engine's projectById lookups.
+ */
+export async function loadLabSnapshot(
+  visibleIds: Set<string> | null = null
+): Promise<LabSnapshot> {
   const [
     projectRows,
     blockerRows,
@@ -61,8 +68,12 @@ export async function loadLabSnapshot(): Promise<LabSnapshot> {
       .get(),
   ]);
 
+  const scopedProjects = visibleIds
+    ? projectRows.filter((p) => visibleIds.has(p.id))
+    : projectRows;
+
   return {
-    projects: projectRows.map((p) => ({
+    projects: scopedProjects.map((p) => ({
       id: p.id,
       title: p.title,
       state: p.state,
@@ -126,6 +137,9 @@ export async function loadLabSnapshot(): Promise<LabSnapshot> {
 }
 
 /** Every blocker ever — open and resolved — for the cause Pareto. */
-export function loadAllBlockerCauses() {
-  return db.select({ causeTag: blockers.causeTag }).from(blockers);
+export async function loadAllBlockerCauses(visibleIds: Set<string> | null = null) {
+  const rows = await db
+    .select({ causeTag: blockers.causeTag, projectId: blockers.projectId })
+    .from(blockers);
+  return visibleIds ? rows.filter((r) => visibleIds.has(r.projectId)) : rows;
 }

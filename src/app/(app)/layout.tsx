@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { expireOverdueDecisions } from "@/lib/maintenance";
 import { loadLabSnapshot } from "@/lib/fight-data";
+import { visibleProjectIds } from "@/lib/visibility";
 import { computeFightList } from "@/lib/fight-engine";
 import { NavLinks } from "@/components/nav-links";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -22,8 +23,9 @@ export default async function AppLayout({
   // Expire first so the badge never counts decisions already past the
   // timeout as pending fights.
   expireOverdueDecisions(new Date(), settings.thresholds.decisionTimeoutHours);
+  const visibleIds = await visibleProjectIds(user, settings);
   const fightCount = computeFightList(
-    await loadLabSnapshot(),
+    await loadLabSnapshot(visibleIds),
     new Date(),
     settings.thresholds
   ).length;
