@@ -70,7 +70,8 @@ export default async function FightListPage() {
       activationStateKeys(workflow),
       Object.fromEntries(settings.serverTypes.map((s) => [s.key, s.label])),
       taskIds,
-      isLabLeadership(me)
+      isLabLeadership(me),
+      isLabLeadership(me) ? "ALL" : me.role === "ENGINEER" ? { selfId: me.id } : "NONE"
     ),
     loadAllBlockerCauses(visibleIds),
     db
@@ -266,6 +267,12 @@ export default async function FightListPage() {
         return (
           <Button variant="outline" size="sm" render={<Link href={`/projects/${item.projectId}`} />}>
             File a paper
+          </Button>
+        );
+      case "UNDERLOADED_RESEARCHER":
+        return (
+          <Button variant="outline" size="sm" render={<Link href="/projects/new" />}>
+            File a proposal
           </Button>
         );
       case "MISSED_MILESTONE": {

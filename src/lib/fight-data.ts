@@ -34,7 +34,13 @@ export async function loadLabSnapshot(
    * Leadership (managers + the compute coordinator) sees all initiatives;
    * everyone else none. Default false — fails closed for existing callers.
    */
-  includeInitiatives = false
+  includeInitiatives = false,
+  /**
+   * Whose project-load to evaluate for UNDERLOADED_RESEARCHER: leadership
+   * sees every researcher, an engineer only themselves, secretaries (and
+   * the performance loader) none. Fails closed.
+   */
+  underloadScope: "ALL" | { selfId: string } | "NONE" = "NONE"
 ): Promise<LabSnapshot> {
   // inArray needs a non-empty list; a workflow with no activation states
   // simply never resets the clock via transitions.
@@ -50,6 +56,7 @@ export async function loadLabSnapshot(
     initiativeRows,
     projectPeopleRows,
     paperRows,
+    researcherRows,
     coordinatorRow,
   ] = await Promise.all([
     db.query.projects.findMany({
@@ -116,6 +123,20 @@ export async function loadLabSnapshot(
       .where(inArray(projectPeople.role, ["PI", "FIRST_AUTHOR"])),
     // Any paper row (any status) suppresses the paperless rule.
     db.select({ projectId: papers.projectId }).from(papers),
+    underloadScope === "NONE"
+      ? Promise.resolve([])
+      : db
+          .select({ id: user.id, name: user.name })
+          .from(user)
+          .where(
+            underloadScope === "ALL"
+              ? and(eq(user.role, "ENGINEER"), ne(user.banned, true))
+              : and(
+                  eq(user.id, underloadScope.selfId),
+                  eq(user.role, "ENGINEER"),
+                  ne(user.banned, true)
+                )
+          ),
     db
       .select({ id: user.id, name: user.name })
       .from(user)
@@ -216,6 +237,7 @@ export async function loadLabSnapshot(
       role: pp.role as "PI" | "FIRST_AUTHOR",
     })),
     papers: paperRows,
+    researchers: researcherRows,
     computeCoordinator: coordinatorRow ?? null,
   };
 }

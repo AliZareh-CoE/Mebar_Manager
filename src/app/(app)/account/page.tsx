@@ -38,7 +38,10 @@ export default async function AccountPage() {
       activationStateKeys(workflow),
       Object.fromEntries(settings.serverTypes.map((s) => [s.key, s.label])),
       taskIds,
-      isLabLeadership(me)
+      isLabLeadership(me),
+      // Parity with the fight list, or engineers lose their own underload
+      // item from "Your fights".
+      isLabLeadership(me) ? "ALL" : me.role === "ENGINEER" ? { selfId: me.id } : "NONE"
     ),
     new Date(),
     settings.thresholds,

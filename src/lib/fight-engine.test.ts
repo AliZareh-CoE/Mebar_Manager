@@ -665,6 +665,7 @@ describe("custom thresholds", () => {
     computePendingUrgentHours: 48,
     computeResultsUrgentDays: 1,
     paperGraceDays: 30,
+    minActiveProjects: 5,
   };
 
   it("stallDays 30 un-stalls a 21-day-silent project", () => {
@@ -1036,5 +1037,76 @@ describe("PAPERLESS_PROJECT", () => {
         enabledRules: { PAPERLESS_PROJECT: false },
       })
     ).toEqual([]);
+  });
+});
+
+describe("UNDERLOADED_RESEARCHER", () => {
+  const bob = { id: "u-bob", name: "Bob" };
+  const active = (id: string, owner = alice, advisor = prof) =>
+    project({ id, title: id, owner, advisor });
+
+  it("fires with the n/min headline at the researcher", () => {
+    const s = snap({
+      projects: [active("p1"), active("p2"), active("p3")],
+      researchers: [alice],
+    });
+    const items = computeFightList(s, NOW).filter((i) => i.type === "UNDERLOADED_RESEARCHER");
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      severity: 2,
+      projectId: null,
+      entityId: alice.id,
+      headline: "Alice has 3/5 active projects",
+      responsible: alice,
+    });
+  });
+
+  it("owner and advisor of the same project counts once; meeting the bar is silent", () => {
+    const s = snap({
+      projects: [
+        active("p1", alice, alice), // one project, both hats
+        active("p2"),
+        active("p3"),
+        active("p4"),
+        active("p5", bob, alice), // advising counts
+      ],
+      researchers: [alice],
+    });
+    expect(computeFightList(s, NOW).filter((i) => i.type === "UNDERLOADED_RESEARCHER")).toEqual(
+      []
+    );
+  });
+
+  it("non-counting states don't count toward the load", () => {
+    const s = snap({
+      projects: [
+        active("p1"),
+        project({ id: "p2", title: "p2", state: "PROPOSAL" }),
+        project({ id: "p3", title: "p3", state: "PAUSED" }),
+      ],
+      researchers: [alice],
+    });
+    const items = computeFightList(s, NOW).filter((i) => i.type === "UNDERLOADED_RESEARCHER");
+    expect(items[0]?.headline).toBe("Alice has 1/5 active projects");
+  });
+
+  it("only supplied researchers are evaluated (persona scoping is the loader's job)", () => {
+    const s = snap({ projects: [active("p1")], researchers: [alice] });
+    const items = computeFightList(s, NOW).filter((i) => i.type === "UNDERLOADED_RESEARCHER");
+    expect(items.map((i) => i.entityId)).toEqual([alice.id]); // bob/prof not evaluated
+  });
+
+  it("minActiveProjects 0 disables the rule; the toggle also works", () => {
+    const s = snap({ projects: [], researchers: [alice] });
+    expect(
+      computeFightList(s, NOW, { ...DEFAULT_THRESHOLDS, minActiveProjects: 0 })
+    ).toEqual([]);
+    expect(
+      computeFightList(s, NOW, undefined, { enabledRules: { UNDERLOADED_RESEARCHER: false } })
+    ).toEqual([]);
+  });
+
+  it("old snapshots without researchers never fire", () => {
+    expect(computeFightList(snap(), NOW)).toEqual([]);
   });
 });

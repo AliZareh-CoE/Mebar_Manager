@@ -11,6 +11,7 @@ import {
   COMPUTE_PENDING_URGENT_HOURS,
   COMPUTE_RESULTS_URGENT_DAYS,
   PAPER_GRACE_DAYS,
+  MIN_ACTIVE_PROJECTS,
 } from "@/lib/thresholds";
 
 /**
@@ -130,6 +131,12 @@ export interface LabSnapshot {
   projectPeople?: { projectId: string; role: "PI" | "FIRST_AUTHOR" }[];
   /** Paper rows (any status) — the paperless rule needs existence only. */
   papers?: { projectId: string }[];
+  /**
+   * ENGINEER-role, unbanned people to evaluate for the underload rule —
+   * persona-scoped by the loader: leadership sees everyone, an engineer
+   * only themselves, secretaries nobody.
+   */
+  researchers?: PersonRef[];
   /** The one flagged manager, if any. */
   computeCoordinator: PersonRef | null;
 }
@@ -148,6 +155,7 @@ export interface FightThresholds {
   computePendingUrgentHours: number;
   computeResultsUrgentDays: number;
   paperGraceDays: number;
+  minActiveProjects: number;
 }
 
 export const DEFAULT_THRESHOLDS: FightThresholds = {
@@ -158,6 +166,7 @@ export const DEFAULT_THRESHOLDS: FightThresholds = {
   computePendingUrgentHours: COMPUTE_PENDING_URGENT_HOURS,
   computeResultsUrgentDays: COMPUTE_RESULTS_URGENT_DAYS,
   paperGraceDays: PAPER_GRACE_DAYS,
+  minActiveProjects: MIN_ACTIVE_PROJECTS,
 };
 
 export interface FightItem {
@@ -599,6 +608,30 @@ export function computeFightList(
           responsible: ini.requester,
         });
       }
+    }
+  }
+
+  // Underloaded researchers: everyone runs at least minActiveProjects
+  // (owner or advisor of a project in a counts-for-stall state; the same
+  // project counts once). Lab-level — no project link. 0 disables.
+  if (t.minActiveProjects > 0 && enabled("UNDERLOADED_RESEARCHER")) {
+    const activeProjects = snap.projects.filter((p) => flagsOf(p.state).countsForStall);
+    for (const r of snap.researchers ?? []) {
+      const count = activeProjects.filter(
+        (p) => p.owner.id === r.id || p.advisor.id === r.id
+      ).length;
+      if (count >= t.minActiveProjects) continue;
+      items.push({
+        type: "UNDERLOADED_RESEARCHER",
+        severity: 2,
+        ageDays: 0,
+        projectId: null,
+        projectTitle: null,
+        entityId: r.id,
+        headline: `${r.name} has ${count}/${t.minActiveProjects} active projects`,
+        detail: "Owner or advisor of a project in an active state counts. File a proposal.",
+        responsible: r,
+      });
     }
   }
 

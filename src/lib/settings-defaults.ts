@@ -119,6 +119,12 @@ export const DEFAULT_FIGHT_SECTIONS: Record<FightType, FightRuleConfig> = {
     title: "Projects without a paper",
     blurb: "Every project must lead to a Q1 paper. File one — even a draft counts.",
   },
+  UNDERLOADED_RESEARCHER: {
+    enabled: true,
+    title: "Underloaded researchers",
+    blurb:
+      "Everyone runs at least the minimum of active projects. Fewer means a proposal needs filing.",
+  },
 };
 
 export const DEFAULT_SECTION_ORDER: FightType[] = [...FIGHT_TYPES];
