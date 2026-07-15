@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { expireOverdueDecisions } from "@/lib/maintenance";
 import { loadLabSnapshot } from "@/lib/fight-data";
-import { visibleProjectIds } from "@/lib/visibility";
+import { visibleProjectIds, visibleTaskIds } from "@/lib/visibility";
 import { computeFightList } from "@/lib/fight-engine";
 import {
   activationStateKeys,
@@ -34,8 +34,14 @@ export default async function AppLayout({
     frozenStateKeys(workflow)
   );
   const visibleIds = await visibleProjectIds(user, settings);
+  const taskIds = await visibleTaskIds(user, settings);
   const fightCount = computeFightList(
-    await loadLabSnapshot(visibleIds, activationStateKeys(workflow)),
+    await loadLabSnapshot(
+      visibleIds,
+      activationStateKeys(workflow),
+      Object.fromEntries(settings.serverTypes.map((s) => [s.key, s.label])),
+      taskIds
+    ),
     new Date(),
     settings.thresholds,
     { stateFlags: engineStateFlags(workflow) }

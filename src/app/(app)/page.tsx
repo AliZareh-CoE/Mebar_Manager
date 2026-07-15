@@ -2,7 +2,7 @@ import { PartyPopper } from "lucide-react";
 import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { getPolicy, transitionGate } from "@/lib/policy-server";
-import { visibleProjectIds } from "@/lib/visibility";
+import { visibleProjectIds, visibleTaskIds } from "@/lib/visibility";
 import {
   activationStateKeys,
   engineStateFlags,
@@ -27,6 +27,7 @@ import { UpdateDialog } from "@/components/forms/update-dialog";
 import { BlockerRowActions } from "@/components/blocker-row-actions";
 import { DataRequestRowActions } from "@/components/data-request-row-actions";
 import { MilestoneStatusButtons } from "@/components/milestone-status-buttons";
+import { TaskRowActions } from "@/components/task-row-actions";
 import { TransitionButtons } from "@/components/transition-buttons";
 import { ParetoChart } from "@/components/pareto-chart";
 import { Button } from "@/components/ui/button";
@@ -87,6 +88,14 @@ const SECTIONS: Record<FightType, { title: string; blurb: string }> = {
     title: "Compute results owed",
     blurb: "The window closed. Where are the results, and did you retrieve your data?",
   },
+  OVERDUE_TASK: {
+    title: "Overdue tasks",
+    blurb: "The deadline passed. The secretary delivers, or the requester fights.",
+  },
+  UNOWNED_TASK: {
+    title: "Unowned tasks",
+    blurb: "No secretary has claimed these. Assign one.",
+  },
 };
 
 const SECTION_ORDER: FightType[] = [
@@ -94,9 +103,11 @@ const SECTION_ORDER: FightType[] = [
   "PAST_REVIVE",
   "OVERDUE_BLOCKER",
   "OVERDUE_DATA_REQUEST",
+  "OVERDUE_TASK",
   "OVERDUE_COMPUTE_RESULTS",
   "UNOWNED_BLOCKER",
   "UNOWNED_DATA_REQUEST",
+  "UNOWNED_TASK",
   "PENDING_COMPUTE_REQUEST",
   "PENDING_DECISION",
   "MISSED_MILESTONE",
@@ -116,15 +127,22 @@ export default async function FightListPage() {
   );
 
   const visibleIds = await visibleProjectIds(me, settings);
+  const taskIds = await visibleTaskIds(me, settings);
   const [snapshot, causes, allPeople] = await Promise.all([
     loadLabSnapshot(
       visibleIds,
       activationStateKeys(workflow),
-      Object.fromEntries(settings.serverTypes.map((s) => [s.key, s.label]))
+      Object.fromEntries(settings.serverTypes.map((s) => [s.key, s.label])),
+      taskIds
     ),
     loadAllBlockerCauses(visibleIds),
     db
-      .select({ id: user.id, name: user.name, isDataAnalyst: user.isDataAnalyst })
+      .select({
+        id: user.id,
+        name: user.name,
+        role: user.role,
+        isDataAnalyst: user.isDataAnalyst,
+      })
       .from(user)
       .where(ne(user.banned, true)),
   ]);
@@ -132,6 +150,9 @@ export default async function FightListPage() {
   const people = allPeople.map(({ id, name }) => ({ id, name }));
   const analysts = allPeople
     .filter((p) => p.isDataAnalyst)
+    .map(({ id, name }) => ({ id, name }));
+  const secretaries = allPeople
+    .filter((p) => p.role === "SECRETARY")
     .map(({ id, name }) => ({ id, name }));
 
   const now = new Date();
@@ -144,10 +165,12 @@ export default async function FightListPage() {
   const milestoneById = new Map(snapshot.openMilestones.map((m) => [m.id, m]));
   const dataRequestById = new Map(snapshot.openDataRequests.map((dr) => [dr.id, dr]));
   const computeRequestById = new Map(snapshot.activeComputeRequests.map((cr) => [cr.id, cr]));
+  const taskById = new Map((snapshot.openTasks ?? []).map((t) => [t.id, t]));
 
   function actionFor(item: FightItem) {
     switch (item.type) {
       case "STALLED_PROJECT":
+        if (!item.projectId) return null;
         return (
           <UpdateDialog
             projectId={item.projectId}
@@ -155,6 +178,7 @@ export default async function FightListPage() {
           />
         );
       case "PAST_REVIVE":
+        if (!item.projectId) return null;
         return (
           <TransitionButtons
             projectId={item.projectId}
@@ -252,6 +276,21 @@ export default async function FightListPage() {
             </div>
           </FormDialog>
         );
+      case "OVERDUE_TASK":
+      case "UNOWNED_TASK": {
+        const task = taskById.get(item.entityId);
+        if (!task) return null;
+        return (
+          <TaskRowActions
+            taskId={task.id}
+            status={task.status}
+            assigneeId={task.assigneeId}
+            secretaries={secretaries}
+            meId={me!.id}
+            meIsSecretary={me!.role === "SECRETARY"}
+          />
+        );
+      }
       case "MISSED_MILESTONE": {
         const milestone = milestoneById.get(item.entityId);
         if (!milestone) return null;

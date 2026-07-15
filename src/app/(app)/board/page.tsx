@@ -32,6 +32,8 @@ export default async function BoardPage({
   // renders, so every page must validate the session itself.
   const me = await getCurrentUser();
   if (!me) redirect("/login");
+  // Secretaries live in their task list — no project surfaces.
+  if (me.role === "SECRETARY") redirect("/tasks");
 
   const { state, owner } = await searchParams;
   const settings = await getSettings();

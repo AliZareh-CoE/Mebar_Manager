@@ -706,3 +706,123 @@ describe("computeParetoData", () => {
     expect(computeParetoData([])).toEqual([]);
   });
 });
+
+// ————————————————————————————————————— secretary tasks (v4)
+
+const taylor = { id: "u-taylor", name: "Taylor" };
+
+function task(over: Partial<import("./fight-engine").TaskRow> = {}) {
+  return {
+    id: "t1",
+    title: "Order the cryostat o-rings",
+    deadline: addDays(NOW, 3),
+    createdAt: subDays(NOW, 1),
+    status: "OPEN",
+    assigneeId: taylor.id,
+    assignee: taylor,
+    requester: alice,
+    projectId: null as string | null,
+    ...over,
+  };
+}
+
+describe("OVERDUE_TASK / UNOWNED_TASK", () => {
+  it("healthy assigned task → no fights", () => {
+    expect(computeFightList(snap({ openTasks: [task()] }), NOW)).toEqual([]);
+  });
+
+  it("overdue task yells at the assignee (severity 3)", () => {
+    const items = computeFightList(
+      snap({ openTasks: [task({ deadline: subDays(NOW, 2) })] }),
+      NOW
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      type: "OVERDUE_TASK",
+      severity: 3,
+      ageDays: 2,
+      projectId: null,
+      responsible: taylor,
+    });
+  });
+
+  it("overdue unassigned task yells at the requester; overdue beats unowned", () => {
+    const items = computeFightList(
+      snap({
+        openTasks: [
+          task({ deadline: subDays(NOW, 1), assigneeId: null, assignee: null, createdAt: subDays(NOW, 10) }),
+        ],
+      }),
+      NOW
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ type: "OVERDUE_TASK", responsible: alice });
+  });
+
+  it("unowned task escalates only past the grace period (severity 2)", () => {
+    const fresh = snap({
+      openTasks: [task({ assigneeId: null, assignee: null, createdAt: subDays(NOW, 1) })],
+    });
+    expect(computeFightList(fresh, NOW)).toEqual([]);
+
+    const stale = snap({
+      openTasks: [task({ assigneeId: null, assignee: null, createdAt: subDays(NOW, 4) })],
+    });
+    const items = computeFightList(stale, NOW);
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      type: "UNOWNED_TASK",
+      severity: 2,
+      ageDays: 2,
+      responsible: alice,
+    });
+  });
+
+  it("a frozen linked project freezes the task fight", () => {
+    for (const state of ["PAUSED", "DONE", "KILLED"]) {
+      const items = computeFightList(
+        snap({
+          projects: [project({ state })],
+          openTasks: [task({ projectId: "p1", deadline: subDays(NOW, 5) })],
+        }),
+        NOW
+      );
+      expect(items.filter((i) => i.type === "OVERDUE_TASK")).toEqual([]);
+    }
+  });
+
+  it("a HIDDEN linked project never hides the task from its assignee", () => {
+    // Task links to a project missing from the (visibility-scoped) snapshot.
+    const items = computeFightList(
+      snap({ projects: [], openTasks: [task({ projectId: "p-hidden", deadline: subDays(NOW, 5) })] }),
+      NOW
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      type: "OVERDUE_TASK",
+      projectId: null,
+      projectTitle: null,
+    });
+  });
+
+  it("linked moving project carries its title onto the fight", () => {
+    const items = computeFightList(
+      snap({ projects: [project()], openTasks: [task({ projectId: "p1", deadline: subDays(NOW, 1) })] }),
+      NOW
+    );
+    expect(items[0]).toMatchObject({ projectId: "p1", projectTitle: "Test project" });
+  });
+
+  it("task rules honor enabledRules toggles", () => {
+    const snapshot = snap({
+      openTasks: [
+        task({ deadline: subDays(NOW, 2) }),
+        task({ id: "t2", assigneeId: null, assignee: null, createdAt: subDays(NOW, 10) }),
+      ],
+    });
+    const items = computeFightList(snapshot, NOW, undefined, {
+      enabledRules: { OVERDUE_TASK: false, UNOWNED_TASK: false },
+    });
+    expect(items).toEqual([]);
+  });
+});

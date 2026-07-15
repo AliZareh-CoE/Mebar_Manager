@@ -12,6 +12,7 @@ export default async function NewProjectPage() {
   // Per-page guard: the layout's check doesn't re-run on partial RSC renders.
   const me = await getCurrentUser();
   if (!me) redirect("/login");
+  if (me.role === "SECRETARY") redirect("/tasks");
 
   const settings = await getSettings();
   const questions = settings.proposalQuestions

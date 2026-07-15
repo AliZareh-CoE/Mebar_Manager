@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, inArray, ne, notInArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { blockers, milestones, dataRequests, computeRequests, user } from "@/lib/db/schema";
+import { blockers, milestones, dataRequests, computeRequests, tasks, user } from "@/lib/db/schema";
 import type { LabSnapshot } from "@/lib/fight-engine";
 import { activationStateKeys } from "@/lib/workflow";
 import { DEFAULT_WORKFLOW } from "@/lib/settings-defaults";
@@ -17,7 +17,9 @@ export async function loadLabSnapshot(
   /** States whose entry resets the stall clock (workflow resetsStallClock). */
   activationStates: readonly string[] = activationStateKeys(DEFAULT_WORKFLOW),
   /** Server-type labels from settings, for fight headlines. */
-  serverTypeLabels: Record<string, string> = {}
+  serverTypeLabels: Record<string, string> = {},
+  /** From visibleTaskIds — null means all tasks. */
+  taskIds: Set<string> | null = null
 ): Promise<LabSnapshot> {
   // inArray needs a non-empty list; a workflow with no activation states
   // simply never resets the clock via transitions.
@@ -29,6 +31,7 @@ export async function loadLabSnapshot(
     milestoneRows,
     dataRequestRows,
     computeRequestRows,
+    taskRows,
     coordinatorRow,
   ] = await Promise.all([
     db.query.projects.findMany({
@@ -70,6 +73,13 @@ export async function loadLabSnapshot(
     db.query.computeRequests.findMany({
       where: inArray(computeRequests.status, ["PENDING", "APPROVED"]),
       with: { requester: { columns: { id: true, name: true } } },
+    }),
+    db.query.tasks.findMany({
+      where: eq(tasks.status, "OPEN"),
+      with: {
+        assignee: { columns: { id: true, name: true } },
+        requester: { columns: { id: true, name: true } },
+      },
     }),
     db
       .select({ id: user.id, name: user.name })
@@ -143,6 +153,19 @@ export async function loadLabSnapshot(
       requester: cr.requester,
       windowEnd: cr.windowEnd,
     })),
+    openTasks: taskRows
+      .filter((t) => taskIds === null || taskIds.has(t.id))
+      .map((t) => ({
+        id: t.id,
+        title: t.title,
+        deadline: t.deadline,
+        createdAt: t.createdAt,
+        status: t.status,
+        assigneeId: t.assigneeId,
+        assignee: t.assignee,
+        requester: t.requester,
+        projectId: t.projectId,
+      })),
     computeCoordinator: coordinatorRow ?? null,
   };
 }

@@ -36,9 +36,11 @@ export function FightItemCard({
           </span>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-          <Link href={`/projects/${item.projectId}`} className="font-medium text-foreground/80 underline-offset-4 hover:underline">
-            {item.projectTitle}
-          </Link>
+          {item.projectId && item.projectTitle && (
+            <Link href={`/projects/${item.projectId}`} className="font-medium text-foreground/80 underline-offset-4 hover:underline">
+              {item.projectTitle}
+            </Link>
+          )}
           {item.responsible && (
             <span className="flex items-center gap-1.5">
               <Initials name={item.responsible.name} className="size-5" />

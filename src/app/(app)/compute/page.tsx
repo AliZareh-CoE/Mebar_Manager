@@ -23,6 +23,7 @@ const GROUP_BLURBS: Record<ComputeRequestStatus, string> = {
 export default async function ComputePage() {
   const me = await getCurrentUser();
   if (!me) redirect("/login");
+  if (me.role === "SECRETARY") redirect("/tasks");
   const settings = await getSettings();
   const visibleIds = await visibleProjectIds(me, settings);
 

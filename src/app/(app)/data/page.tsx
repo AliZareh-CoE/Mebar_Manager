@@ -32,6 +32,7 @@ const GROUPS: Record<DataRequestStatus, { title: string; blurb: string }> = {
 export default async function DataPage() {
   const me = await getCurrentUser();
   if (!me) redirect("/login");
+  if (me.role === "SECRETARY") redirect("/tasks");
 
   const settings = await getSettings();
   const visibleIds = await visibleProjectIds(me, settings);

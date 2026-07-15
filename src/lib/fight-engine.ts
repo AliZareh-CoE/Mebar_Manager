@@ -88,6 +88,19 @@ export interface ComputeRequestRow {
   windowEnd: Date | null;
 }
 
+export interface TaskRow {
+  id: string;
+  title: string;
+  deadline: Date;
+  createdAt: Date;
+  status: string;
+  assigneeId: string | null;
+  assignee: PersonRef | null;
+  requester: PersonRef;
+  /** Optional project link — tasks are standalone. */
+  projectId: string | null;
+}
+
 export interface LabSnapshot {
   projects: ProjectRow[];
   openBlockers: BlockerRow[];
@@ -96,6 +109,8 @@ export interface LabSnapshot {
   openDataRequests: DataRequestRow[];
   /** PENDING + APPROVED compute requests. */
   activeComputeRequests: ComputeRequestRow[];
+  /** OPEN secretary tasks. Optional so older snapshots/tests stay valid. */
+  openTasks?: TaskRow[];
   /** The one flagged manager, if any. */
   computeCoordinator: PersonRef | null;
 }
@@ -110,7 +125,9 @@ export type FightType =
   | "OVERDUE_DATA_REQUEST"
   | "UNOWNED_DATA_REQUEST"
   | "PENDING_COMPUTE_REQUEST"
-  | "OVERDUE_COMPUTE_RESULTS";
+  | "OVERDUE_COMPUTE_RESULTS"
+  | "OVERDUE_TASK"
+  | "UNOWNED_TASK";
 
 /** 3 = red, fight today. 2 = amber, fight this week. 1 = notice. */
 export type Severity = 3 | 2 | 1;
@@ -139,8 +156,9 @@ export interface FightItem {
   severity: Severity;
   /** Days it has been red — drives sorting and the age badge. */
   ageDays: number;
-  projectId: string;
-  projectTitle: string;
+  /** null for standalone tasks (no project link). */
+  projectId: string | null;
+  projectTitle: string | null;
   entityId: string;
   headline: string;
   detail?: string;
@@ -430,6 +448,48 @@ export function computeFightList(
           detail:
             "Final outcomes vs. expected. And retrieve all data and checkpoints — the server doesn't keep them.",
           responsible: cr.requester,
+        });
+      }
+    }
+  }
+
+  // Secretary tasks: same shape as data requests — overdue beats unowned.
+  // A hidden project must never hide a task from its own assignee, so the
+  // project lookup is used ONLY to freeze (paused/terminal), never to drop.
+  for (const task of snap.openTasks ?? []) {
+    if (task.status !== "OPEN") continue;
+    const project = task.projectId ? projectById.get(task.projectId) : undefined;
+    if (project && flagsOf(project.state).frozen) continue;
+
+    const overdueDays = differenceInDays(now, task.deadline);
+    if (overdueDays > 0 && enabled("OVERDUE_TASK")) {
+      items.push({
+        type: "OVERDUE_TASK",
+        severity: 3,
+        ageDays: overdueDays,
+        projectId: project?.id ?? null,
+        projectTitle: project?.title ?? null,
+        entityId: task.id,
+        headline: `Task ${overdueDays}d past its deadline`,
+        detail: task.title,
+        responsible: task.assignee ?? task.requester,
+      });
+      continue; // overdue beats unowned — one fight per task
+    }
+
+    if (!task.assigneeId && enabled("UNOWNED_TASK")) {
+      const unownedDays = differenceInDays(now, task.createdAt);
+      if (unownedDays > t.unownedGraceDays) {
+        items.push({
+          type: "UNOWNED_TASK",
+          severity: 2,
+          ageDays: unownedDays - t.unownedGraceDays,
+          projectId: project?.id ?? null,
+          projectTitle: project?.title ?? null,
+          entityId: task.id,
+          headline: `No secretary owns this task (${unownedDays}d old)`,
+          detail: task.title,
+          responsible: task.requester,
         });
       }
     }
