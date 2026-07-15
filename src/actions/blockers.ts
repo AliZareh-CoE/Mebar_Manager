@@ -8,6 +8,7 @@ import { blockers, CAUSE_TAGS } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
 import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
+import { canAccessProject } from "@/lib/visibility";
 
 function revalidateBlocker(projectId: string) {
   revalidatePath("/");
@@ -26,7 +27,8 @@ export async function raiseBlocker(
   projectId: string,
   formData: FormData
 ): Promise<ActionResult> {
-  await requireUser();
+  const me = await requireUser();
+  if (!(await canAccessProject(me, projectId))) return { error: "Project not found." };
 
   const parsed = parseForm(raiseBlockerSchema, formData);
   if (!parsed.success) return { error: parsed.error };
@@ -72,10 +74,11 @@ export async function assignBlocker(
   blockerId: string,
   ownerId: string
 ): Promise<ActionResult> {
-  await requireUser();
+  const me = await requireUser();
 
   const blocker = await db.select().from(blockers).where(eq(blockers.id, blockerId)).get();
   if (!blocker) return { error: "Blocker not found." };
+  if (!(await canAccessProject(me, blocker.projectId))) return { error: "Blocker not found." };
   if (blocker.status === "RESOLVED" || blocker.status === "CANCELLED") {
     return { error: "This blocker is closed." };
   }
@@ -146,10 +149,11 @@ export async function cancelBlocker(
 }
 
 export async function escalateBlocker(blockerId: string): Promise<ActionResult> {
-  await requireUser();
+  const me = await requireUser();
 
   const blocker = await db.select().from(blockers).where(eq(blockers.id, blockerId)).get();
   if (!blocker) return { error: "Blocker not found." };
+  if (!(await canAccessProject(me, blocker.projectId))) return { error: "Blocker not found." };
   if (blocker.status !== "OPEN") return { error: "Only open blockers can be escalated." };
 
   await db.update(blockers).set({ status: "ESCALATED" }).where(eq(blockers.id, blockerId));

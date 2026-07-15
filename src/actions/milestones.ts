@@ -8,6 +8,7 @@ import { milestones, MILESTONE_STATUSES } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
 import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
+import { canAccessProject } from "@/lib/visibility";
 
 function revalidateMilestone(projectId: string) {
   revalidatePath("/");
@@ -31,7 +32,8 @@ export async function addMilestone(
   projectId: string,
   formData: FormData
 ): Promise<ActionResult> {
-  await requireUser();
+  const me = await requireUser();
+  if (!(await canAccessProject(me, projectId))) return { error: "Project not found." };
 
   const parsed = parseForm(addMilestoneSchema, formData);
   if (!parsed.success) return { error: parsed.error };
@@ -47,7 +49,7 @@ export async function setMilestoneStatus(
   milestoneId: string,
   status: (typeof MILESTONE_STATUSES)[number]
 ): Promise<ActionResult> {
-  await requireUser();
+  const me = await requireUser();
 
   // Cancellation goes exclusively through cancelMilestone (policy-gated),
   // and closed milestones stay closed.
@@ -61,6 +63,9 @@ export async function setMilestoneStatus(
     .where(eq(milestones.id, milestoneId))
     .get();
   if (!milestone) return { error: "Milestone not found." };
+  if (!(await canAccessProject(me, milestone.projectId))) {
+    return { error: "Milestone not found." };
+  }
   if (milestone.status === "DONE" || milestone.status === "CANCELLED") {
     return { error: "This milestone is closed." };
   }

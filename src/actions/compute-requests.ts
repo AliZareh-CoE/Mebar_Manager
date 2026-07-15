@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/session";
 import { getPolicy } from "@/lib/policy-server";
 import { submitComputeRequestSchema } from "@/lib/validation/compute";
 import type { ActionResult } from "@/lib/action-utils";
+import { canAccessProject } from "@/lib/visibility";
 
 function revalidateComputeRequest(projectId: string) {
   revalidatePath("/");
@@ -24,6 +25,7 @@ export async function submitComputeRequest(
 
   const project = await db.select().from(projects).where(eq(projects.id, projectId)).get();
   if (!project) return { error: "Project not found." };
+  if (!(await canAccessProject(me, projectId))) return { error: "Project not found." };
 
   // parseForm would keep only the LAST checkbox value — collect them all.
   const raw = {

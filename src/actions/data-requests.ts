@@ -8,6 +8,7 @@ import { dataRequests, user } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
 import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
+import { canAccessProject } from "@/lib/visibility";
 
 function revalidateDataRequest(projectId: string) {
   revalidatePath("/");
@@ -37,6 +38,7 @@ export async function fileDataRequest(
   formData: FormData
 ): Promise<ActionResult> {
   const me = await requireUser();
+  if (!(await canAccessProject(me, projectId))) return { error: "Project not found." };
 
   const parsed = parseForm(fileDataRequestSchema, formData);
   if (!parsed.success) return { error: parsed.error };

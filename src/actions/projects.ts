@@ -10,6 +10,7 @@ import { requireUser } from "@/lib/session";
 import { getPolicy, projectEventGate } from "@/lib/policy-server";
 import { applyEvent, type ProjectEventType } from "@/lib/state-machine";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
+import { canAccessProject } from "@/lib/visibility";
 
 function revalidateProject(id: string) {
   revalidatePath("/");
@@ -67,6 +68,7 @@ export async function editProject(
 
   const project = await db.select().from(projects).where(eq(projects.id, projectId)).get();
   if (!project) return { error: "Project not found." };
+  if (!(await canAccessProject(user, projectId))) return { error: "Project not found." };
   const policy = await getPolicy(user);
   if (!policy.can("project.editAny", { involvedUserIds: [project.ownerId, project.advisorId] })) {
     return { error: "Only the owner or advisor can edit this project." };
@@ -104,6 +106,7 @@ export async function fireProjectEvent(
 
   const project = await db.select().from(projects).where(eq(projects.id, projectId)).get();
   if (!project) return { error: "Project not found." };
+  if (!(await canAccessProject(user, projectId))) return { error: "Project not found." };
 
   const now = new Date();
   const event =

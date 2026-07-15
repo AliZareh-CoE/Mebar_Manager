@@ -8,6 +8,7 @@ import { decisions, projects } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
 import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
+import { canAccessProject } from "@/lib/visibility";
 
 function revalidateDecision(projectId: string) {
   revalidatePath("/");
@@ -24,7 +25,8 @@ export async function requestDecision(
   projectId: string,
   formData: FormData
 ): Promise<ActionResult> {
-  await requireUser();
+  const me = await requireUser();
+  if (!(await canAccessProject(me, projectId))) return { error: "Project not found." };
 
   const parsed = parseForm(requestDecisionSchema, formData);
   if (!parsed.success) return { error: parsed.error };

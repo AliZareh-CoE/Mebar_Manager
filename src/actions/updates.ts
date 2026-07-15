@@ -8,6 +8,7 @@ import { updates } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
 import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
+import { canAccessProject } from "@/lib/visibility";
 
 const addUpdateSchema = z.object({
   whatMoved: z.string().trim().min(1, "What moved is required — even 'nothing' is information"),
@@ -45,6 +46,7 @@ export async function addUpdate(
   formData: FormData
 ): Promise<ActionResult> {
   const user = await requireUser();
+  if (!(await canAccessProject(user, projectId))) return { error: "Project not found." };
 
   const parsed = parseForm(addUpdateSchema, formData);
   if (!parsed.success) return { error: parsed.error };
