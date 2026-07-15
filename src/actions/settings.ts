@@ -13,12 +13,14 @@ import {
 import {
   causeTagListSchema,
   fightRuleSchema,
+  performanceSettingsSchema,
   practiceListSchema,
   proposalQuestionListSchema,
   serverTypeListSchema,
 } from "@/lib/settings-schema";
 import { HEILMEIER_COLUMNS } from "@/lib/proposal";
 import { FIGHT_TYPES } from "@/lib/fight-types";
+import { PERFORMANCE_METRICS } from "@/lib/performance-metrics";
 import { permissionMatrixSchema, CONFIGURABLE_CAPABILITIES } from "@/lib/policy";
 import { workflowSchema } from "@/lib/workflow";
 import type { ActionResult } from "@/lib/action-utils";
@@ -158,6 +160,20 @@ export async function updateProposalQuestions(formData: FormData): Promise<Actio
   const parsed = proposalQuestionListSchema.safeParse(withBuiltin);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   return patchSettings({ proposalQuestions: parsed.data });
+}
+
+export async function updatePerformanceSettings(formData: FormData): Promise<ActionResult> {
+  await requireManager();
+  const parsed = performanceSettingsSchema.safeParse({
+    windowDays: formData.get("windowDays"),
+    updatesCapPerProjectPerWeek: formData.get("updatesCapPerProjectPerWeek"),
+    weights: Object.fromEntries(PERFORMANCE_METRICS.map((m) => [m, formData.get(m)])),
+  });
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return { error: `${issue.path.join(".")}: ${issue.message}` };
+  }
+  return patchSettings({ performance: parsed.data });
 }
 
 export async function updatePermissions(formData: FormData): Promise<ActionResult> {

@@ -6,6 +6,9 @@ import { loadLabSnapshot } from "@/lib/fight-data";
 import { computeFightList } from "@/lib/fight-engine";
 import { activationStateKeys, engineStateFlags } from "@/lib/workflow";
 import { isLabLeadership } from "@/lib/policy";
+import { loadPerformanceInput } from "@/lib/performance-data";
+import { computeScores } from "@/lib/performance";
+import { MetricBreakdown } from "@/components/metric-breakdown";
 import { ChangeNameForm, ChangePasswordForm } from "@/components/forms/account-forms";
 import { FightItemCard } from "@/components/fight-item-card";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +50,18 @@ export default async function AccountPage() {
     }
   ).filter((item) => item.responsible?.id === me.id);
 
+  const now = new Date();
+  const myScore = computeScores(
+    await loadPerformanceInput(settings, now),
+    {
+      weights: settings.performance.weights,
+      windowDays: settings.performance.windowDays,
+      updatesCapPerProjectPerWeek: settings.performance.updatesCapPerProjectPerWeek,
+      decisionTimeoutHours: settings.thresholds.decisionTimeoutHours,
+    },
+    now
+  ).find((s) => s.person.id === me.id);
+
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <div className="flex flex-wrap items-center gap-3">
@@ -83,6 +98,27 @@ export default async function AccountPage() {
             <FightItemCard key={`${item.type}-${item.entityId}`} item={item} />
           ))}
         </div>
+      )}
+
+      {myScore && (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              Your score (last {settings.performance.windowDays} days):{" "}
+              <span className="tabular-nums">{myScore.total}</span>
+            </CardTitle>
+            <CardDescription>
+              Computed from the record — delivery, discipline, and
+              initiative-taking. Same formula for everyone, managers included.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <MetricBreakdown
+              perMetric={myScore.perMetric}
+              weights={settings.performance.weights}
+            />
+          </CardContent>
+        </Card>
       )}
 
       <Card>

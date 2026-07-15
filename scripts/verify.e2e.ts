@@ -556,6 +556,45 @@ async function main() {
   await engPage.waitForURL(BASE + "/");
   check("engineer /admin/feedback redirects home", engPage.url() === BASE + "/");
 
+  // 24e. Performance: leadership-only standings; everyone appears; own
+  // score on /account; admin tab saves (self-restoring).
+  await page.goto(BASE + "/performance");
+  const perfBody = await page.textContent("body");
+  check(
+    "performance table headers render",
+    perfBody!.includes("Delivery") && perfBody!.includes("Discipline") && perfBody!.includes("Initiative")
+  );
+  for (const name of ["Prof. Mebar", "Noa Levi", "Sara Kim", "Omid Rahimi", "Lena Fischer", "Dan Okafor", "Taylor Reed"]) {
+    check(`performance lists ${name}`, perfBody!.includes(name));
+  }
+  await page.locator("details summary", { hasText: "Prof. Mebar" }).first().click();
+  check(
+    "breakdown expands with metric labels",
+    (await page.textContent("body"))!.includes("Compute requests decided")
+  );
+  await engPage.goto(BASE + "/performance");
+  await engPage.waitForURL(BASE + "/");
+  check("engineer /performance redirects home", engPage.url() === BASE + "/");
+  await engPage.goto(BASE + "/account");
+  check(
+    "engineer sees their own score card",
+    (await engPage.textContent("body"))!.includes("Your score (last")
+  );
+  await page.goto(BASE + "/admin/settings/performance");
+  const windowInput = page.locator("input[name=windowDays]");
+  await windowInput.fill("60");
+  await page.locator("button[type=submit]").first().click();
+  await page.waitForTimeout(1200);
+  await page.goto(BASE + "/performance");
+  check(
+    "window change reflects on the page",
+    (await page.textContent("body"))!.includes("Last 60 days")
+  );
+  await page.goto(BASE + "/admin/settings/performance");
+  await windowInput.fill("90");
+  await page.locator("button[type=submit]").first().click();
+  await page.waitForTimeout(1200);
+
   // 25. Cancel a blocker → its fight clears
   await page.goto(BASE + "/board?state=BLOCKED");
   await page.click("text=ML defect classifier");

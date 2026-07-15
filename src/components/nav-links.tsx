@@ -28,7 +28,12 @@ export function NavLinks({
           { href: "/data", label: "Data" },
           { href: "/compute", label: "Compute" },
           { href: "/tasks", label: "Tasks" },
-          ...(isLeadership ? [{ href: "/initiatives", label: "Initiatives" }] : []),
+          ...(isLeadership
+            ? [
+                { href: "/initiatives", label: "Initiatives" },
+                { href: "/performance", label: "Performance" },
+              ]
+            : []),
           ...(role === "MANAGER"
             ? [
                 { href: "/admin/users", label: "People" },

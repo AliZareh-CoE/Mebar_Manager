@@ -107,3 +107,36 @@ describe("fight rule config", () => {
     expect(labSettingsSchema.parse({ tagline: "  Fight! " }).tagline).toBe("Fight!");
   });
 });
+
+describe("performance settings slice", () => {
+  it("empty blob yields defaults for window, cap, and every weight", async () => {
+    const { PERFORMANCE_METRICS, DEFAULT_PERFORMANCE_WEIGHTS } = await import(
+      "./performance-metrics"
+    );
+    const settings = labSettingsSchema.parse({});
+    expect(settings.performance.windowDays).toBe(90);
+    expect(settings.performance.updatesCapPerProjectPerWeek).toBe(3);
+    for (const m of PERFORMANCE_METRICS) {
+      expect(settings.performance.weights[m]).toBe(DEFAULT_PERFORMANCE_WEIGHTS[m]);
+    }
+  });
+
+  it("weights saved before a new metric shipped self-heal to its default", () => {
+    const settings = labSettingsSchema.parse({
+      performance: { windowDays: 30, weights: { milestoneDone: 7 } },
+    });
+    expect(settings.performance.windowDays).toBe(30);
+    expect(settings.performance.weights.milestoneDone).toBe(7);
+    // A metric absent from the saved blob picks up its stock weight.
+    expect(settings.performance.weights.computeDecided).toBe(1);
+  });
+
+  it("a corrupt performance slice degrades only itself", () => {
+    const settings = labSettingsSchema.parse({
+      labName: "Kept",
+      performance: { windowDays: "not a number at all", weights: 42 },
+    });
+    expect(settings.labName).toBe("Kept");
+    expect(settings.performance.windowDays).toBe(90);
+  });
+});

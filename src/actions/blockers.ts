@@ -52,6 +52,7 @@ export async function raiseBlocker(
     description: parsed.data.description,
     causeTag: parsed.data.causeTag,
     ownerId: parsed.data.ownerId || null,
+    raisedById: me.id,
     deadline: parsed.data.deadline,
   });
 

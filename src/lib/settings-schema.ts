@@ -14,6 +14,11 @@ import {
 import { HEILMEIER_COLUMNS } from "@/lib/proposal";
 import { FIGHT_TYPES, type FightType } from "@/lib/fight-types";
 import {
+  DEFAULT_PERFORMANCE_WEIGHTS,
+  PERFORMANCE_METRICS,
+  type PerformanceMetric,
+} from "@/lib/performance-metrics";
+import {
   STALL_DAYS,
   UNOWNED_BLOCKER_DAYS,
   DECISION_TIMEOUT_HOURS,
@@ -156,6 +161,25 @@ export const fightSectionOrderSchema = z
     ...new Set<FightType>([...order, ...DEFAULT_SECTION_ORDER]),
   ]);
 
+/** Permissive record → exhaustive map: new metrics self-heal to defaults. */
+export const performanceWeightsSchema = z
+  .record(z.string(), z.coerce.number().min(-100).max(100))
+  .transform(
+    (r) =>
+      Object.fromEntries(
+        PERFORMANCE_METRICS.map((m) => [m, r[m] ?? DEFAULT_PERFORMANCE_WEIGHTS[m]])
+      ) as Record<PerformanceMetric, number>
+  );
+
+export const performanceSettingsSchema = z.object({
+  windowDays: z.coerce.number().int().min(7).max(365).default(90),
+  updatesCapPerProjectPerWeek: z.coerce.number().int().min(0).max(50).default(3),
+  weights: performanceWeightsSchema
+    .catch(() => ({ ...DEFAULT_PERFORMANCE_WEIGHTS }))
+    .default(() => ({ ...DEFAULT_PERFORMANCE_WEIGHTS })),
+});
+export type PerformanceSettings = z.infer<typeof performanceSettingsSchema>;
+
 export const labSettingsSchema = z.object({
   labName: z.string().trim().min(1).max(40).default("Mebar"),
   tagline: z
@@ -188,5 +212,8 @@ export const labSettingsSchema = z.object({
   fightSectionOrder: fightSectionOrderSchema
     .catch(() => [...DEFAULT_SECTION_ORDER])
     .default(() => [...DEFAULT_SECTION_ORDER]),
+  performance: performanceSettingsSchema
+    .catch(() => performanceSettingsSchema.parse({}))
+    .default(() => performanceSettingsSchema.parse({})),
 });
 export type LabSettings = z.infer<typeof labSettingsSchema>;

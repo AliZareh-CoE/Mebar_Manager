@@ -117,6 +117,8 @@ export const blockers = sqliteTable(
     description: text("description").notNull(),
     causeTag: text("cause_tag").notNull(),
     ownerId: text("owner_id").references(() => user.id),
+    // who raised it — feeds initiative-taking credit (null on legacy rows)
+    raisedById: text("raised_by_id").references(() => user.id),
     deadline: integer("deadline", { mode: "timestamp_ms" }).notNull(),
     status: text("status", { enum: BLOCKER_STATUSES }).notNull().default("OPEN"),
     resolutionNote: text("resolution_note"),
