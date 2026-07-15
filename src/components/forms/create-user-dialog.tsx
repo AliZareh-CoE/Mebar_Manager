@@ -26,7 +26,7 @@ import {
 export function CreateUserDialog() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [role, setRole] = useState<"MANAGER" | "ENGINEER">("ENGINEER");
+  const [role, setRole] = useState<"MANAGER" | "ENGINEER" | "SECRETARY">("ENGINEER");
   const [pending, setPending] = useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -82,16 +82,19 @@ export function CreateUserDialog() {
             <Label>Role</Label>
             <Select
               value={role}
-              onValueChange={(v) => setRole(v as "MANAGER" | "ENGINEER")}
+              onValueChange={(v) => setRole(v as "MANAGER" | "ENGINEER" | "SECRETARY")}
             >
               <SelectTrigger>
                 <SelectValue>
-                  {(v: string | null) => (v === "MANAGER" ? "Manager" : "Engineer")}
+                  {(v: string | null) =>
+                    v === "MANAGER" ? "Manager" : v === "SECRETARY" ? "Secretary" : "Engineer"
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ENGINEER">Engineer</SelectItem>
                 <SelectItem value="MANAGER">Manager</SelectItem>
+                <SelectItem value="SECRETARY">Secretary</SelectItem>
               </SelectContent>
             </Select>
           </div>

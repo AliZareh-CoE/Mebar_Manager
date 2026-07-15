@@ -95,3 +95,41 @@ describe("fixed capabilities", () => {
     expect(can(manager, "dataRequest.deliver", matrix)).toBe(true);
   });
 });
+
+describe("SECRETARY rank semantics", () => {
+  const secretary: SessionUser = { ...engineer, id: "u-sec", role: "SECRETARY" };
+
+  it("secretaries are denied every configurable capability at both matrix values", () => {
+    const allEngineer = permissionMatrixSchema.parse(
+      Object.fromEntries(CONFIGURABLE_CAPABILITIES.map((c) => [c, "ENGINEER"]))
+    );
+    const allManager = permissionMatrixSchema.parse(
+      Object.fromEntries(CONFIGURABLE_CAPABILITIES.map((c) => [c, "MANAGER"]))
+    );
+    for (const cap of CONFIGURABLE_CAPABILITIES) {
+      expect(can(secretary, cap, allEngineer)).toBe(false);
+      expect(can(secretary, cap, allManager)).toBe(false);
+    }
+  });
+
+  it("involvement still lets a secretary act on their own tasks", () => {
+    expect(
+      can(secretary, "task.edit", matrix, { involvedUserIds: [secretary.id] })
+    ).toBe(true);
+    expect(
+      can(secretary, "task.cancel", matrix, { involvedUserIds: ["someone-else"] })
+    ).toBe(false);
+  });
+
+  it("secretaries never reach fixed manager capabilities", () => {
+    expect(can(secretary, "users.manage", matrix)).toBe(false);
+    expect(can(secretary, "settings.manage", matrix)).toBe(false);
+    expect(can(secretary, "decision.decide", matrix)).toBe(false);
+    expect(can(secretary, "compute.decide", matrix)).toBe(false);
+  });
+
+  it("engineers and managers keep task capabilities via rank", () => {
+    expect(can(engineer, "task.edit", matrix)).toBe(true);
+    expect(can(manager, "task.cancel", matrix)).toBe(true);
+  });
+});

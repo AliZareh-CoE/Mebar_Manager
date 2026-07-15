@@ -2,7 +2,7 @@ import "server-only";
 import { eq, or } from "drizzle-orm";
 import { union } from "drizzle-orm/sqlite-core";
 import { db } from "@/lib/db";
-import { projects, blockers, dataRequests, computeRequests } from "@/lib/db/schema";
+import { projects, blockers, dataRequests, computeRequests, tasks } from "@/lib/db/schema";
 import type { SessionUser } from "@/lib/session";
 import { getSettings, type LabSettings } from "@/lib/settings";
 
@@ -13,12 +13,16 @@ import { getSettings, type LabSettings } from "@/lib/settings";
  * across all statuses: resolving something you touched must not hide the
  * project's history from you.
  *
+ * Secretaries see NO projects at all (even in OPEN mode) — their world is
+ * their own task list.
+ *
  * Returns null when unrestricted (manager, or OPEN mode).
  */
 export async function visibleProjectIds(
   user: SessionUser,
   settings: LabSettings
 ): Promise<Set<string> | null> {
+  if (user.role === "SECRETARY") return new Set();
   if (user.role === "MANAGER" || settings.visibilityMode === "OPEN") return null;
 
   const rows = await union(
@@ -48,6 +52,43 @@ export async function visibleProjectIds(
 
 export function isVisible(ids: Set<string> | null, projectId: string): boolean {
   return ids === null || ids.has(projectId);
+}
+
+/**
+ * Task visibility. null = sees all tasks (managers, or OPEN mode for
+ * engineers). Secretaries see ONLY their own tasks (assigned or filed),
+ * even in OPEN mode. Engineers additionally see tasks they filed and tasks
+ * linked to their visible projects.
+ */
+export async function visibleTaskIds(
+  user: SessionUser,
+  settings: LabSettings
+): Promise<Set<string> | null> {
+  if (user.role === "MANAGER") return null;
+
+  if (user.role === "SECRETARY") {
+    const rows = await db
+      .select({ id: tasks.id })
+      .from(tasks)
+      .where(or(eq(tasks.assigneeId, user.id), eq(tasks.requesterId, user.id)));
+    return new Set(rows.map((r) => r.id));
+  }
+
+  if (settings.visibilityMode === "OPEN") return null;
+
+  const projectIds = await visibleProjectIds(user, settings);
+  const rows = await db
+    .select({ id: tasks.id, projectId: tasks.projectId, requesterId: tasks.requesterId })
+    .from(tasks);
+  return new Set(
+    rows
+      .filter(
+        (t) =>
+          t.requesterId === user.id ||
+          (t.projectId !== null && isVisible(projectIds, t.projectId))
+      )
+      .map((t) => t.id)
+  );
 }
 
 /**

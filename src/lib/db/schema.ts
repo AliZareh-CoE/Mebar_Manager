@@ -275,6 +275,36 @@ export const computeRequests = sqliteTable(
   ]
 );
 
+// CANCELLED reuses completionNote/completedAt as closure note/time.
+export const TASK_STATUSES = ["OPEN", "DONE", "CANCELLED"] as const;
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+// General-purpose lab tasks, handled by SECRETARY-role users. Standalone,
+// with an optional project link; deadlines feed the fight engine.
+export const tasks = sqliteTable(
+  "tasks",
+  {
+    id: id(),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    deadline: integer("deadline", { mode: "timestamp_ms" }).notNull(),
+    requesterId: text("requester_id")
+      .notNull()
+      .references(() => user.id),
+    // a secretary; null → unowned, escalates via the fight engine
+    assigneeId: text("assignee_id").references(() => user.id),
+    projectId: text("project_id").references(() => projects.id),
+    status: text("status", { enum: TASK_STATUSES }).notNull().default("OPEN"),
+    completionNote: text("completion_note"),
+    createdAt: createdAt(),
+    completedAt: integer("completed_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [
+    index("tasks_status_idx").on(t.status),
+    index("tasks_assignee_idx").on(t.assigneeId),
+  ]
+);
+
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   owner: one(user, {
     fields: [projects.ownerId],
@@ -291,6 +321,22 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   transitions: many(stateTransitions),
   dataRequests: many(dataRequests),
   computeRequests: many(computeRequests),
+  tasks: many(tasks),
+}));
+
+export const tasksRelations = relations(tasks, ({ one }) => ({
+  project: one(projects, {
+    fields: [tasks.projectId],
+    references: [projects.id],
+  }),
+  requester: one(user, {
+    fields: [tasks.requesterId],
+    references: [user.id],
+  }),
+  assignee: one(user, {
+    fields: [tasks.assigneeId],
+    references: [user.id],
+  }),
 }));
 
 export const computeRequestsRelations = relations(computeRequests, ({ one }) => ({
@@ -387,3 +433,4 @@ export type Milestone = typeof milestones.$inferSelect;
 export type Blocker = typeof blockers.$inferSelect;
 export type Update = typeof updates.$inferSelect;
 export type Decision = typeof decisions.$inferSelect;
+export type Task = typeof tasks.$inferSelect;

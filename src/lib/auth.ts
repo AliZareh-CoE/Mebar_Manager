@@ -3,10 +3,12 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/lib/db";
-import { ac, managerRole, engineerRole } from "@/lib/permissions";
+import { ac, managerRole, engineerRole, secretaryRole } from "@/lib/permissions";
 import { smtpConfigured, sendPasswordResetEmail } from "@/lib/email";
 
-export const ROLES = ["MANAGER", "ENGINEER"] as const;
+// SECRETARY is lab staff who receive tasks: they see only their own task
+// list (no projects/board/compute) while managers see everything.
+export const ROLES = ["MANAGER", "ENGINEER", "SECRETARY"] as const;
 export type Role = (typeof ROLES)[number];
 
 if (
@@ -43,7 +45,7 @@ export const auth = betterAuth({
   plugins: [
     admin({
       ac,
-      roles: { MANAGER: managerRole, ENGINEER: engineerRole },
+      roles: { MANAGER: managerRole, ENGINEER: engineerRole, SECRETARY: secretaryRole },
       adminRoles: ["MANAGER"],
       defaultRole: "ENGINEER",
     }),

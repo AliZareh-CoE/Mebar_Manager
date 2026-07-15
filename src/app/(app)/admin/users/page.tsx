@@ -67,7 +67,11 @@ export default async function AdminUsersPage() {
               <TableCell className="text-muted-foreground">{u.email}</TableCell>
               <TableCell>
                 <Badge variant={u.role === "MANAGER" ? "default" : "secondary"}>
-                  {u.role === "MANAGER" ? "Manager" : "Engineer"}
+                  {u.role === "MANAGER"
+                    ? "Manager"
+                    : u.role === "SECRETARY"
+                      ? "Secretary"
+                      : "Engineer"}
                 </Badge>
               </TableCell>
               <TableCell>
@@ -96,7 +100,7 @@ export default async function AdminUsersPage() {
               </TableCell>
               <TableCell>
                 <div className="flex items-center justify-end gap-2">
-                  {!u.banned && (
+                  {!u.banned && u.role !== "SECRETARY" && (
                     <AnalystToggle userId={u.id} isAnalyst={Boolean(u.isDataAnalyst)} />
                   )}
                   {!u.banned && u.role === "MANAGER" && !u.isComputeCoordinator && (

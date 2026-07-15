@@ -4,7 +4,12 @@ import type { SessionUser } from "@/lib/session";
 
 // Mirrors ROLES in lib/auth.ts — inlined so this pure module never imports
 // the auth/db stack (keeps unit tests and client bundles clean).
-const ROLES = ["MANAGER", "ENGINEER"] as const;
+// The matrix stays two-valued: "ENGINEER" reads as "everyone of at least
+// engineer rank", which secretaries (rank 0) never reach — they act only
+// through involvement (their own tasks).
+const MATRIX_ROLES = ["MANAGER", "ENGINEER"] as const;
+
+const ROLE_RANK: Record<Role, number> = { MANAGER: 2, ENGINEER: 1, SECRETARY: 0 };
 
 /**
  * Central authorization. Every server action asks `can()` — never inline
@@ -35,6 +40,8 @@ export const CONFIGURABLE_CAPABILITIES = [
   "dataRequest.edit",
   "dataRequest.cancel",
   "computeRequest.withdraw",
+  "task.edit",
+  "task.cancel",
 ] as const;
 export type ConfigurableCapability = (typeof CONFIGURABLE_CAPABILITIES)[number];
 
@@ -61,9 +68,13 @@ export const CAPABILITY_LABELS: Record<ConfigurableCapability, string> = {
   "dataRequest.edit": "Edit any data request (requester/assignee always can)",
   "dataRequest.cancel": "Cancel data requests",
   "computeRequest.withdraw": "Withdraw others' compute requests (requesters always can)",
+  "task.edit": "Edit any task (requester/assignee always can)",
+  "task.cancel": "Cancel tasks (requester/assignee always can)",
 };
 
-export const DEFAULT_MATRIX: Record<ConfigurableCapability, Role> = {
+export type MatrixRole = (typeof MATRIX_ROLES)[number];
+
+export const DEFAULT_MATRIX: Record<ConfigurableCapability, MatrixRole> = {
   "project.create": "ENGINEER",
   "project.editAny": "ENGINEER",
   "project.approve": "MANAGER",
@@ -77,11 +88,13 @@ export const DEFAULT_MATRIX: Record<ConfigurableCapability, Role> = {
   "dataRequest.edit": "ENGINEER",
   "dataRequest.cancel": "ENGINEER",
   "computeRequest.withdraw": "MANAGER",
+  "task.edit": "ENGINEER",
+  "task.cancel": "ENGINEER",
 };
 
 export const permissionMatrixSchema = z.object(
   Object.fromEntries(
-    CONFIGURABLE_CAPABILITIES.map((c) => [c, z.enum(ROLES).default(DEFAULT_MATRIX[c])])
+    CONFIGURABLE_CAPABILITIES.map((c) => [c, z.enum(MATRIX_ROLES).default(DEFAULT_MATRIX[c])])
   ) as Record<ConfigurableCapability, z.ZodDefault<z.ZodEnum<{ MANAGER: "MANAGER"; ENGINEER: "ENGINEER" }>>>
 );
 export type PermissionMatrix = z.infer<typeof permissionMatrixSchema>;
@@ -111,6 +124,8 @@ export function can(
     case "dataRequest.deliver":
       return user.role === "MANAGER"; // assignee covered by involvement
     default:
-      return user.role === "MANAGER" || matrix[capability] === "ENGINEER";
+      // Rank comparison, not equality: "ENGINEER" in the matrix means
+      // "engineer or above" — secretaries (rank 0) are always below it.
+      return ROLE_RANK[user.role] >= ROLE_RANK[matrix[capability]];
   }
 }

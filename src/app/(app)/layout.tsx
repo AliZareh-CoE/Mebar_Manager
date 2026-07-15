@@ -52,7 +52,7 @@ export default async function AppLayout({
             <Flame className="size-5 text-red-500" />
             {settings.labName}
           </Link>
-          <NavLinks isManager={user.role === "MANAGER"} fightCount={fightCount} />
+          <NavLinks role={user.role} fightCount={fightCount} />
           <div className="ml-auto flex items-center gap-3">
             <Link
               href="/account"

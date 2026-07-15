@@ -75,16 +75,13 @@ export function UserAdminActions({
     router.refresh();
   }
 
-  async function toggleRole() {
-    if (isCoordinator && role === "MANAGER") {
+  async function setRole(newRole: "MANAGER" | "ENGINEER" | "SECRETARY") {
+    if (isCoordinator && role === "MANAGER" && newRole !== "MANAGER") {
       toast.error("Hand the compute-coordinator role to someone else first.");
       return;
     }
     setPending(true);
-    const { error } = await authClient.admin.setRole({
-      userId,
-      role: role === "MANAGER" ? "ENGINEER" : "MANAGER",
-    });
+    const { error } = await authClient.admin.setRole({ userId, role: newRole });
     setPending(false);
     if (error) {
       toast.error(error.message ?? "Role change failed.");
@@ -93,6 +90,12 @@ export function UserAdminActions({
     toast.success("Role changed.");
     router.refresh();
   }
+
+  const ROLE_LABELS = {
+    MANAGER: "manager",
+    ENGINEER: "engineer",
+    SECRETARY: "secretary",
+  } as const;
 
   return (
     <>
@@ -111,11 +114,14 @@ export function UserAdminActions({
           <DropdownMenuItem onClick={() => setDialog("rename")}>
             Edit name
           </DropdownMenuItem>
-          {!isSelf && (
-            <DropdownMenuItem onClick={toggleRole}>
-              {role === "MANAGER" ? "Demote to engineer" : "Promote to manager"}
-            </DropdownMenuItem>
-          )}
+          {!isSelf &&
+            (Object.keys(ROLE_LABELS) as Array<keyof typeof ROLE_LABELS>)
+              .filter((r) => r !== role)
+              .map((r) => (
+                <DropdownMenuItem key={r} onClick={() => setRole(r)}>
+                  Make {ROLE_LABELS[r]}
+                </DropdownMenuItem>
+              ))}
         </DropdownMenuContent>
       </DropdownMenu>
 

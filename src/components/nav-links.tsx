@@ -5,25 +5,33 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 export function NavLinks({
-  isManager,
+  role,
   fightCount,
 }: {
-  isManager: boolean;
+  role: "MANAGER" | "ENGINEER" | "SECRETARY";
   fightCount: number;
 }) {
   const pathname = usePathname();
-  const links = [
-    { href: "/", label: "Fight List", badge: fightCount },
-    { href: "/board", label: "Board" },
-    { href: "/data", label: "Data" },
-    { href: "/compute", label: "Compute" },
-    ...(isManager
+  // Secretaries live in their task list — no projects, board, or compute.
+  const links =
+    role === "SECRETARY"
       ? [
-          { href: "/admin/users", label: "People" },
-          { href: "/admin/settings", label: "Settings" },
+          { href: "/", label: "Fight List", badge: fightCount },
+          { href: "/tasks", label: "Tasks" },
         ]
-      : []),
-  ];
+      : [
+          { href: "/", label: "Fight List", badge: fightCount },
+          { href: "/board", label: "Board" },
+          { href: "/data", label: "Data" },
+          { href: "/compute", label: "Compute" },
+          { href: "/tasks", label: "Tasks" },
+          ...(role === "MANAGER"
+            ? [
+                { href: "/admin/users", label: "People" },
+                { href: "/admin/settings", label: "Settings" },
+              ]
+            : []),
+        ];
 
   return (
     <nav className="flex items-center gap-1">

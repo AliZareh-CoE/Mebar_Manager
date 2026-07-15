@@ -4,6 +4,8 @@ import { defaultStatements, adminAc, userAc } from "better-auth/plugins/admin/ac
 export const ac = createAccessControl(defaultStatements);
 
 // MANAGER gets the full admin permission set (create users, ban, etc.),
-// ENGINEER gets the default user set.
+// ENGINEER and SECRETARY get the default user set — domain-level power
+// differences live in src/lib/policy.ts, not better-auth.
 export const managerRole = ac.newRole({ ...adminAc.statements });
 export const engineerRole = ac.newRole({ ...userAc.statements });
+export const secretaryRole = ac.newRole({ ...userAc.statements });
