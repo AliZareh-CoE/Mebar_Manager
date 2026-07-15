@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { computeRequests, projects } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
+import { getPolicy } from "@/lib/policy-server";
 import { submitComputeRequestSchema } from "@/lib/validation/compute";
 import type { ActionResult } from "@/lib/action-utils";
 
@@ -58,8 +59,9 @@ export async function approveComputeRequest(
   formData: FormData
 ): Promise<ActionResult> {
   const me = await requireUser();
+  const policy = await getPolicy(me);
   // STRICT: only THE compute coordinator decides — no manager fallback.
-  if (!me.isComputeCoordinator) {
+  if (!policy.can("compute.decide")) {
     return { error: "Only the compute coordinator can approve requests." };
   }
 
@@ -97,7 +99,8 @@ export async function denyComputeRequest(
   formData: FormData
 ): Promise<ActionResult> {
   const me = await requireUser();
-  if (!me.isComputeCoordinator) {
+  const policy = await getPolicy(me);
+  if (!policy.can("compute.decide")) {
     return { error: "Only the compute coordinator can deny requests." };
   }
 

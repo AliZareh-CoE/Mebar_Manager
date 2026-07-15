@@ -1,6 +1,8 @@
 import { PartyPopper } from "lucide-react";
 import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
+import { getPolicy, projectEventGate } from "@/lib/policy-server";
+import { availableEvents } from "@/lib/state-machine";
 import { expireOverdueDecisions } from "@/lib/maintenance";
 import { loadLabSnapshot, loadAllBlockerCauses } from "@/lib/fight-data";
 import {
@@ -99,6 +101,7 @@ export default async function FightListPage() {
   if (!me) return null;
 
   const settings = await getSettings();
+  const policy = await getPolicy(me);
   expireOverdueDecisions(new Date(), settings.thresholds.decisionTimeoutHours);
 
   const [snapshot, causes, allPeople] = await Promise.all([
@@ -134,7 +137,10 @@ export default async function FightListPage() {
         );
       case "PAST_REVIVE":
         return (
-          <TransitionButtons projectId={item.projectId} state="PAUSED" role={me!.role} />
+          <TransitionButtons
+            projectId={item.projectId}
+            events={availableEvents("PAUSED", projectEventGate(policy))}
+          />
         );
       case "OVERDUE_BLOCKER":
       case "UNOWNED_BLOCKER": {
@@ -201,7 +207,7 @@ export default async function FightListPage() {
         );
       }
       case "PENDING_DECISION":
-        if (me!.role !== "MANAGER") {
+        if (!policy.can("decision.decide")) {
           return (
             <span className="text-sm text-muted-foreground">
               waiting on {item.responsible?.name}

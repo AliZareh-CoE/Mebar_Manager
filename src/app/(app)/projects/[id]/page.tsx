@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { asc, desc, ne } from "drizzle-orm";
 import { format, formatDistanceStrict, addHours } from "date-fns";
 import { isOverdue, projectAgeDays } from "@/lib/fight-engine";
+import { availableEvents } from "@/lib/state-machine";
+import { getPolicy, projectEventGate } from "@/lib/policy-server";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/session";
@@ -64,6 +66,7 @@ export default async function ProjectPage({
   if (!me) notFound();
 
   const settings = await getSettings();
+  const policy = await getPolicy(me);
   expireOverdueDecisions(new Date(), settings.thresholds.decisionTimeoutHours);
 
   const project = await db.query.projects.findFirst({
@@ -153,14 +156,17 @@ export default async function ProjectPage({
             )}
           </div>
         )}
-        <TransitionButtons projectId={project.id} state={project.state} role={me.role} />
+        <TransitionButtons
+          projectId={project.id}
+          events={availableEvents(project.state, projectEventGate(policy))}
+        />
       </div>
 
       {/* Heilmeier */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>The Heilmeier questions</CardTitle>
-          {(me.role === "MANAGER" || me.id === project.ownerId || me.id === project.advisorId) && (
+          {policy.can("project.editAny", { involvedUserIds: [project.ownerId, project.advisorId] }) && (
             <FormDialog
               trigger={<Button variant="outline" size="sm">Edit</Button>}
               title="Edit project"

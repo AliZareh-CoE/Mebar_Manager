@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { projects, stateTransitions } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
+import { getPolicy, projectEventGate } from "@/lib/policy-server";
 import { applyEvent, type ProjectEventType } from "@/lib/state-machine";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 
@@ -35,7 +36,11 @@ const createProjectSchema = z.object({
 });
 
 export async function createProject(formData: FormData): Promise<ActionResult> {
-  await requireUser();
+  const me = await requireUser();
+  const policy = await getPolicy(me);
+  if (!policy.can("project.create")) {
+    return { error: "You don't have permission to create projects." };
+  }
 
   const parsed = parseForm(createProjectSchema, formData);
   if (!parsed.success) return { error: parsed.error };
@@ -59,11 +64,8 @@ export async function editProject(
 
   const project = await db.select().from(projects).where(eq(projects.id, projectId)).get();
   if (!project) return { error: "Project not found." };
-  if (
-    user.role !== "MANAGER" &&
-    user.id !== project.ownerId &&
-    user.id !== project.advisorId
-  ) {
+  const policy = await getPolicy(user);
+  if (!policy.can("project.editAny", { involvedUserIds: [project.ownerId, project.advisorId] })) {
     return { error: "Only the owner or advisor can edit this project." };
   }
 
@@ -111,7 +113,8 @@ export async function fireProjectEvent(
         } as const)
       : ({ type } as const);
 
-  const result = applyEvent(project.state, event, user.role);
+  const policy = await getPolicy(user);
+  const result = applyEvent(project.state, event, projectEventGate(policy));
   if (!result.ok) return { error: result.error };
 
   // Guard against a concurrent transition between our read and this write:

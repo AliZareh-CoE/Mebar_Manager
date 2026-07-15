@@ -4,13 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { fireProjectEvent } from "@/actions/projects";
-import {
-  availableEvents,
-  EVENT_LABELS,
-  type ProjectEventType,
-} from "@/lib/state-machine";
-import type { ProjectState } from "@/lib/db/schema";
-import type { Role } from "@/lib/auth";
+import { EVENT_LABELS, type ProjectEventType } from "@/lib/state-machine";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,18 +22,16 @@ const NEEDS_DIALOG: ProjectEventType[] = ["PAUSE", "KILL"];
 
 export function TransitionButtons({
   projectId,
-  state,
-  role,
+  events,
 }: {
   projectId: string;
-  state: ProjectState;
-  role: Role;
+  /** Computed server-side from the state machine + policy. */
+  events: ProjectEventType[];
 }) {
   const router = useRouter();
   const [dialogEvent, setDialogEvent] = useState<"PAUSE" | "KILL" | null>(null);
   const [pending, setPending] = useState<ProjectEventType | null>(null);
 
-  const events = availableEvents(state, role);
   if (events.length === 0) return null;
 
   async function fire(

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { decisions, projects } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
+import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 
 function revalidateDecision(projectId: string) {
@@ -46,7 +47,8 @@ export async function decideDecision(
   formData: FormData
 ): Promise<ActionResult> {
   const user = await requireUser();
-  if (user.role !== "MANAGER") return { error: "Only a manager can decide." };
+  const policy = await getPolicy(user);
+  if (!policy.can("decision.decide")) return { error: "Only a manager can decide." };
 
   const decisionNote = String(formData.get("decisionNote") ?? "");
   const decision = await db.select().from(decisions).where(eq(decisions.id, decisionId)).get();

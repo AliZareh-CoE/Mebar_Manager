@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { dataRequests, user } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
+import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 
 function revalidateDataRequest(projectId: string) {
@@ -72,8 +73,12 @@ export async function assignDataRequest(
   if (!request) return { error: "Data request not found." };
   if (request.status !== "OPEN") return { error: "Already delivered." };
 
+  const policy = await getPolicy(me);
   const selfClaim = me.isDataAnalyst && assigneeId === me.id;
-  if (me.role !== "MANAGER" && me.id !== request.requesterId && !selfClaim) {
+  if (
+    !selfClaim &&
+    !policy.can("dataRequest.edit", { involvedUserIds: [request.requesterId, request.assigneeId] })
+  ) {
     return { error: "Only the requester, a manager, or a self-claiming analyst can assign this." };
   }
 
@@ -103,7 +108,8 @@ export async function deliverDataRequest(
     .get();
   if (!request) return { error: "Data request not found." };
   if (request.status !== "OPEN") return { error: "Already delivered." };
-  if (me.id !== request.assigneeId && me.role !== "MANAGER") {
+  const policy = await getPolicy(me);
+  if (!policy.can("dataRequest.deliver", { involvedUserIds: [request.assigneeId] })) {
     return { error: "Only the assigned analyst (or a manager) can deliver this." };
   }
   if (!deliveryNote) {

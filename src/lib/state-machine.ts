@@ -21,8 +21,21 @@ export type ProjectEvent =
 
 export type ProjectEventType = ProjectEvent["type"];
 
-/** Deliberate, high-stakes calls belong to the manager. */
+/** Deliberate, high-stakes calls belong to the manager (default policy). */
 export const MANAGER_ONLY_EVENTS: ProjectEventType[] = ["APPROVE", "KILL"];
+
+/** Predicate deciding whether the actor may fire an event type. */
+export type EventGate = (e: ProjectEventType) => boolean;
+
+/** The default gate — mirrors the stock permission matrix. */
+export const roleGate =
+  (role: Role): EventGate =>
+  (e) =>
+    role === "MANAGER" || !MANAGER_ONLY_EVENTS.includes(e);
+
+function normalizeGate(gate: Role | EventGate): EventGate {
+  return typeof gate === "function" ? gate : roleGate(gate);
+}
 
 export const EVENT_LABELS: Record<ProjectEventType, string> = {
   APPROVE: "Approve for scoping",
@@ -95,10 +108,10 @@ export type ApplyResult =
 export function applyEvent(
   state: ProjectState,
   event: ProjectEvent,
-  actorRole: Role
+  gate: Role | EventGate
 ): ApplyResult {
-  if (MANAGER_ONLY_EVENTS.includes(event.type) && actorRole !== "MANAGER") {
-    return { ok: false, error: "Only a manager can do that." };
+  if (!normalizeGate(gate)(event.type)) {
+    return { ok: false, error: "You don't have permission to do that." };
   }
 
   const events = eventsForState(state);
@@ -131,9 +144,10 @@ export function eventsForState(state: ProjectState): ProjectEventType[] {
   return Object.keys(stateConfig?.on ?? {}) as ProjectEventType[];
 }
 
-/** Events a given role may fire from a state — drives the UI buttons. */
-export function availableEvents(state: ProjectState, role: Role): ProjectEventType[] {
-  return eventsForState(state).filter(
-    (e) => role === "MANAGER" || !MANAGER_ONLY_EVENTS.includes(e)
-  );
+/** Events the actor may fire from a state — drives the UI buttons. */
+export function availableEvents(
+  state: ProjectState,
+  gate: Role | EventGate
+): ProjectEventType[] {
+  return eventsForState(state).filter(normalizeGate(gate));
 }
