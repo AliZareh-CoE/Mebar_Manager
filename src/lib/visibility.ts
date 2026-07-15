@@ -2,7 +2,14 @@ import "server-only";
 import { eq, or } from "drizzle-orm";
 import { union } from "drizzle-orm/sqlite-core";
 import { db } from "@/lib/db";
-import { projects, blockers, dataRequests, computeRequests, tasks } from "@/lib/db/schema";
+import {
+  projects,
+  blockers,
+  dataRequests,
+  computeRequests,
+  tasks,
+  projectPeople,
+} from "@/lib/db/schema";
 import type { SessionUser } from "@/lib/session";
 import { getSettings, type LabSettings } from "@/lib/settings";
 import { projectScope, taskScope } from "@/lib/access-rules";
@@ -10,9 +17,10 @@ import { projectScope, taskScope } from "@/lib/access-rules";
 /**
  * RESTRICTED visibility: managers see everything; researchers see only
  * projects they're involved in — owner, advisor, creator, blocker owner,
- * data-request requester/assignee, or compute requester. Involvement counts
- * across all statuses: resolving something you touched must not hide the
- * project's history from you.
+ * data-request requester/assignee, compute requester, or listed on the
+ * project's people lineup (PI / first author / contributor). Involvement
+ * counts across all statuses: resolving something you touched must not hide
+ * the project's history from you.
  *
  * Secretaries see NO projects at all (even in OPEN mode) — their world is
  * their own task list.
@@ -46,7 +54,11 @@ export async function visibleProjectIds(
     db
       .select({ id: computeRequests.projectId })
       .from(computeRequests)
-      .where(eq(computeRequests.requesterId, user.id))
+      .where(eq(computeRequests.requesterId, user.id)),
+    db
+      .select({ id: projectPeople.projectId })
+      .from(projectPeople)
+      .where(eq(projectPeople.userId, user.id))
   );
 
   return new Set(rows.map((r) => r.id));

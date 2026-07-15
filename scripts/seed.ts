@@ -25,6 +25,8 @@ import {
   tasks,
   initiatives,
   feedback,
+  projectPeople,
+  papers,
 } from "../src/lib/db/schema";
 
 async function createUserRaw(input: {
@@ -115,6 +117,8 @@ async function seedDemo() {
   db.delete(tasks).run();
   db.delete(initiatives).run();
   db.delete(feedback).run();
+  db.delete(papers).run();
+  db.delete(projectPeople).run();
   db.delete(projects).run();
 
   const password = "mebar-demo";

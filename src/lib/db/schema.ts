@@ -384,6 +384,95 @@ export const feedbackRelations = relations(feedback, ({ one }) => ({
   }),
 }));
 
+export const PROJECT_PEOPLE_ROLES = ["PI", "FIRST_AUTHOR", "CONTRIBUTOR"] as const;
+export type ProjectPersonRole = (typeof PROJECT_PEOPLE_ROLES)[number];
+
+// The project's human lineup — lab members AND people who never touch the
+// app (students, external PIs, assistants). Exactly one PI and one
+// FIRST_AUTHOR per project (enforced in actions with demote-on-swap);
+// activation is blocked until both exist. Either userId (member) or
+// externalName is set, never both. These rows are current-lineup metadata
+// like projects.ownerId, not event history — removal is a plain delete
+// (the one deliberate exception to the no-hard-deletes rule).
+export const projectPeople = sqliteTable(
+  "project_people",
+  {
+    id: id(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id),
+    userId: text("user_id").references(() => user.id),
+    externalName: text("external_name"),
+    affiliation: text("affiliation"),
+    role: text("role", { enum: PROJECT_PEOPLE_ROLES }).notNull().default("CONTRIBUTOR"),
+    // free text shown next to contributors: "MSc student", "assistant"
+    title: text("title").notNull().default(""),
+    // watcher email for people outside the app; members use their account
+    // email. notify=true opts the row into big-event project emails.
+    email: text("email"),
+    notify: integer("notify", { mode: "boolean" }).notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [index("project_people_project_idx").on(t.projectId)]
+);
+
+export const projectPeopleRelations = relations(projectPeople, ({ one }) => ({
+  project: one(projects, {
+    fields: [projectPeople.projectId],
+    references: [projects.id],
+  }),
+  user: one(user, {
+    fields: [projectPeople.userId],
+    references: [user.id],
+  }),
+}));
+
+export const PAPER_STATUSES = [
+  "DRAFTING",
+  "SUBMITTED",
+  "ACCEPTED",
+  "REJECTED",
+  "WITHDRAWN",
+] as const;
+export type PaperStatus = (typeof PAPER_STATUSES)[number];
+
+// Every project must lead to a Q1 paper — this is where that fight lives.
+// One row = one logical manuscript; a rejection resubmitted to a new venue
+// stays the same row (submittedAt refreshes, closure clears). REJECTED and
+// WITHDRAWN reuse closureNote/closedAt as closure note/time.
+export const papers = sqliteTable(
+  "papers",
+  {
+    id: id(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id),
+    title: text("title").notNull(),
+    venue: text("venue").notNull().default(""),
+    quartileNote: text("quartile_note").notNull().default(""),
+    status: text("status", { enum: PAPER_STATUSES }).notNull().default("DRAFTING"),
+    submittedAt: integer("submitted_at", { mode: "timestamp_ms" }),
+    acceptedAt: integer("accepted_at", { mode: "timestamp_ms" }),
+    closedAt: integer("closed_at", { mode: "timestamp_ms" }),
+    closureNote: text("closure_note"),
+    link: text("link").notNull().default(""),
+    createdById: text("created_by_id").references(() => user.id),
+    createdAt: createdAt(),
+  },
+  (t) => [index("papers_project_idx").on(t.projectId)]
+);
+
+export const papersRelations = relations(papers, ({ one }) => ({
+  project: one(projects, {
+    fields: [papers.projectId],
+    references: [projects.id],
+  }),
+  createdBy: one(user, {
+    fields: [papers.createdById],
+    references: [user.id],
+  }),
+}));
+
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   owner: one(user, {
     fields: [projects.ownerId],
@@ -401,6 +490,8 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   dataRequests: many(dataRequests),
   computeRequests: many(computeRequests),
   tasks: many(tasks),
+  people: many(projectPeople),
+  papers: many(papers),
 }));
 
 export const tasksRelations = relations(tasks, ({ one }) => ({
@@ -515,3 +606,5 @@ export type Decision = typeof decisions.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type Initiative = typeof initiatives.$inferSelect;
 export type Feedback = typeof feedback.$inferSelect;
+export type ProjectPerson = typeof projectPeople.$inferSelect;
+export type Paper = typeof papers.$inferSelect;
