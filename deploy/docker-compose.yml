@@ -1,10 +1,12 @@
 # Mebar Manager — full VPS stack: the app + Caddy (automatic HTTPS).
 #
 #   1. cp .env.production.example .env   (in this deploy/ directory) and fill it in
-#   2. docker compose up -d --build
+#   2. docker compose up -d --build      (schema migrates automatically on start)
 #   3. First boot only: create the admin account —
 #        docker compose exec app npx tsx scripts/seed.ts
 #
+# Upgrades: git pull && docker compose up -d --build — migrations apply on
+# boot, with an automatic pre-migrate backup next to the DB on the volume.
 # Data lives in the named volumes; see backup.sh for nightly backups.
 services:
   app:

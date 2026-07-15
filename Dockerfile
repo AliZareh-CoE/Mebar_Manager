@@ -32,10 +32,11 @@ ENV DATABASE_URL=/app/data/mebar.db
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
-# Schema tools + seed so `db:push` and `db:seed` run inside the container.
+# Schema tools + seed so migrations and `db:seed` run inside the container.
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/drizzle.config.ts ./drizzle.config.ts
+COPY --from=build /app/drizzle ./drizzle
 COPY --from=build /app/scripts ./scripts
 COPY --from=build /app/src ./src
 COPY --from=build /app/tsconfig.json ./tsconfig.json
@@ -48,4 +49,8 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
   CMD node -e "fetch('http://127.0.0.1:3000/login').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-CMD ["node", "server.js"]
+# Migrations run before the server starts, so `git pull && docker compose up
+# -d --build` is the entire upgrade procedure. A failed migration exits the
+# container (data untouched, pre-migrate backup on the volume) instead of
+# serving a half-migrated app.
+CMD ["sh", "-c", "npx tsx scripts/migrate.ts && exec node server.js"]

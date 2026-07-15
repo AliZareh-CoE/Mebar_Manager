@@ -90,7 +90,7 @@ self-signup) · zod · date-fns · recharts · vitest · Playwright (e2e).
 
 ```bash
 npm install
-npm run db:push          # create ./data/mebar.db
+npm run db:migrate       # create ./data/mebar.db from the committed migrations
 npm run db:seed          # creates the first manager and prints its password once
 npm run dev
 ```
@@ -114,7 +114,9 @@ npm run db:seed -- --demo
 |---|---|
 | `npm run dev` | dev server |
 | `npm run build && npm start` | production |
-| `npm run db:push` | apply schema to SQLite |
+| `npm run db:migrate` | apply committed migrations (safe on live data; backs up first) |
+| `npm run db:generate` | generate a new migration from schema.ts changes |
+| `npm run db:push` | push schema directly — local iteration on a throwaway DB only |
 | `npm run db:seed [-- --demo]` | seed admin (and optionally the demo lab) |
 | `npm test` | unit tests (state machine + fight engine) |
 | `npx tsx scripts/verify.e2e.ts` | browser click-through against a running dev server (`BASE_URL`, `CHROMIUM_PATH`, `SHOTS_DIR` to override) |
@@ -189,10 +191,9 @@ git clone <this repo> /opt/mebar-manager
 cd /opt/mebar-manager/deploy
 cp .env.production.example .env
 nano .env                       # set DOMAIN and BETTER_AUTH_SECRET (openssl rand -base64 32)
-docker compose up -d --build    # app + Caddy (automatic HTTPS)
+docker compose up -d --build    # app + Caddy (automatic HTTPS); schema migrates on start
 
-# First boot only — create the schema and the first manager account:
-docker compose exec app npx drizzle-kit push --force
+# First boot only — create the first manager account:
 MANAGER_EMAIL=you@lab.org MANAGER_PASSWORD=... docker compose exec -e MANAGER_EMAIL -e MANAGER_PASSWORD app npx tsx scripts/seed.ts
 
 # Survive reboots + nightly backups:
@@ -203,7 +204,22 @@ chmod +x backup.sh && crontab -e   # add: 15 3 * * * /opt/mebar-manager/deploy/b
 - **Backups**: `deploy/backup.sh` takes an online SQLite backup (safe with
   WAL, zero downtime) into `/opt/mebar-backups`, rotating after 14 days. The
   restore drill is documented in the script header — practice it once.
-- **Updates**: `git pull && docker compose up -d --build` (or
-  `systemctl reload mebar`).
-- **Without Docker**: `npm ci && npm run build && BETTER_AUTH_SECRET=... npm start`
-  behind any reverse proxy; the app is a single Node process + one SQLite file.
+- **Updates**: `git pull && docker compose up -d --build` — that's the whole
+  procedure. Schema migrations apply automatically on container start, and an
+  automatic pre-migrate backup lands next to the DB on the volume (newest 5
+  kept). For big upgrades, run `deploy/backup.sh` manually first. If a
+  migration fails the container exits with your data untouched — check
+  `docker compose logs app`.
+- **Without Docker**: `npm ci && npm run build && npm run db:migrate &&
+  BETTER_AUTH_SECRET=... npm start` behind any reverse proxy; the app is a
+  single Node process + one SQLite file.
+
+### Schema changes (for developers)
+
+The database is upgraded only by committed migrations in `drizzle/` — never
+edit or reorder a migration that has shipped; add a new one
+(`npm run db:generate` after editing `src/lib/db/schema.ts`). Databases
+created before the migration system (via `db:push`) are adopted automatically:
+the runner records the baseline as already applied and continues from there.
+`db:push` remains for local iteration on a schema you haven't generated yet —
+use it only on a database you're willing to delete.
