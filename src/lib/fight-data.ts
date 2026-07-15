@@ -9,6 +9,7 @@ import {
   tasks,
   initiatives,
   projectPeople,
+  papers,
   user,
 } from "@/lib/db/schema";
 import type { LabSnapshot } from "@/lib/fight-engine";
@@ -48,6 +49,7 @@ export async function loadLabSnapshot(
     taskRows,
     initiativeRows,
     projectPeopleRows,
+    paperRows,
     coordinatorRow,
   ] = await Promise.all([
     db.query.projects.findMany({
@@ -112,6 +114,8 @@ export async function loadLabSnapshot(
       .select({ projectId: projectPeople.projectId, role: projectPeople.role })
       .from(projectPeople)
       .where(inArray(projectPeople.role, ["PI", "FIRST_AUTHOR"])),
+    // Any paper row (any status) suppresses the paperless rule.
+    db.select({ projectId: papers.projectId }).from(papers),
     db
       .select({ id: user.id, name: user.name })
       .from(user)
@@ -211,6 +215,7 @@ export async function loadLabSnapshot(
       projectId: pp.projectId,
       role: pp.role as "PI" | "FIRST_AUTHOR",
     })),
+    papers: paperRows,
     computeCoordinator: coordinatorRow ?? null,
   };
 }

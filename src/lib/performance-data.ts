@@ -9,6 +9,7 @@ import {
   decisions,
   initiatives,
   milestones,
+  papers,
   projects,
   tasks,
   updates,
@@ -56,6 +57,8 @@ export async function loadPerformanceInput(
     computeCompleted,
     initiativesWonRows,
     initiativesCreated,
+    papersSubmittedRows,
+    papersAcceptedRows,
     projectsCreated,
     updateRows,
     snapshot,
@@ -136,6 +139,18 @@ export async function loadPerformanceInput(
       .select({ requesterId: initiatives.requesterId, createdAt: initiatives.createdAt })
       .from(initiatives)
       .where(and(ne(initiatives.status, "CANCELLED"), gte(initiatives.createdAt, windowStart))),
+    // Paper credit goes to the project owner (locked decision). WITHDRAWN
+    // papers earn no submit credit — file-and-withdraw farms nothing.
+    db.query.papers.findMany({
+      where: and(ne(papers.status, "WITHDRAWN"), gte(papers.submittedAt, windowStart)),
+      columns: { submittedAt: true },
+      with: { project: { columns: { ownerId: true } } },
+    }),
+    db.query.papers.findMany({
+      where: and(eq(papers.status, "ACCEPTED"), gte(papers.acceptedAt, windowStart)),
+      columns: { acceptedAt: true },
+      with: { project: { columns: { ownerId: true } } },
+    }),
     db
       .select({ createdById: projects.createdById, createdAt: projects.createdAt })
       .from(projects)
@@ -192,6 +207,12 @@ export async function loadPerformanceInput(
     initiativesWon: initiativesWonRows
       .filter((i) => i.closedAt !== null)
       .map((i) => ({ assigneeId: i.assigneeId, closedAt: i.closedAt! })),
+    papersSubmitted: papersSubmittedRows
+      .filter((pp) => pp.submittedAt !== null)
+      .map((pp) => ({ ownerId: pp.project?.ownerId ?? null, submittedAt: pp.submittedAt! })),
+    papersAccepted: papersAcceptedRows
+      .filter((pp) => pp.acceptedAt !== null)
+      .map((pp) => ({ ownerId: pp.project?.ownerId ?? null, acceptedAt: pp.acceptedAt! })),
     updates: updateRows,
     overdueOwned,
     decisionsAutoProceeded: decisionsAuto

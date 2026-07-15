@@ -37,6 +37,9 @@ export interface PerformanceInput {
   computeDecided: { decidedById: string | null; decidedAt: Date }[];
   computeResultsSubmitted: { requesterId: string; completedAt: Date }[];
   initiativesWon: { assigneeId: string | null; closedAt: Date }[];
+  /** Optional (v6) — absent in older inputs. Credited to the project OWNER. */
+  papersSubmitted?: { ownerId: string | null; submittedAt: Date }[];
+  papersAccepted?: { ownerId: string | null; acceptedAt: Date }[];
   // Discipline.
   updates: { authorId: string; projectId: string; createdAt: Date }[];
   /** Point-in-time — already filtered to the penalized fight types. */
@@ -130,6 +133,12 @@ export function computeScores(
   }
   for (const i of input.initiativesWon) {
     if (inWindow(i.closedAt)) bump(i.assigneeId, "initiativeWon");
+  }
+  for (const pp of input.papersSubmitted ?? []) {
+    if (inWindow(pp.submittedAt)) bump(pp.ownerId, "paperSubmitted");
+  }
+  for (const pp of input.papersAccepted ?? []) {
+    if (inWindow(pp.acceptedAt)) bump(pp.ownerId, "paperAccepted");
   }
 
   // Updates: capped per author per project per ISO week (anti-spam).

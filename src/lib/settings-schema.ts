@@ -27,6 +27,7 @@ import {
   COMPUTE_RESULTS_URGENT_DAYS,
   AGE_FRESH_DAYS,
   AGE_AGING_DAYS,
+  PAPER_GRACE_DAYS,
 } from "@/lib/thresholds";
 
 /**
@@ -59,6 +60,7 @@ export const thresholdSettingsSchema = z.object({
     .default(COMPUTE_RESULTS_URGENT_DAYS),
   ageFreshDays: z.coerce.number().int().min(0).max(365).default(AGE_FRESH_DAYS),
   ageAgingDays: z.coerce.number().int().min(0).max(365).default(AGE_AGING_DAYS),
+  paperGraceDays: z.coerce.number().int().min(0).max(365).default(PAPER_GRACE_DAYS),
 });
 export type ThresholdSettings = z.infer<typeof thresholdSettingsSchema>;
 

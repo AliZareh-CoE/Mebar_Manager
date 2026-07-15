@@ -25,6 +25,7 @@ const THRESHOLD_FIELDS = [
   ["computeResultsUrgentDays", "Compute results urgent (days)", "Overdue results summaries turn red after this many extra days."],
   ["ageFreshDays", "Age pill: fresh up to (days)", "Board age pill stays green up to here."],
   ["ageAgingDays", "Age pill: aging up to (days)", "…amber up to here, red beyond."],
+  ["paperGraceDays", "Paper grace (days)", "An active project may exist this long before 'no paper on record' is a fight. 0 = immediately."],
 ] as const;
 
 export default async function AdminSettingsFightsPage() {

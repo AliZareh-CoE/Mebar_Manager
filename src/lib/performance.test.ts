@@ -188,3 +188,54 @@ describe("computeScores", () => {
     for (const r of results) expect(r.total).toBe(0);
   });
 });
+
+describe("paper metrics (v6)", () => {
+  it("credits the project owner for submission and acceptance", () => {
+    const results = computeScores(
+      input({
+        papersSubmitted: [{ ownerId: alice.id, submittedAt: subDays(NOW, 10) }],
+        papersAccepted: [{ ownerId: alice.id, acceptedAt: subDays(NOW, 2) }],
+      }),
+      config(),
+      NOW
+    );
+    const a = scoreOf(results, alice.id);
+    expect(a.perMetric.paperSubmitted).toBe(1);
+    expect(a.perMetric.paperAccepted).toBe(1);
+    expect(a.perCategory.DELIVERY).toBe(
+      DEFAULT_PERFORMANCE_WEIGHTS.paperSubmitted + DEFAULT_PERFORMANCE_WEIGHTS.paperAccepted
+    );
+  });
+
+  it("window edges: events outside the window earn nothing", () => {
+    const results = computeScores(
+      input({
+        papersSubmitted: [{ ownerId: alice.id, submittedAt: subDays(NOW, 91) }],
+        papersAccepted: [{ ownerId: alice.id, acceptedAt: subDays(NOW, 91) }],
+      }),
+      config({ windowDays: 90 }),
+      NOW
+    );
+    const a = scoreOf(results, alice.id);
+    expect(a.perMetric.paperSubmitted).toBe(0);
+    expect(a.perMetric.paperAccepted).toBe(0);
+  });
+
+  it("null owner (deleted account) earns nobody anything", () => {
+    const results = computeScores(
+      input({ papersSubmitted: [{ ownerId: null, submittedAt: subDays(NOW, 1) }] }),
+      config(),
+      NOW
+    );
+    for (const r of results) expect(r.perMetric.paperSubmitted).toBe(0);
+  });
+
+  it("inputs without the paper arrays (pre-v6 shape) still compute", () => {
+    const results = computeScores(input(), config(), NOW);
+    expect(results).toHaveLength(3);
+    for (const r of results) {
+      expect(r.perMetric.paperSubmitted).toBe(0);
+      expect(r.perMetric.paperAccepted).toBe(0);
+    }
+  });
+});

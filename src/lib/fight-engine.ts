@@ -10,6 +10,7 @@ import {
   DECISION_URGENT_HOURS,
   COMPUTE_PENDING_URGENT_HOURS,
   COMPUTE_RESULTS_URGENT_DAYS,
+  PAPER_GRACE_DAYS,
 } from "@/lib/thresholds";
 
 /**
@@ -127,6 +128,8 @@ export interface LabSnapshot {
   openInitiatives?: InitiativeRow[];
   /** PI / FIRST_AUTHOR lineup rows — existence is all the rules need. */
   projectPeople?: { projectId: string; role: "PI" | "FIRST_AUTHOR" }[];
+  /** Paper rows (any status) — the paperless rule needs existence only. */
+  papers?: { projectId: string }[];
   /** The one flagged manager, if any. */
   computeCoordinator: PersonRef | null;
 }
@@ -144,6 +147,7 @@ export interface FightThresholds {
   decisionUrgentHours: number;
   computePendingUrgentHours: number;
   computeResultsUrgentDays: number;
+  paperGraceDays: number;
 }
 
 export const DEFAULT_THRESHOLDS: FightThresholds = {
@@ -153,6 +157,7 @@ export const DEFAULT_THRESHOLDS: FightThresholds = {
   decisionUrgentHours: DECISION_URGENT_HOURS,
   computePendingUrgentHours: COMPUTE_PENDING_URGENT_HOURS,
   computeResultsUrgentDays: COMPUTE_RESULTS_URGENT_DAYS,
+  paperGraceDays: PAPER_GRACE_DAYS,
 };
 
 export interface FightItem {
@@ -528,6 +533,32 @@ export function computeFightList(
         entityId: p.id,
         headline: `Active without ${missing.join(" or ")}`,
         detail: "Set them on the People tab — activation is blocked until then.",
+        responsible: p.owner,
+      });
+    }
+  }
+
+  // Paperless projects: every project must lead to a Q1 paper. Any paper
+  // row — even a rejected one — proves the pipeline exists; the grace is
+  // anchored on createdAt (monotonic — a pause/revive must not reset the
+  // paper clock).
+  if (snap.papers) {
+    const projectsWithPapers = new Set(snap.papers.map((pp) => pp.projectId));
+    for (const p of snap.projects) {
+      if (!enabled("PAPERLESS_PROJECT")) break;
+      if (!flagsOf(p.state).countsForStall) continue;
+      if (projectsWithPapers.has(p.id)) continue;
+      const days = differenceInDays(now, p.createdAt);
+      if (days <= t.paperGraceDays) continue;
+      items.push({
+        type: "PAPERLESS_PROJECT",
+        severity: 1,
+        ageDays: days - t.paperGraceDays,
+        projectId: p.id,
+        projectTitle: p.title,
+        entityId: p.id,
+        headline: `${days} days old and no paper on record`,
+        detail: "File one on the Papers tab — even a draft counts.",
         responsible: p.owner,
       });
     }

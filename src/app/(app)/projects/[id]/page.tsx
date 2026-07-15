@@ -22,8 +22,11 @@ import { proposalFieldName, type HeilmeierColumn } from "@/lib/proposal";
 import { editProject } from "@/actions/projects";
 import { addUpdate, editUpdate } from "@/actions/updates";
 import { addContributor } from "@/actions/project-people";
+import { filePaper } from "@/actions/papers";
+import { PAPER_STATUS_LABELS } from "@/lib/papers";
 import { PersonPicker } from "@/components/forms/person-picker";
 import { ProjectPersonRowActions } from "@/components/project-person-row-actions";
+import { PaperRowActions } from "@/components/paper-row-actions";
 import { raiseBlocker } from "@/actions/blockers";
 import { addMilestone, editMilestone } from "@/actions/milestones";
 import { fileDataRequest } from "@/actions/data-requests";
@@ -98,6 +101,7 @@ export default async function ProjectPage({
         with: { user: { columns: { id: true, name: true, email: true } } },
         orderBy: (pp) => asc(pp.createdAt),
       },
+      papers: { orderBy: (pp) => desc(pp.createdAt) },
     },
   });
   if (!project) notFound();
@@ -157,6 +161,7 @@ export default async function ProjectPage({
   const pi = project.people.find((pp) => pp.role === "PI");
   const firstAuthor = project.people.find((pp) => pp.role === "FIRST_AUTHOR");
   const ROLE_LABEL = { PI: "PI", FIRST_AUTHOR: "First author", CONTRIBUTOR: "Contributor" } as const;
+  const latestPaper = project.papers[0];
 
   return (
     <div className="flex flex-col gap-6">
@@ -196,6 +201,21 @@ export default async function ProjectPage({
             </span>
           ) : (
             <span className="text-amber-600 dark:text-amber-400">no first author set</span>
+          )}
+          {latestPaper ? (
+            <Badge
+              variant={latestPaper.status === "ACCEPTED" ? "default" : "secondary"}
+              className={
+                latestPaper.status === "ACCEPTED"
+                  ? "bg-emerald-600 text-white dark:bg-emerald-500"
+                  : undefined
+              }
+            >
+              Paper: {PAPER_STATUS_LABELS[latestPaper.status]}
+              {latestPaper.venue ? ` — ${latestPaper.venue}` : ""}
+            </Badge>
+          ) : (
+            <span className="text-muted-foreground">no paper yet</span>
           )}
           <span>started {format(project.createdAt, "MMM d, yyyy")}</span>
         </div>
@@ -287,6 +307,7 @@ export default async function ProjectPage({
             Compute ({project.computeRequests.filter((cr) => cr.status === "PENDING").length} pending)
           </TabsTrigger>
           <TabsTrigger value="people">People ({project.people.length})</TabsTrigger>
+          <TabsTrigger value="papers">Papers ({project.papers.length})</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
 
@@ -941,6 +962,124 @@ export default async function ProjectPage({
                         externalName={pp.externalName}
                         hasEmail={!!(pp.email ?? pp.user?.email)}
                         notify={pp.notify}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </TabsContent>
+
+        {/* Papers */}
+        <TabsContent value="papers" className="flex flex-col gap-4 pt-4">
+          <FormDialog
+            trigger={<Button className="self-start">File paper</Button>}
+            title="File a paper"
+            description="Every project must lead to a Q1 paper. A draft counts — filing it is the commitment."
+            submitLabel="File it"
+            successMessage="Paper on the record."
+            action={filePaper.bind(null, project.id)}
+          >
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="paper-title">Working title</Label>
+              <Input id="paper-title" name="title" required />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="paper-venue">Target venue / journal</Label>
+              <Input id="paper-venue" name="venue" placeholder="IEEE TII" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="paper-quartile">Quartile note</Label>
+              <Input id="paper-quartile" name="quartileNote" placeholder="Q1 — target" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="paper-link">Link / DOI (optional)</Label>
+              <Input id="paper-link" name="link" />
+            </div>
+          </FormDialog>
+
+          {project.papers.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No paper on record. This project exists to produce one — file it, even as a draft.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Paper</TableHead>
+                  <TableHead>Venue</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {project.papers.map((paper) => (
+                  <TableRow key={paper.id}>
+                    <TableCell>
+                      <div className="font-medium">
+                        {paper.link ? (
+                          <a
+                            href={paper.link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="underline-offset-4 hover:underline"
+                          >
+                            {paper.title}
+                          </a>
+                        ) : (
+                          paper.title
+                        )}
+                      </div>
+                      {(paper.status === "REJECTED" || paper.status === "WITHDRAWN") &&
+                        paper.closureNote && (
+                          <div className="mt-0.5 text-xs text-muted-foreground">
+                            ↳ {paper.closureNote}
+                          </div>
+                        )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {[paper.venue, paper.quartileNote].filter(Boolean).join(" · ") || "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          paper.status === "ACCEPTED"
+                            ? "default"
+                            : paper.status === "REJECTED"
+                              ? "destructive"
+                              : "secondary"
+                        }
+                        className={
+                          paper.status === "ACCEPTED"
+                            ? "bg-emerald-600 text-white dark:bg-emerald-500"
+                            : undefined
+                        }
+                      >
+                        {PAPER_STATUS_LABELS[paper.status]}
+                      </Badge>
+                      {paper.submittedAt && paper.status === "SUBMITTED" && (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {format(paper.submittedAt, "MMM d")}
+                        </span>
+                      )}
+                      {paper.acceptedAt && (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {format(paper.acceptedAt, "MMM d, yyyy")}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <PaperRowActions
+                        paperId={paper.id}
+                        status={paper.status}
+                        venue={paper.venue}
+                        edit={{
+                          title: paper.title,
+                          venue: paper.venue,
+                          quartileNote: paper.quartileNote,
+                          link: paper.link,
+                        }}
                       />
                     </TableCell>
                   </TableRow>

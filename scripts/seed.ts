@@ -498,6 +498,44 @@ async function seedDemo() {
     ])
     .run();
 
+  // Papers: P1 submitted (waiting on reviewers), P2 accepted (scores for
+  // omid: submit + accept), P4 drafting. P3 has NO paper and is 55 days
+  // old → PAPERLESS_PROJECT lights on the Fight List.
+  db.insert(papers)
+    .values([
+      {
+        projectId: p1.id,
+        title: "Active vibration cancellation for cryogenic imaging stages",
+        venue: "Review of Scientific Instruments",
+        quartileNote: "Q1",
+        status: "SUBMITTED",
+        submittedAt: subDays(new Date(), 10),
+        createdById: sara,
+        createdAt: subDays(new Date(), 30),
+      },
+      {
+        projectId: p2.id,
+        title: "Programmable spectral phase control with in-situ SLM calibration",
+        venue: "Optics Express",
+        quartileNote: "Q1",
+        status: "ACCEPTED",
+        submittedAt: subDays(new Date(), 60),
+        acceptedAt: subDays(new Date(), 5),
+        link: "https://doi.org/10.0000/example",
+        createdById: omid,
+        createdAt: subDays(new Date(), 70),
+      },
+      {
+        projectId: p4.id,
+        title: "Narrow-dispersion CdSe quantum dot synthesis",
+        quartileNote: "Q1 — target",
+        status: "DRAFTING",
+        createdById: dan,
+        createdAt: subDays(new Date(), 40),
+      },
+    ])
+    .run();
+
   // Resolved blockers for the Pareto — decisions dominate, deliberately.
   const resolved = (
     projectId: string,
