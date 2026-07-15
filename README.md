@@ -41,8 +41,14 @@ Other opinions built in:
 
 ## Roles
 
-Two base roles — **Manager** (coordinator) and **Engineer** (researcher) —
-plus add-ons granted on the People page:
+Three base roles — **Manager** (coordinator), **Engineer** (researcher), and
+**Secretary** (lab staff) — plus add-ons granted on the People page:
+
+- **Secretary**: receives **tasks** — anything with a deadline (orders,
+  bookings, paperwork), filed by anyone from `/tasks`, optionally linked to a
+  project. The same anti-stall rules apply: overdue tasks and unowned tasks
+  join the Fight List. Secretaries see ONLY their own task list — no
+  projects, board, or compute — while managers see everything of everyone.
 
 - **Data analyst** (add-on, any engineer): researchers file **data requests**
   on their projects; the assigned analyst (or a self-claiming one) is
@@ -61,8 +67,7 @@ plus add-ons granted on the People page:
 
 Next.js (App Router) · Tailwind v4 + shadcn/ui (Base UI) · Drizzle ORM +
 SQLite (better-sqlite3) · better-auth (email/password + admin plugin, no
-self-signup) · XState (project lifecycle) · zod · date-fns · recharts ·
-vitest · Playwright (e2e).
+self-signup) · zod · date-fns · recharts · vitest · Playwright (e2e).
 
 ## Quickstart
 
@@ -80,7 +85,9 @@ Want a lab that already looks alive (every fight rule triggered)?
 
 ```bash
 npm run db:seed -- --demo
-# prof@lab.local / mebar-demo (manager)
+# prof@lab.local / mebar-demo (manager + compute coordinator)
+# noa@lab.local / mebar-demo (manager, not coordinator)
+# taylor@lab.local / mebar-demo (secretary)
 # sara@ / omid@ / lena@ / dan@lab.local / mebar-demo (engineers)
 ```
 
@@ -98,23 +105,43 @@ npm run db:seed -- --demo
 ## Layout
 
 ```
-src/lib/state-machine.ts   # XState project lifecycle + role gating
-src/lib/fight-engine.ts    # pure stall-detection rules (the product)
-src/lib/thresholds.ts      # the numbers the whole system argues from
-src/lib/fight-data.ts      # DB → engine snapshot
-src/lib/maintenance.ts     # lazy 48h decision auto-proceed
-src/actions/               # zod-validated server actions
-src/app/(app)/             # Fight List (/), /board, /projects/[id], /admin/users
-scripts/seed.ts            # admin + relative-to-now demo lab
+src/lib/workflow.ts          # table-driven project lifecycle (admin-editable)
+src/lib/fight-engine.ts      # pure stall-detection rules (the product)
+src/lib/settings-schema.ts   # every admin-customizable knob, zod-validated
+src/lib/settings-defaults.ts # stock workflow/taxonomies/rules (one source)
+src/lib/thresholds.ts        # the default numbers
+src/lib/fight-data.ts        # DB → engine snapshot
+src/lib/maintenance.ts       # lazy decision auto-proceed
+src/actions/                 # zod-validated server actions
+src/app/(app)/               # / (Fight List), /board, /tasks, /data, /compute
+scripts/seed.ts              # admin + relative-to-now demo lab
 ```
 
 ## Administration & customization
 
-- **/admin/settings** (managers): lab name, default theme (light/dark — every
-  user also has their own toggle), all fight thresholds, visibility mode, and
-  the permission matrix (minimum role per action; people can always act on
-  their own things; user management, settings, deciding decisions, and
-  compute approval stay fixed).
+Everything is admin-editable at **/admin/settings** (managers), across six
+tabs — removals are always *archive*, never delete, so history keeps
+rendering:
+
+- **General**: lab name, login tagline, default theme (light/dark — every
+  user also has their own toggle), visibility mode.
+- **Workflow**: the project lifecycle itself — add/rename/recolor/archive
+  states, set their semantic flags (counts-for-stall, paused-like, terminal,
+  resets-stall-clock, hidden-from-board), and edit the transitions between
+  them (label, who may fire it, whether it asks for a reason). The stock
+  PROPOSAL → SCOPING → ACTIVE ⇄ BLOCKED → PAUSED → DONE/KILLED pipeline is
+  just the default; "Reset to stock workflow" brings it back.
+- **Categories**: blocker cause tags (feeds the Pareto), compute server
+  types (each with its own mandatory optimization practices — the stock
+  Multi-GPU ⇒ DDP/FSDP rule is data, not code), and the optimization
+  checklist itself.
+- **Proposal form**: rename/archive the seven Heilmeier built-ins, add your
+  own questions; answers to custom questions live with the project.
+- **Fight rules**: all thresholds, plus per-rule on/off switches, section
+  titles/blurbs, and the Fight List section order.
+- **Permissions**: minimum role per action (people can always act on their
+  own things; user management, settings, deciding decisions, and compute
+  approval stay fixed).
 - **Visibility**: RESTRICTED (default) — managers see everything, researchers
   see only projects they're involved in (owner, advisor, creator, blocker
   owner, data-request requester/assignee, compute requester). OPEN shows

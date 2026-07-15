@@ -22,13 +22,14 @@ import {
   decisions,
   dataRequests,
   computeRequests,
+  tasks,
 } from "../src/lib/db/schema";
 
 async function createUserRaw(input: {
   name: string;
   email: string;
   password: string;
-  role: "MANAGER" | "ENGINEER";
+  role: "MANAGER" | "ENGINEER" | "SECRETARY";
 }): Promise<string> {
   const existing = await db
     .select()
@@ -109,6 +110,7 @@ async function seedDemo() {
   db.delete(stateTransitions).run();
   db.delete(dataRequests).run();
   db.delete(computeRequests).run();
+  db.delete(tasks).run();
   db.delete(projects).run();
 
   const password = "mebar-demo";
@@ -151,6 +153,15 @@ async function seedDemo() {
     role: "MANAGER",
   });
   void noa;
+  // Lab secretary — sees only their own task list.
+  const taylor = await createUserRaw({
+    name: "Taylor Reed",
+    email: "taylor@lab.local",
+    password,
+    role: "SECRETARY",
+  });
+  // Reseeds must repair the role if a previous e2e run changed it.
+  db.update(user).set({ role: "SECRETARY" }).where(eq(user.id, taylor)).run();
 
   // Add-on roles (createUserRaw is idempotent, so set flags via UPDATE).
   db.update(user).set({ isDataAnalyst: true }).where(eq(user.id, lena)).run();
@@ -577,6 +588,45 @@ async function seedDemo() {
     ])
     .run();
 
+  // Secretary tasks — one overdue+assigned (OVERDUE_TASK), one unowned past
+  // the grace period (UNOWNED_TASK), one done for history.
+  db.insert(tasks)
+    .values([
+      {
+        title: "Order cryostat o-ring set from the vendor",
+        description: "Part #CR-218, quantity 4. PO template is in the lab vault.",
+        deadline: subDays(new Date(), 2),
+        requesterId: sara,
+        assigneeId: taylor,
+        projectId: p1.id,
+        status: "OPEN",
+        createdAt: subDays(new Date(), 9),
+      },
+      {
+        title: "Book the visit slot for the fab partners",
+        description: "Two visitors, need badges and a meeting room for half a day.",
+        deadline: addDays(new Date(), 6),
+        requesterId: prof,
+        assigneeId: null,
+        projectId: null,
+        status: "OPEN",
+        createdAt: subDays(new Date(), 5),
+      },
+      {
+        title: "Renew the software licenses for the SLM control suite",
+        description: "Same vendor as last year; invoice goes to the grant account.",
+        deadline: subDays(new Date(), 20),
+        requesterId: omid,
+        assigneeId: taylor,
+        projectId: null,
+        status: "DONE",
+        completionNote: "Renewed for 12 months; license keys in the vault.",
+        completedAt: subDays(new Date(), 18),
+        createdAt: subDays(new Date(), 25),
+      },
+    ])
+    .run();
+
   // Settings row proves the wordmark/settings render from the DB.
   db.insert(labSettings)
     .values({ id: 1, data: { labName: "Mebar Lab" }, updatedAt: new Date() })
@@ -590,6 +640,7 @@ async function seedDemo() {
   console.log("  prof@lab.local / mebar-demo   (manager + compute coordinator)");
   console.log("  noa@lab.local / mebar-demo    (manager, not coordinator)");
   console.log("  lena@lab.local / mebar-demo   (engineer + data analyst)");
+  console.log("  taylor@lab.local / mebar-demo (secretary — own tasks only)");
   console.log("  sara@lab.local, omid@lab.local, dan@lab.local / mebar-demo");
 }
 

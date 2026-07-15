@@ -47,6 +47,8 @@ async function main() {
     "Past their revive date",
     "Overdue blockers",
     "Unowned blockers",
+    "Overdue tasks",
+    "Unowned tasks",
     "Decisions waiting",
     "Missed milestones",
     "What keeps blocking us",
@@ -457,6 +459,40 @@ async function main() {
     "back to RESTRICTED: hidden again",
     !(await engPage.textContent("body"))!.includes("Terahertz imaging line")
   );
+
+  // 24b. Secretary: own task list only — no projects, no board, no compute.
+  const secPage = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
+  await secPage.goto(BASE + "/login");
+  await secPage.fill("#email", "taylor@lab.local");
+  await secPage.fill("#password", "mebar-demo");
+  await secPage.click("button[type=submit]");
+  await secPage.waitForURL(BASE + "/");
+  const secNav = await secPage.locator("nav").first().textContent();
+  check("secretary nav has Tasks", secNav!.includes("Tasks"));
+  check(
+    "secretary nav lacks Board/Compute/Data",
+    !secNav!.includes("Board") && !secNav!.includes("Compute") && !secNav!.includes("Data")
+  );
+  const secFightBody = await secPage.textContent("body");
+  check("secretary sees their overdue task fight", secFightBody!.includes("Overdue tasks"));
+  check(
+    "secretary sees no project fights",
+    !secFightBody!.includes("Overdue blockers") && !secFightBody!.includes("Stalled projects")
+  );
+  await secPage.goto(BASE + "/board");
+  await secPage.waitForURL(BASE + "/tasks");
+  check("secretary /board redirects to /tasks", secPage.url().endsWith("/tasks"));
+  const secTasks = await secPage.textContent("body");
+  check("secretary sees their assigned task", secTasks!.includes("cryostat o-ring"));
+  check(
+    "secretary can't see others' unowned tasks",
+    !secTasks!.includes("fab partners")
+  );
+  // The manager's /tasks shows everything, including the unowned one.
+  await page.goto(BASE + "/tasks");
+  const mgrTasks = await page.textContent("body");
+  check("manager sees unowned tasks too", mgrTasks!.includes("fab partners"));
+  check("manager sees the secretary roster", mgrTasks!.includes("Taylor Reed"));
 
   // 25. Cancel a blocker → its fight clears
   await page.goto(BASE + "/board?state=BLOCKED");
