@@ -929,3 +929,55 @@ describe("OVERDUE_INITIATIVE / UNOWNED_INITIATIVE", () => {
     }
   });
 });
+
+describe("MISSING_PROJECT_PEOPLE", () => {
+  it("active project with a full lineup → no fight", () => {
+    const s = snap({
+      projectPeople: [
+        { projectId: "p1", role: "PI" },
+        { projectId: "p1", role: "FIRST_AUTHOR" },
+      ],
+    });
+    expect(computeFightList(s, NOW)).toEqual([]);
+  });
+
+  it("missing first author → severity-2 item naming what's missing, at the owner", () => {
+    const s = snap({ projectPeople: [{ projectId: "p1", role: "PI" }] });
+    const items = computeFightList(s, NOW);
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      type: "MISSING_PROJECT_PEOPLE",
+      severity: 2,
+      projectId: "p1",
+      headline: "Active without a first author",
+      responsible: alice,
+    });
+  });
+
+  it("empty lineup on an active project names both", () => {
+    const items = computeFightList(snap({ projectPeople: [] }), NOW);
+    expect(items[0].headline).toBe("Active without a PI or a first author");
+  });
+
+  it("non-counting states (proposal, done) are exempt", () => {
+    for (const state of ["PROPOSAL", "SCOPING", "PAUSED", "DONE", "KILLED"]) {
+      const s = snap({ projects: [project({ state })], projectPeople: [] });
+      expect(
+        computeFightList(s, NOW).filter((i) => i.type === "MISSING_PROJECT_PEOPLE")
+      ).toEqual([]);
+    }
+  });
+
+  it("snapshots without the projectPeople field (old callers) never fire", () => {
+    expect(computeFightList(snap(), NOW)).toEqual([]);
+  });
+
+  it("honors the enabledRules toggle", () => {
+    const s = snap({ projectPeople: [] });
+    expect(
+      computeFightList(s, NOW, undefined, {
+        enabledRules: { MISSING_PROJECT_PEOPLE: false },
+      })
+    ).toEqual([]);
+  });
+});

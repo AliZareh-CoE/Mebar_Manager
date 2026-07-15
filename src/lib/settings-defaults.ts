@@ -108,6 +108,12 @@ export const DEFAULT_FIGHT_SECTIONS: Record<FightType, FightRuleConfig> = {
     title: "Unowned initiatives",
     blurb: "Nobody is fighting these yet. Claim one.",
   },
+  MISSING_PROJECT_PEOPLE: {
+    enabled: true,
+    title: "Missing PI / first author",
+    blurb:
+      "Active projects must name a PI and a first author. Activation is blocked without them.",
+  },
 };
 
 export const DEFAULT_SECTION_ORDER: FightType[] = [...FIGHT_TYPES];

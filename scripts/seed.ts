@@ -449,6 +449,55 @@ async function seedDemo() {
     })
     .run();
 
+  // P8 — SCOPING with no lineup: the activation-gate fixture (e2e tries to
+  // start it, gets blocked, sets a PI + first author, succeeds).
+  const p8 = addProject({
+    title: "Terahertz waveguide mapper",
+    description: "Near-field mapping of THz waveguide modes.",
+    ownerId: dan,
+    advisorId: noa,
+    state: "SCOPING",
+    createdAt: subDays(new Date(), 6),
+    objective: "Map mode profiles at <50 µm resolution.",
+    howItsDoneToday: "Far-field measurements; no spatial detail.",
+    whatsNew: "A scanning probe tip we already built for the SNOM.",
+    whoCares: "The waveguide fab collaboration.",
+  });
+  void p8;
+
+  // Project lineups: PI + first author (the activation requirement) plus an
+  // external student. P3 deliberately lacks a first author — it's BLOCKED
+  // (counts for stall), so MISSING_PROJECT_PEOPLE lights on the Fight List.
+  db.insert(projectPeople)
+    .values([
+      { projectId: p1.id, userId: prof, role: "PI" },
+      { projectId: p1.id, userId: sara, role: "FIRST_AUTHOR" },
+      {
+        projectId: p1.id,
+        externalName: "Maya Chen",
+        affiliation: "TU Wien",
+        role: "CONTRIBUTOR",
+        title: "MSc student",
+        email: "maya.chen@example.edu",
+        notify: true,
+      },
+      { projectId: p2.id, userId: prof, role: "PI" },
+      { projectId: p2.id, userId: omid, role: "FIRST_AUTHOR" },
+      {
+        projectId: p2.id,
+        externalName: "Dr. Piotr Nowak",
+        affiliation: "External PI — Kraków",
+        role: "CONTRIBUTOR",
+        title: "collaborating PI",
+      },
+      { projectId: p3.id, userId: prof, role: "PI" },
+      // P4 is paused; reviving it is an activation, so its lineup must be
+      // complete (the e2e revives it).
+      { projectId: p4.id, userId: prof, role: "PI" },
+      { projectId: p4.id, userId: dan, role: "FIRST_AUTHOR" },
+    ])
+    .run();
+
   // Resolved blockers for the Pareto — decisions dominate, deliberately.
   const resolved = (
     projectId: string,

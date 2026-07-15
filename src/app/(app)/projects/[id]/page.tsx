@@ -11,6 +11,7 @@ import {
   transitionDescriptors,
 } from "@/lib/workflow";
 import { getPolicy, transitionGate } from "@/lib/policy-server";
+import { isLabLeadership } from "@/lib/policy";
 import { visibleProjectIds, isVisible } from "@/lib/visibility";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
@@ -20,6 +21,9 @@ import { getSettings } from "@/lib/settings";
 import { proposalFieldName, type HeilmeierColumn } from "@/lib/proposal";
 import { editProject } from "@/actions/projects";
 import { addUpdate, editUpdate } from "@/actions/updates";
+import { addContributor } from "@/actions/project-people";
+import { PersonPicker } from "@/components/forms/person-picker";
+import { ProjectPersonRowActions } from "@/components/project-person-row-actions";
 import { raiseBlocker } from "@/actions/blockers";
 import { addMilestone, editMilestone } from "@/actions/milestones";
 import { fileDataRequest } from "@/actions/data-requests";
@@ -90,6 +94,10 @@ export default async function ProjectPage({
         with: { requester: { columns: { id: true, name: true } } },
         orderBy: (cr) => desc(cr.createdAt),
       },
+      people: {
+        with: { user: { columns: { id: true, name: true, email: true } } },
+        orderBy: (pp) => asc(pp.createdAt),
+      },
     },
   });
   if (!project) notFound();
@@ -144,6 +152,11 @@ export default async function ProjectPage({
   );
   const pendingDecisions = project.decisions.filter((d) => d.status === "PENDING");
   const openDataRequests = project.dataRequests.filter((dr) => dr.status === "OPEN");
+  const personName = (pp: (typeof project.people)[number]) =>
+    pp.user?.name ?? pp.externalName ?? "—";
+  const pi = project.people.find((pp) => pp.role === "PI");
+  const firstAuthor = project.people.find((pp) => pp.role === "FIRST_AUTHOR");
+  const ROLE_LABEL = { PI: "PI", FIRST_AUTHOR: "First author", CONTRIBUTOR: "Contributor" } as const;
 
   return (
     <div className="flex flex-col gap-6">
@@ -170,6 +183,20 @@ export default async function ProjectPage({
           <span className="flex items-center gap-1.5">
             <Initials name={project.advisor.name} /> {project.advisor.name} (advisor)
           </span>
+          {pi ? (
+            <span className="flex items-center gap-1.5">
+              <Initials name={personName(pi)} /> {personName(pi)} (PI)
+            </span>
+          ) : (
+            <span className="text-amber-600 dark:text-amber-400">no PI set</span>
+          )}
+          {firstAuthor ? (
+            <span className="flex items-center gap-1.5">
+              <Initials name={personName(firstAuthor)} /> {personName(firstAuthor)} (first author)
+            </span>
+          ) : (
+            <span className="text-amber-600 dark:text-amber-400">no first author set</span>
+          )}
           <span>started {format(project.createdAt, "MMM d, yyyy")}</span>
         </div>
         {stateFlags?.paused && (
@@ -191,7 +218,8 @@ export default async function ProjectPage({
           transitions={transitionDescriptors(
             workflow,
             project.state,
-            transitionGate(me, policy)
+            transitionGate(me, policy),
+            isLabLeadership(me)
           )}
         />
       </div>
@@ -258,6 +286,7 @@ export default async function ProjectPage({
           <TabsTrigger value="compute">
             Compute ({project.computeRequests.filter((cr) => cr.status === "PENDING").length} pending)
           </TabsTrigger>
+          <TabsTrigger value="people">People ({project.people.length})</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
 
@@ -841,6 +870,83 @@ export default async function ProjectPage({
                 practiceLabels={practiceLabels}
               />
             ))
+          )}
+        </TabsContent>
+
+        {/* People */}
+        <TabsContent value="people" className="flex flex-col gap-4 pt-4">
+          <FormDialog
+            trigger={<Button className="self-start">Add person</Button>}
+            title="Add someone to this project"
+            description="Lab members, or people who never touch this app — students, external PIs, assistants."
+            submitLabel="Add"
+            successMessage="Added to the lineup."
+            action={addContributor.bind(null, project.id)}
+          >
+            <PersonPicker members={people} />
+          </FormDialog>
+
+          {(!pi || !firstAuthor) && (
+            <p className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
+              This project can&apos;t be activated until{" "}
+              {[!pi && "a PI", !firstAuthor && "a first author"].filter(Boolean).join(" and ")}{" "}
+              {!pi && !firstAuthor ? "are" : "is"} set — use &quot;Make PI&quot; / &quot;Make
+              first author&quot; on a row below.
+            </p>
+          )}
+
+          {project.people.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nobody on the lineup yet. Every project needs a PI and a first author.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Person</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Affiliation / note</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {project.people.map((pp) => (
+                  <TableRow key={pp.id}>
+                    <TableCell>
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <Initials name={personName(pp)} /> {personName(pp)}
+                        {!pp.userId && (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            external
+                          </Badge>
+                        )}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {pp.role === "PI" || pp.role === "FIRST_AUTHOR" ? (
+                        <Badge>{ROLE_LABEL[pp.role]}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">{ROLE_LABEL[pp.role]}</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {[pp.affiliation, pp.title].filter(Boolean).join(" — ") || "—"}
+                    </TableCell>
+                    <TableCell>
+                      <ProjectPersonRowActions
+                        projectId={project.id}
+                        personId={pp.id}
+                        role={pp.role}
+                        userId={pp.userId}
+                        externalName={pp.externalName}
+                        hasEmail={!!(pp.email ?? pp.user?.email)}
+                        notify={pp.notify}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </TabsContent>
 

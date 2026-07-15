@@ -125,6 +125,8 @@ export interface LabSnapshot {
   openTasks?: TaskRow[];
   /** OPEN initiatives — the loader returns [] for non-leadership viewers. */
   openInitiatives?: InitiativeRow[];
+  /** PI / FIRST_AUTHOR lineup rows — existence is all the rules need. */
+  projectPeople?: { projectId: string; role: "PI" | "FIRST_AUTHOR" }[];
   /** The one flagged manager, if any. */
   computeCoordinator: PersonRef | null;
 }
@@ -494,6 +496,40 @@ export function computeFightList(
           responsible: task.requester,
         });
       }
+    }
+  }
+
+  // Missing PI / first author: active projects must name both — activation
+  // is blocked without them, so this only fires on legacy data or lineups
+  // edited after the fact. Only counts-for-stall states are checked, which
+  // excludes frozen/proposal states by construction.
+  if (snap.projectPeople) {
+    const rolesByProject = new Map<string, Set<string>>();
+    for (const pp of snap.projectPeople) {
+      let set = rolesByProject.get(pp.projectId);
+      if (!set) rolesByProject.set(pp.projectId, (set = new Set()));
+      set.add(pp.role);
+    }
+    for (const p of snap.projects) {
+      if (!enabled("MISSING_PROJECT_PEOPLE")) break;
+      if (!flagsOf(p.state).countsForStall) continue;
+      const roles = rolesByProject.get(p.id);
+      const missing = [
+        ...(roles?.has("PI") ? [] : ["a PI"]),
+        ...(roles?.has("FIRST_AUTHOR") ? [] : ["a first author"]),
+      ];
+      if (missing.length === 0) continue;
+      items.push({
+        type: "MISSING_PROJECT_PEOPLE",
+        severity: 2,
+        ageDays: 0,
+        projectId: p.id,
+        projectTitle: p.title,
+        entityId: p.id,
+        headline: `Active without ${missing.join(" or ")}`,
+        detail: "Set them on the People tab — activation is blocked until then.",
+        responsible: p.owner,
+      });
     }
   }
 

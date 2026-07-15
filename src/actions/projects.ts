@@ -5,11 +5,19 @@ import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { projects, stateTransitions } from "@/lib/db/schema";
+import { projects, stateTransitions, projectPeople } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { getPolicy, transitionGate } from "@/lib/policy-server";
-import { applyEvent, initialStateKey, stateByKey, KEY_RE } from "@/lib/workflow";
+import { isLabLeadership } from "@/lib/policy";
+import { missingRoleLabels } from "@/lib/project-people";
+import {
+  applyEvent,
+  initialStateKey,
+  stateByKey,
+  isActivationTransition,
+  KEY_RE,
+} from "@/lib/workflow";
 import { collectProposalAnswers } from "@/lib/proposal";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 import { canAccessProject } from "@/lib/visibility";
@@ -126,6 +134,29 @@ export async function fireProjectEvent(
     transitionGate(user, policy)
   );
   if (!result.ok) return { error: result.error };
+
+  // Activation checkpoint: entering an active state from a non-active one
+  // requires (1) leadership — researchers file, coordinators activate — and
+  // (2) a complete lineup. Checked outside the write transaction like the
+  // rest of the validation; a lineup edit racing the transition can slip
+  // through, and MISSING_PROJECT_PEOPLE self-heals it — do not "fix" this
+  // into the transaction.
+  if (isActivationTransition(workflow, result.transition)) {
+    if (!isLabLeadership(user)) {
+      return { error: "Only a coordinator or manager can activate a project — ask one to start it." };
+    }
+    const lineup = await db
+      .select({ role: projectPeople.role })
+      .from(projectPeople)
+      .where(eq(projectPeople.projectId, projectId));
+    const missing = missingRoleLabels(lineup);
+    if (missing.length > 0) {
+      const stateLabel = stateByKey(workflow, result.next)?.label ?? result.next;
+      return {
+        error: `Can't move to ${stateLabel}: this project needs ${missing.join(" and ")} first (People tab).`,
+      };
+    }
+  }
 
   // The pause columns belong to paused-flagged states only; entering any
   // other state clears them.

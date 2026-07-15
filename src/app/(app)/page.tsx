@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PartyPopper } from "lucide-react";
 import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
@@ -132,7 +133,8 @@ export default async function FightListPage() {
             transitions={transitionDescriptors(
               workflow,
               projectStateById.get(item.projectId) ?? "PAUSED",
-              transitionGate(me!, policy)
+              transitionGate(me!, policy),
+              isLabLeadership(me!)
             )}
           />
         );
@@ -252,6 +254,13 @@ export default async function FightListPage() {
           />
         );
       }
+      case "MISSING_PROJECT_PEOPLE":
+        if (!item.projectId) return null;
+        return (
+          <Button variant="outline" size="sm" render={<Link href={`/projects/${item.projectId}`} />}>
+            Open People tab
+          </Button>
+        );
       case "MISSED_MILESTONE": {
         const milestone = milestoneById.get(item.entityId);
         if (!milestone) return null;

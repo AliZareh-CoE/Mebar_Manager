@@ -8,6 +8,7 @@ import {
   computeRequests,
   tasks,
   initiatives,
+  projectPeople,
   user,
 } from "@/lib/db/schema";
 import type { LabSnapshot } from "@/lib/fight-engine";
@@ -46,6 +47,7 @@ export async function loadLabSnapshot(
     computeRequestRows,
     taskRows,
     initiativeRows,
+    projectPeopleRows,
     coordinatorRow,
   ] = await Promise.all([
     db.query.projects.findMany({
@@ -104,6 +106,12 @@ export async function loadLabSnapshot(
           },
         })
       : Promise.resolve([]),
+    // PI/FIRST_AUTHOR rows only — the missing-people rule needs existence,
+    // not the whole lineup. Scoped to visible projects by the engine.
+    db
+      .select({ projectId: projectPeople.projectId, role: projectPeople.role })
+      .from(projectPeople)
+      .where(inArray(projectPeople.role, ["PI", "FIRST_AUTHOR"])),
     db
       .select({ id: user.id, name: user.name })
       .from(user)
@@ -199,6 +207,10 @@ export async function loadLabSnapshot(
         requester: t.requester,
         projectId: t.projectId,
       })),
+    projectPeople: projectPeopleRows.map((pp) => ({
+      projectId: pp.projectId,
+      role: pp.role as "PI" | "FIRST_AUTHOR",
+    })),
     computeCoordinator: coordinatorRow ?? null,
   };
 }

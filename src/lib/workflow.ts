@@ -271,15 +271,32 @@ export function applyEvent(
   return { ok: true, next: transition.to, transition };
 }
 
+/**
+ * Activation = entering a counts-for-stall state from one that doesn't
+ * count. Leadership-only (the lab rule: researchers file, coordinators
+ * activate) and gated on the lineup being complete. Deliberately NOT
+ * "every entry into a counting state": ACTIVE ⇄ BLOCKED must stay free —
+ * refusing to let someone record a blocker is the one thing this app must
+ * never do.
+ */
+export function isActivationTransition(wf: Workflow, t: WorkflowTransition): boolean {
+  const targetCounts = stateByKey(wf, t.to)?.flags.countsForStall ?? false;
+  const fromCounts = stateByKey(wf, t.from)?.flags.countsForStall ?? false;
+  return targetCounts && !fromCounts;
+}
+
 /** Transitions the actor may fire from a state — drives the UI buttons. */
 export function availableTransitions(
   wf: Workflow,
   state: string,
-  gate: Role | TransitionGateFn
+  gate: Role | TransitionGateFn,
+  /** Whether the actor may fire activation transitions (lab leadership). */
+  canActivate = true
 ): WorkflowTransition[] {
   const g = normalizeGate(gate);
   return wf.transitions.filter((t) => {
     if (t.from !== state || !g(t)) return false;
+    if (!canActivate && isActivationTransition(wf, t)) return false;
     const target = stateByKey(wf, t.to);
     return !!target && !target.archived;
   });
@@ -298,9 +315,10 @@ export type TransitionDescriptor = {
 export function transitionDescriptors(
   wf: Workflow,
   state: string,
-  gate: Role | TransitionGateFn
+  gate: Role | TransitionGateFn,
+  canActivate = true
 ): TransitionDescriptor[] {
-  return availableTransitions(wf, state, gate).map((t) => ({
+  return availableTransitions(wf, state, gate, canActivate).map((t) => ({
     key: t.key,
     label: t.label,
     needsPauseFields: stateByKey(wf, t.to)?.flags.paused ?? false,

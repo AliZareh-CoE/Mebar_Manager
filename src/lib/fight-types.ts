@@ -20,5 +20,6 @@ export const FIGHT_TYPES = [
   // missing types, so the end is the stable place for new rules.
   "OVERDUE_INITIATIVE",
   "UNOWNED_INITIATIVE",
+  "MISSING_PROJECT_PEOPLE",
 ] as const;
 export type FightType = (typeof FIGHT_TYPES)[number];

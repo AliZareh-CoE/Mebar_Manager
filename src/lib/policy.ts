@@ -42,6 +42,7 @@ export const CONFIGURABLE_CAPABILITIES = [
   "computeRequest.withdraw",
   "task.edit",
   "task.cancel",
+  "projectPeople.edit",
 ] as const;
 export type ConfigurableCapability = (typeof CONFIGURABLE_CAPABILITIES)[number];
 
@@ -84,6 +85,7 @@ export const CAPABILITY_LABELS: Record<ConfigurableCapability, string> = {
   "computeRequest.withdraw": "Withdraw others' compute requests (requesters always can)",
   "task.edit": "Edit any task (requester/assignee always can)",
   "task.cancel": "Cancel tasks (requester/assignee always can)",
+  "projectPeople.edit": "Edit a project's people lineup (owner/advisor always can)",
 };
 
 export type MatrixRole = (typeof MATRIX_ROLES)[number];
@@ -104,6 +106,7 @@ export const DEFAULT_MATRIX: Record<ConfigurableCapability, MatrixRole> = {
   "computeRequest.withdraw": "MANAGER",
   "task.edit": "ENGINEER",
   "task.cancel": "ENGINEER",
+  "projectPeople.edit": "ENGINEER",
 };
 
 export const permissionMatrixSchema = z.object(
