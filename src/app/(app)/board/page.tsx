@@ -94,7 +94,9 @@ export default async function BoardPage({
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((p) => {
-            const currentMilestone = p.milestones.find((m) => m.status !== "DONE");
+            const currentMilestone = p.milestones.find(
+              (m) => m.status === "PLANNED" || m.status === "IN_PROGRESS"
+            );
             const age = projectAgeDays(
               {
                 lastUpdateAt: p.updates[0]?.createdAt ?? null,

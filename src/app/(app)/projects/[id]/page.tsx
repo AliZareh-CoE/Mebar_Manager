@@ -115,7 +115,9 @@ export default async function ProjectPage({
     },
     now
   );
-  const openBlockers = project.blockers.filter((b) => b.status !== "RESOLVED");
+  const openBlockers = project.blockers.filter(
+    (b) => b.status !== "RESOLVED" && b.status !== "CANCELLED"
+  );
   const pendingDecisions = project.decisions.filter((d) => d.status === "PENDING");
   const openDataRequests = project.dataRequests.filter((dr) => dr.status === "OPEN");
 
@@ -369,7 +371,9 @@ export default async function ProjectPage({
                     </TableCell>
                     <TableCell
                       className={
-                        b.status !== "RESOLVED" && isOverdue(b.deadline, now)
+                        b.status !== "RESOLVED" &&
+                        b.status !== "CANCELLED" &&
+                        isOverdue(b.deadline, now)
                           ? "font-medium text-red-600 dark:text-red-400"
                           : "text-muted-foreground"
                       }
@@ -414,7 +418,7 @@ export default async function ProjectPage({
             title="Request a decision"
             description={`If ${project.advisor.name} doesn't answer within ${settings.thresholds.decisionTimeoutHours} hours, you proceed with your recommendation. Default to action.`}
             submitLabel="Request it"
-            successMessage="Decision requested. The 48-hour clock is running."
+            successMessage={`Decision requested. The ${settings.thresholds.decisionTimeoutHours}-hour clock is running.`}
             action={requestDecision.bind(null, project.id)}
           >
             <div className="flex flex-col gap-2">

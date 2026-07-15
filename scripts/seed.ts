@@ -35,7 +35,16 @@ async function createUserRaw(input: {
     .from(user)
     .where(eq(user.email, input.email))
     .get();
-  if (existing) return existing.id;
+  if (existing) {
+    // Reseeding resets the credential to the known password so demo runs
+    // (and the e2e suite) stay idempotent even after password changes.
+    // Only seedDemo reaches this branch — seedAdmin returns before calling.
+    db.update(account)
+      .set({ password: await hashPassword(input.password), updatedAt: new Date() })
+      .where(eq(account.userId, existing.id))
+      .run();
+    return existing.id;
+  }
 
   const userId = crypto.randomUUID();
   const now = new Date();

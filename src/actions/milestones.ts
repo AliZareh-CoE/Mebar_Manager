@@ -41,13 +41,19 @@ export async function addMilestone(
   return {};
 }
 
+const WORKFLOW_STATUSES = ["PLANNED", "IN_PROGRESS", "DONE"] as const;
+
 export async function setMilestoneStatus(
   milestoneId: string,
   status: (typeof MILESTONE_STATUSES)[number]
 ): Promise<ActionResult> {
   await requireUser();
 
-  if (!MILESTONE_STATUSES.includes(status)) return { error: "Invalid status." };
+  // Cancellation goes exclusively through cancelMilestone (policy-gated),
+  // and closed milestones stay closed.
+  if (!WORKFLOW_STATUSES.includes(status as (typeof WORKFLOW_STATUSES)[number])) {
+    return { error: "Invalid status." };
+  }
 
   const milestone = await db
     .select()
@@ -55,6 +61,9 @@ export async function setMilestoneStatus(
     .where(eq(milestones.id, milestoneId))
     .get();
   if (!milestone) return { error: "Milestone not found." };
+  if (milestone.status === "DONE" || milestone.status === "CANCELLED") {
+    return { error: "This milestone is closed." };
+  }
 
   await db
     .update(milestones)

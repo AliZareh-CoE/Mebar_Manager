@@ -52,7 +52,9 @@ export async function resolveBlocker(
   const resolutionNote = String(formData.get("resolutionNote") ?? "");
   const blocker = await db.select().from(blockers).where(eq(blockers.id, blockerId)).get();
   if (!blocker) return { error: "Blocker not found." };
-  if (blocker.status === "RESOLVED") return { error: "Already resolved." };
+  if (blocker.status === "RESOLVED" || blocker.status === "CANCELLED") {
+    return { error: "This blocker is closed." };
+  }
   if (!resolutionNote.trim()) {
     return { error: "Write how it was solved — the next person will hit this too." };
   }
@@ -74,7 +76,9 @@ export async function assignBlocker(
 
   const blocker = await db.select().from(blockers).where(eq(blockers.id, blockerId)).get();
   if (!blocker) return { error: "Blocker not found." };
-  if (blocker.status === "RESOLVED") return { error: "Already resolved." };
+  if (blocker.status === "RESOLVED" || blocker.status === "CANCELLED") {
+    return { error: "This blocker is closed." };
+  }
 
   await db.update(blockers).set({ ownerId: ownerId || null }).where(eq(blockers.id, blockerId));
   revalidateBlocker(blocker.projectId);

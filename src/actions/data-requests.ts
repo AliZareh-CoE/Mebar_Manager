@@ -152,8 +152,11 @@ export async function editDataRequest(
     return { error: "You don't have permission to edit this request." };
   }
 
-  const assigneeId = parsed.data.assigneeId || null;
-  if (assigneeId && assigneeId !== request.assigneeId) {
+  // Only touch the assignee when the form actually sent the field —
+  // otherwise an edit would silently unassign the analyst.
+  const assigneeSent = formData.has("assigneeId");
+  const assigneeId = assigneeSent ? parsed.data.assigneeId || null : request.assigneeId;
+  if (assigneeSent && assigneeId && assigneeId !== request.assigneeId) {
     const problem = await verifyAnalyst(assigneeId);
     if (problem) return { error: problem };
   }

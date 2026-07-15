@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { assignDataRequest, cancelDataRequest, deliverDataRequest, editDataRequest } from "@/actions/data-requests";
 import { FormDialog } from "@/components/form-dialog";
+import { PersonSelect } from "@/components/forms/labeled-selects";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -162,6 +163,15 @@ export function DataRequestRowActions({
                 type="date"
                 defaultValue={edit.neededByISO}
                 required
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>Analyst</Label>
+              <PersonSelect
+                name="assigneeId"
+                people={analysts}
+                placeholder="Unassigned"
+                defaultValue={assigneeId ?? undefined}
               />
             </div>
           </FormDialog>
