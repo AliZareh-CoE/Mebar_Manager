@@ -7,8 +7,12 @@ import {
   DEFAULT_SERVER_TYPES,
   DEFAULT_PRACTICES,
   DEFAULT_PROPOSAL_QUESTIONS,
+  DEFAULT_FIGHT_SECTIONS,
+  DEFAULT_SECTION_ORDER,
+  type FightRuleConfig,
 } from "@/lib/settings-defaults";
 import { HEILMEIER_COLUMNS } from "@/lib/proposal";
+import { FIGHT_TYPES, type FightType } from "@/lib/fight-types";
 import {
   STALL_DAYS,
   UNOWNED_BLOCKER_DAYS,
@@ -127,8 +131,38 @@ export const proposalQuestionListSchema = z
     }
   });
 
+export const fightRuleSchema = z.object({
+  enabled: z.boolean().default(true),
+  title: z.string().trim().min(1).max(60),
+  blurb: z.string().trim().max(200).default(""),
+});
+
+/**
+ * Permissive record → exhaustive map: missing/unknown rule keys self-heal to
+ * defaults, so settings saved before a new fight rule shipped keep working.
+ */
+export const fightRulesSchema = z
+  .record(z.string(), fightRuleSchema)
+  .transform(
+    (r) =>
+      Object.fromEntries(
+        FIGHT_TYPES.map((t) => [t, r[t] ?? structuredClone(DEFAULT_FIGHT_SECTIONS[t])])
+      ) as Record<FightType, FightRuleConfig>
+  );
+
+export const fightSectionOrderSchema = z
+  .array(z.enum(FIGHT_TYPES))
+  .transform((order) => [
+    ...new Set<FightType>([...order, ...DEFAULT_SECTION_ORDER]),
+  ]);
+
 export const labSettingsSchema = z.object({
   labName: z.string().trim().min(1).max(40).default("Mebar"),
+  tagline: z
+    .string()
+    .trim()
+    .max(120)
+    .default("A board that gets angry when things sit still."),
   defaultTheme: z.enum(["dark", "light"]).default("dark"),
   visibilityMode: z.enum(["RESTRICTED", "OPEN"]).default("RESTRICTED"),
   thresholds: thresholdSettingsSchema.default(() => thresholdSettingsSchema.parse({})),
@@ -148,5 +182,11 @@ export const labSettingsSchema = z.object({
   proposalQuestions: proposalQuestionListSchema
     .catch(() => structuredClone(DEFAULT_PROPOSAL_QUESTIONS))
     .default(() => structuredClone(DEFAULT_PROPOSAL_QUESTIONS)),
+  fightRules: fightRulesSchema
+    .catch(() => structuredClone(DEFAULT_FIGHT_SECTIONS))
+    .default(() => structuredClone(DEFAULT_FIGHT_SECTIONS)),
+  fightSectionOrder: fightSectionOrderSchema
+    .catch(() => [...DEFAULT_SECTION_ORDER])
+    .default(() => [...DEFAULT_SECTION_ORDER]),
 });
 export type LabSettings = z.infer<typeof labSettingsSchema>;

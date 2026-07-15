@@ -1,5 +1,6 @@
 import { workflowSchema, type Workflow } from "@/lib/workflow";
 import type { ProposalQuestion } from "@/lib/proposal";
+import { FIGHT_TYPES, type FightType } from "@/lib/fight-types";
 
 /** An admin-editable category: archived items keep rendering on old rows. */
 export interface TaxonomyItem {
@@ -28,6 +29,78 @@ export const DEFAULT_SERVER_TYPES: ServerTypeItem[] = [
   { key: "SINGLE_GPU", label: "Single GPU", archived: false, mandatoryPractices: [] },
   { key: "MULTI_GPU", label: "Multi-GPU", archived: false, mandatoryPractices: ["DDP_FSDP"] },
 ];
+
+/** Per-rule Fight List section config: the switch, title, and blurb. */
+export interface FightRuleConfig {
+  enabled: boolean;
+  title: string;
+  blurb: string;
+}
+
+export const DEFAULT_FIGHT_SECTIONS: Record<FightType, FightRuleConfig> = {
+  STALLED_PROJECT: {
+    enabled: true,
+    title: "Stalled projects",
+    blurb: "No update past the stall threshold. One update ends the fight.",
+  },
+  PAST_REVIVE: {
+    enabled: true,
+    title: "Past their revive date",
+    blurb: "Paused is a promise with a date. The date passed.",
+  },
+  OVERDUE_BLOCKER: {
+    enabled: true,
+    title: "Overdue blockers",
+    blurb: "These had deadlines. The deadlines lost.",
+  },
+  UNOWNED_BLOCKER: {
+    enabled: true,
+    title: "Unowned blockers",
+    blurb: "Nobody's job = nobody does it. Assign an owner.",
+  },
+  PENDING_DECISION: {
+    enabled: true,
+    title: "Decisions waiting",
+    blurb: "Answer them, or the engineer proceeds with their recommendation.",
+  },
+  MISSED_MILESTONE: {
+    enabled: true,
+    title: "Missed milestones",
+    blurb: "Close them, or push the date deliberately.",
+  },
+  OVERDUE_DATA_REQUEST: {
+    enabled: true,
+    title: "Overdue data requests",
+    blurb: "The needed-by date passed. The analyst delivers, or the advisor fights.",
+  },
+  UNOWNED_DATA_REQUEST: {
+    enabled: true,
+    title: "Unowned data requests",
+    blurb: "No analyst has claimed these. Assign one.",
+  },
+  PENDING_COMPUTE_REQUEST: {
+    enabled: true,
+    title: "Compute requests waiting",
+    blurb: "These never auto-proceed. The coordinator approves or denies — with a reason.",
+  },
+  OVERDUE_COMPUTE_RESULTS: {
+    enabled: true,
+    title: "Compute results owed",
+    blurb: "The window closed. Where are the results, and did you retrieve your data?",
+  },
+  OVERDUE_TASK: {
+    enabled: true,
+    title: "Overdue tasks",
+    blurb: "The deadline passed. The secretary delivers, or the requester fights.",
+  },
+  UNOWNED_TASK: {
+    enabled: true,
+    title: "Unowned tasks",
+    blurb: "No secretary has claimed these. Assign one.",
+  },
+};
+
+export const DEFAULT_SECTION_ORDER: FightType[] = [...FIGHT_TYPES];
 
 // The Heilmeier Catechism — DARPA's gauntlet. Keys are projects columns.
 export const DEFAULT_PROPOSAL_QUESTIONS: ProposalQuestion[] = [

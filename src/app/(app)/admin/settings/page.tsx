@@ -55,6 +55,10 @@ export default async function AdminSettingsGeneralPage() {
                 />
               </div>
             </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="tagline">Tagline (login page)</Label>
+              <Input id="tagline" name="tagline" defaultValue={settings.tagline} />
+            </div>
           </SettingsForm>
         </CardContent>
       </Card>

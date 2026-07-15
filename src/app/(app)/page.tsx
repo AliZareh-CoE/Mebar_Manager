@@ -15,7 +15,6 @@ import {
   computeFightList,
   computeParetoData,
   type FightItem,
-  type FightType,
 } from "@/lib/fight-engine";
 import { decideDecision } from "@/actions/decisions";
 import { pushMilestoneDueDate } from "@/actions/milestones";
@@ -46,72 +45,6 @@ import { user } from "@/lib/db/schema";
 import { ne } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
-
-const SECTIONS: Record<FightType, { title: string; blurb: string }> = {
-  STALLED_PROJECT: {
-    title: "Stalled projects",
-    blurb: "No update past the stall threshold. One update ends the fight.",
-  },
-  PAST_REVIVE: {
-    title: "Past their revive date",
-    blurb: "Paused is a promise with a date. The date passed.",
-  },
-  OVERDUE_BLOCKER: {
-    title: "Overdue blockers",
-    blurb: "These had deadlines. The deadlines lost.",
-  },
-  UNOWNED_BLOCKER: {
-    title: "Unowned blockers",
-    blurb: "Nobody's job = nobody does it. Assign an owner.",
-  },
-  PENDING_DECISION: {
-    title: "Decisions waiting",
-    blurb: "Answer them, or the engineer proceeds with their recommendation.",
-  },
-  MISSED_MILESTONE: {
-    title: "Missed milestones",
-    blurb: "Close them, or push the date deliberately.",
-  },
-  OVERDUE_DATA_REQUEST: {
-    title: "Overdue data requests",
-    blurb: "The needed-by date passed. The analyst delivers, or the advisor fights.",
-  },
-  UNOWNED_DATA_REQUEST: {
-    title: "Unowned data requests",
-    blurb: "No analyst has claimed these. Assign one.",
-  },
-  PENDING_COMPUTE_REQUEST: {
-    title: "Compute requests waiting",
-    blurb: "These never auto-proceed. The coordinator approves or denies — with a reason.",
-  },
-  OVERDUE_COMPUTE_RESULTS: {
-    title: "Compute results owed",
-    blurb: "The window closed. Where are the results, and did you retrieve your data?",
-  },
-  OVERDUE_TASK: {
-    title: "Overdue tasks",
-    blurb: "The deadline passed. The secretary delivers, or the requester fights.",
-  },
-  UNOWNED_TASK: {
-    title: "Unowned tasks",
-    blurb: "No secretary has claimed these. Assign one.",
-  },
-};
-
-const SECTION_ORDER: FightType[] = [
-  "STALLED_PROJECT",
-  "PAST_REVIVE",
-  "OVERDUE_BLOCKER",
-  "OVERDUE_DATA_REQUEST",
-  "OVERDUE_TASK",
-  "OVERDUE_COMPUTE_RESULTS",
-  "UNOWNED_BLOCKER",
-  "UNOWNED_DATA_REQUEST",
-  "UNOWNED_TASK",
-  "PENDING_COMPUTE_REQUEST",
-  "PENDING_DECISION",
-  "MISSED_MILESTONE",
-];
 
 export default async function FightListPage() {
   const me = await getCurrentUser();
@@ -156,8 +89,12 @@ export default async function FightListPage() {
     .map(({ id, name }) => ({ id, name }));
 
   const now = new Date();
+  const enabledRules = Object.fromEntries(
+    Object.entries(settings.fightRules).map(([type, rule]) => [type, rule.enabled])
+  );
   const items = computeFightList(snapshot, now, settings.thresholds, {
     stateFlags: engineStateFlags(workflow),
+    enabledRules,
   });
   const pareto = computeParetoData(causes);
   const projectStateById = new Map(snapshot.projects.map((p) => [p.id, p.state]));
@@ -337,10 +274,10 @@ export default async function FightListPage() {
           </CardContent>
         </Card>
       ) : (
-        SECTION_ORDER.map((type) => {
+        settings.fightSectionOrder.map((type) => {
           const sectionItems = items.filter((i) => i.type === type);
           if (sectionItems.length === 0) return null;
-          const section = SECTIONS[type];
+          const section = settings.fightRules[type];
           return (
             <section key={type} className="flex flex-col gap-3">
               <div>

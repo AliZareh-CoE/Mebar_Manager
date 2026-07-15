@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { updateThresholds } from "@/actions/settings";
+import { FightRulesEditor } from "@/components/admin/fight-rules-editor";
 import { SettingsForm } from "@/components/forms/settings-form";
 import {
   Card,
@@ -65,6 +66,24 @@ export default async function AdminSettingsFightsPage() {
               ))}
             </div>
           </SettingsForm>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Fight rules</CardTitle>
+          <CardDescription>
+            Switch rules on or off, rename their Fight List sections, and drag
+            the order (↑/↓). Disabled rules stop producing fights immediately.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FightRulesEditor
+            initial={settings.fightSectionOrder.map((type) => ({
+              type,
+              ...settings.fightRules[type],
+            }))}
+          />
         </CardContent>
       </Card>
     </div>

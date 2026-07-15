@@ -12,11 +12,13 @@ import {
 } from "@/lib/settings";
 import {
   causeTagListSchema,
+  fightRuleSchema,
   practiceListSchema,
   proposalQuestionListSchema,
   serverTypeListSchema,
 } from "@/lib/settings-schema";
 import { HEILMEIER_COLUMNS } from "@/lib/proposal";
+import { FIGHT_TYPES } from "@/lib/fight-types";
 import { permissionMatrixSchema, CONFIGURABLE_CAPABILITIES } from "@/lib/policy";
 import { workflowSchema } from "@/lib/workflow";
 import type { ActionResult } from "@/lib/action-utils";
@@ -46,11 +48,28 @@ export async function updateLabIdentity(formData: FormData): Promise<ActionResul
   await requireManager();
   const schema = z.object({
     labName: z.string().trim().min(1, "The lab needs a name").max(40),
+    tagline: z.string().trim().max(120).default(""),
     defaultTheme: z.enum(["dark", "light"]),
   });
   const parsed = schema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   return patchSettings(parsed.data);
+}
+
+export async function updateFightRules(formData: FormData): Promise<ActionResult> {
+  await requireManager();
+  // One ordered array carries both the per-rule config and the section order.
+  const itemSchema = fightRuleSchema.extend({ type: z.enum(FIGHT_TYPES) });
+  const parsed = z
+    .array(itemSchema)
+    .safeParse(parseJsonField(formData, "items"));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const fightRules = Object.fromEntries(
+    parsed.data.map(({ type, ...rule }) => [type, rule])
+  );
+  const fightSectionOrder = parsed.data.map((i) => i.type);
+  return patchSettings({ fightRules, fightSectionOrder });
 }
 
 export async function updateThresholds(formData: FormData): Promise<ActionResult> {

@@ -44,7 +44,12 @@ export default async function AppLayout({
     ),
     new Date(),
     settings.thresholds,
-    { stateFlags: engineStateFlags(workflow) }
+    {
+      stateFlags: engineStateFlags(workflow),
+      enabledRules: Object.fromEntries(
+        Object.entries(settings.fightRules).map(([type, rule]) => [type, rule.enabled])
+      ),
+    }
   ).length;
 
   return (

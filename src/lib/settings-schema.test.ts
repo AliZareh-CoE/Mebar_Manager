@@ -65,3 +65,45 @@ describe("labSettingsSchema defaults", () => {
     expect(settings.workflow.states.map((s) => s.key)).toContain("TRIAGE");
   });
 });
+
+describe("fight rule config", () => {
+  it("empty blob yields all rules enabled in stock order", async () => {
+    const { FIGHT_TYPES } = await import("./fight-types");
+    const settings = labSettingsSchema.parse({});
+    expect(settings.fightSectionOrder).toEqual([...FIGHT_TYPES]);
+    for (const t of FIGHT_TYPES) {
+      expect(settings.fightRules[t].enabled).toBe(true);
+      expect(settings.fightRules[t].title.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("saved orders/rules from before a new rule shipped self-heal", () => {
+    const settings = labSettingsSchema.parse({
+      // Pretend this was saved before OVERDUE_TASK/UNOWNED_TASK existed.
+      fightSectionOrder: ["MISSED_MILESTONE", "STALLED_PROJECT"],
+      fightRules: {
+        STALLED_PROJECT: { enabled: false, title: "Zombies", blurb: "" },
+      },
+    });
+    // Explicit order kept first, missing types appended.
+    expect(settings.fightSectionOrder.slice(0, 2)).toEqual([
+      "MISSED_MILESTONE",
+      "STALLED_PROJECT",
+    ]);
+    expect(settings.fightSectionOrder).toContain("OVERDUE_TASK");
+    expect(settings.fightSectionOrder).toContain("UNOWNED_TASK");
+    // Customized rule kept; missing rules defaulted.
+    expect(settings.fightRules.STALLED_PROJECT).toMatchObject({
+      enabled: false,
+      title: "Zombies",
+    });
+    expect(settings.fightRules.OVERDUE_TASK.enabled).toBe(true);
+  });
+
+  it("tagline defaults and trims", () => {
+    expect(labSettingsSchema.parse({}).tagline).toBe(
+      "A board that gets angry when things sit still."
+    );
+    expect(labSettingsSchema.parse({ tagline: "  Fight! " }).tagline).toBe("Fight!");
+  });
+});

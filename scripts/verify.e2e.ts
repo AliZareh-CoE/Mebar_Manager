@@ -389,6 +389,30 @@ async function main() {
     !(await page.textContent("body"))!.includes("Data management plan?")
   );
 
+  // 22e. Fight rules: disable MISSED_MILESTONE (its fight persists all run)
+  // → section disappears → re-enable. Self-restoring.
+  await page.goto(BASE + "/admin/settings/fights");
+  const milestoneRule = page.locator("div.rounded-md", {
+    has: page.locator("code", { hasText: "MISSED_MILESTONE" }),
+  });
+  await milestoneRule.locator("input[type=checkbox]").uncheck();
+  await page.click("button:has-text('Save fight rules')");
+  await page.waitForTimeout(1500);
+  await page.goto(BASE + "/");
+  check(
+    "disabled rule stops fighting",
+    !(await page.textContent("body"))!.includes("Missed milestones")
+  );
+  await page.goto(BASE + "/admin/settings/fights");
+  await milestoneRule.locator("input[type=checkbox]").check();
+  await page.click("button:has-text('Save fight rules')");
+  await page.waitForTimeout(1500);
+  await page.goto(BASE + "/");
+  check(
+    "re-enabled rule fights again",
+    (await page.textContent("body"))!.includes("Missed milestones")
+  );
+
   // 23. Restricted visibility: sara sees only her project
   await engPage.goto(BASE + "/board");
   const saraBoard = await engPage.textContent("body");

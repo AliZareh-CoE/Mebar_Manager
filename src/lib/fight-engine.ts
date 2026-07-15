@@ -1,5 +1,6 @@
 import { differenceInDays, differenceInHours, differenceInMinutes, addHours } from "date-fns";
 import type { BlockerStatus, MilestoneStatus } from "@/lib/db/schema";
+import type { FightType } from "@/lib/fight-types";
 import { engineStateFlags } from "@/lib/workflow";
 import { DEFAULT_WORKFLOW } from "@/lib/settings-defaults";
 import {
@@ -115,19 +116,7 @@ export interface LabSnapshot {
   computeCoordinator: PersonRef | null;
 }
 
-export type FightType =
-  | "STALLED_PROJECT"
-  | "OVERDUE_BLOCKER"
-  | "UNOWNED_BLOCKER"
-  | "PENDING_DECISION"
-  | "PAST_REVIVE"
-  | "MISSED_MILESTONE"
-  | "OVERDUE_DATA_REQUEST"
-  | "UNOWNED_DATA_REQUEST"
-  | "PENDING_COMPUTE_REQUEST"
-  | "OVERDUE_COMPUTE_RESULTS"
-  | "OVERDUE_TASK"
-  | "UNOWNED_TASK";
+export type { FightType } from "@/lib/fight-types";
 
 /** 3 = red, fight today. 2 = amber, fight this week. 1 = notice. */
 export type Severity = 3 | 2 | 1;
