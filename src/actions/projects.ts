@@ -7,9 +7,9 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { projects, stateTransitions } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
+import { getSettings } from "@/lib/settings";
 import { getPolicy, transitionGate } from "@/lib/policy-server";
 import { applyEvent, initialStateKey, stateByKey, KEY_RE } from "@/lib/workflow";
-import { DEFAULT_WORKFLOW } from "@/lib/settings-defaults";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 import { canAccessProject } from "@/lib/visibility";
 
@@ -47,9 +47,10 @@ export async function createProject(formData: FormData): Promise<ActionResult> {
   const parsed = parseForm(createProjectSchema, formData);
   if (!parsed.success) return { error: parsed.error };
 
+  const { workflow } = await getSettings();
   const [project] = await db
     .insert(projects)
-    .values({ ...parsed.data, createdById: me.id, state: initialStateKey(DEFAULT_WORKFLOW) })
+    .values({ ...parsed.data, createdById: me.id, state: initialStateKey(workflow) })
     .returning();
   revalidatePath("/board");
   redirect(`/projects/${project.id}`);
@@ -109,7 +110,7 @@ export async function fireProjectEvent(
   if (!project) return { error: "Project not found." };
   if (!(await canAccessProject(user, projectId))) return { error: "Project not found." };
 
-  const workflow = DEFAULT_WORKFLOW;
+  const { workflow } = await getSettings();
   const policy = await getPolicy(user);
   const result = applyEvent(
     workflow,

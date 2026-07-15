@@ -3,8 +3,12 @@ import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { getPolicy, transitionGate } from "@/lib/policy-server";
 import { visibleProjectIds } from "@/lib/visibility";
-import { transitionDescriptors } from "@/lib/workflow";
-import { DEFAULT_WORKFLOW } from "@/lib/settings-defaults";
+import {
+  activationStateKeys,
+  engineStateFlags,
+  frozenStateKeys,
+  transitionDescriptors,
+} from "@/lib/workflow";
 import { expireOverdueDecisions } from "@/lib/maintenance";
 import { loadLabSnapshot, loadAllBlockerCauses } from "@/lib/fight-data";
 import {
@@ -103,12 +107,17 @@ export default async function FightListPage() {
   if (!me) return null;
 
   const settings = await getSettings();
+  const workflow = settings.workflow;
   const policy = await getPolicy(me);
-  expireOverdueDecisions(new Date(), settings.thresholds.decisionTimeoutHours);
+  expireOverdueDecisions(
+    new Date(),
+    settings.thresholds.decisionTimeoutHours,
+    frozenStateKeys(workflow)
+  );
 
   const visibleIds = await visibleProjectIds(me, settings);
   const [snapshot, causes, allPeople] = await Promise.all([
-    loadLabSnapshot(visibleIds),
+    loadLabSnapshot(visibleIds, activationStateKeys(workflow)),
     loadAllBlockerCauses(visibleIds),
     db
       .select({ id: user.id, name: user.name, isDataAnalyst: user.isDataAnalyst })
@@ -122,8 +131,9 @@ export default async function FightListPage() {
     .map(({ id, name }) => ({ id, name }));
 
   const now = new Date();
-  const workflow = DEFAULT_WORKFLOW;
-  const items = computeFightList(snapshot, now, settings.thresholds);
+  const items = computeFightList(snapshot, now, settings.thresholds, {
+    stateFlags: engineStateFlags(workflow),
+  });
   const pareto = computeParetoData(causes);
   const projectStateById = new Map(snapshot.projects.map((p) => [p.id, p.state]));
   const blockerById = new Map(snapshot.openBlockers.map((b) => [b.id, b]));

@@ -12,7 +12,6 @@ import {
   resolveStateDisplay,
   stateByKey,
 } from "@/lib/workflow";
-import { DEFAULT_WORKFLOW } from "@/lib/settings-defaults";
 import { getSettings } from "@/lib/settings";
 import { visibleProjectIds, isVisible } from "@/lib/visibility";
 import { StateBadge } from "@/components/state-badge";
@@ -38,7 +37,7 @@ export default async function BoardPage({
   const settings = await getSettings();
   const visibleIds = await visibleProjectIds(me, settings);
 
-  const workflow = DEFAULT_WORKFLOW;
+  const workflow = settings.workflow;
   const activationKeys = activationStateKeys(workflow);
   const hiddenKeys = new Set(hiddenFromBoardKeys(workflow));
 

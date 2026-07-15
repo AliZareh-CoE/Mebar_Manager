@@ -5,11 +5,11 @@ import { format, formatDistanceStrict, addHours } from "date-fns";
 import { isOverdue, projectAgeDays } from "@/lib/fight-engine";
 import {
   activationStateKeys,
+  frozenStateKeys,
   resolveStateDisplay,
   stateByKey,
   transitionDescriptors,
 } from "@/lib/workflow";
-import { DEFAULT_WORKFLOW } from "@/lib/settings-defaults";
 import { getPolicy, transitionGate } from "@/lib/policy-server";
 import { visibleProjectIds, isVisible } from "@/lib/visibility";
 import { db } from "@/lib/db";
@@ -73,7 +73,11 @@ export default async function ProjectPage({
 
   const settings = await getSettings();
   const policy = await getPolicy(me);
-  expireOverdueDecisions(new Date(), settings.thresholds.decisionTimeoutHours);
+  expireOverdueDecisions(
+    new Date(),
+    settings.thresholds.decisionTimeoutHours,
+    frozenStateKeys(settings.workflow)
+  );
 
   const project = await db.query.projects.findFirst({
     where: (p, { eq }) => eq(p.id, id),
@@ -112,7 +116,7 @@ export default async function ProjectPage({
     .map(({ id, name }) => ({ id, name }));
 
   const now = new Date();
-  const workflow = DEFAULT_WORKFLOW;
+  const workflow = settings.workflow;
   const activationKeys = activationStateKeys(workflow);
   const stateFlags = stateByKey(workflow, project.state)?.flags;
   const stateDisplay = resolveStateDisplay(workflow, project.state);

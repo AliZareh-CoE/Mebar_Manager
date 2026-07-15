@@ -7,6 +7,11 @@ import { expireOverdueDecisions } from "@/lib/maintenance";
 import { loadLabSnapshot } from "@/lib/fight-data";
 import { visibleProjectIds } from "@/lib/visibility";
 import { computeFightList } from "@/lib/fight-engine";
+import {
+  activationStateKeys,
+  engineStateFlags,
+  frozenStateKeys,
+} from "@/lib/workflow";
 import { NavLinks } from "@/components/nav-links";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -20,14 +25,20 @@ export default async function AppLayout({
   if (!user) redirect("/login");
 
   const settings = await getSettings();
+  const workflow = settings.workflow;
   // Expire first so the badge never counts decisions already past the
   // timeout as pending fights.
-  expireOverdueDecisions(new Date(), settings.thresholds.decisionTimeoutHours);
+  expireOverdueDecisions(
+    new Date(),
+    settings.thresholds.decisionTimeoutHours,
+    frozenStateKeys(workflow)
+  );
   const visibleIds = await visibleProjectIds(user, settings);
   const fightCount = computeFightList(
-    await loadLabSnapshot(visibleIds),
+    await loadLabSnapshot(visibleIds, activationStateKeys(workflow)),
     new Date(),
-    settings.thresholds
+    settings.thresholds,
+    { stateFlags: engineStateFlags(workflow) }
   ).length;
 
   return (

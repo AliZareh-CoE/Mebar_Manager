@@ -280,7 +280,7 @@ async function main() {
   check("/data shows groups", dataBody!.includes("Open") && dataBody!.includes("Delivered"));
 
   // 22. Settings: raising the unowned grace hides the unowned-blocker fight
-  await page.goto(BASE + "/admin/settings");
+  await page.goto(BASE + "/admin/settings/fights");
   const thresholdForm = page.locator("form", { has: page.locator("input[name=unownedGraceDays]") });
   await thresholdForm.locator("input[name=unownedGraceDays]").fill("30");
   await thresholdForm.locator("button[type=submit]").click();
@@ -290,7 +290,7 @@ async function main() {
     "raised grace hides unowned blockers",
     !(await page.textContent("body"))!.includes("Unowned blockers")
   );
-  await page.goto(BASE + "/admin/settings");
+  await page.goto(BASE + "/admin/settings/fights");
   await thresholdForm.locator("input[name=unownedGraceDays]").fill("2");
   await thresholdForm.locator("button[type=submit]").click();
   await page.waitForTimeout(1500);
@@ -298,6 +298,35 @@ async function main() {
   check(
     "restored grace brings them back",
     (await page.textContent("body"))!.includes("Unowned blockers")
+  );
+
+  // 22b. Workflow editor: add a custom state → shows up on the board filter →
+  // reset to stock. Self-restoring.
+  await page.goto(BASE + "/admin/settings/workflow");
+  await page.fill("#new-state-label", "Triage");
+  await page.click("button:has-text('Add state')");
+  await page.click("button:has-text('Save workflow')");
+  await page.waitForTimeout(1500);
+  await page.goto(BASE + "/admin/settings/workflow");
+  check(
+    "custom state persists in the editor",
+    (await page.textContent("body"))!.includes("TRIAGE")
+  );
+  await page.goto(BASE + "/board");
+  await page.click("text=All states"); // open the state filter
+  check(
+    "custom state appears in the board filter",
+    (await page.textContent("body"))!.includes("Triage")
+  );
+  await page.keyboard.press("Escape");
+  await page.goto(BASE + "/admin/settings/workflow");
+  await page.click("button:has-text('Reset to stock workflow')");
+  await page.click("button:has-text('Save workflow')");
+  await page.waitForTimeout(1500);
+  await page.goto(BASE + "/admin/settings/workflow");
+  check(
+    "reset removes the custom state",
+    !(await page.textContent("body"))!.includes("TRIAGE")
   );
 
   // 23. Restricted visibility: sara sees only her project

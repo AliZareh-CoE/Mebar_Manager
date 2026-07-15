@@ -11,6 +11,7 @@ import {
   thresholdSettingsSchema,
 } from "@/lib/settings";
 import { permissionMatrixSchema, CONFIGURABLE_CAPABILITIES } from "@/lib/policy";
+import { workflowSchema } from "@/lib/workflow";
 import type { ActionResult } from "@/lib/action-utils";
 
 async function patchSettings(patch: Record<string, unknown>): Promise<ActionResult> {
@@ -62,6 +63,19 @@ export async function updateVisibility(formData: FormData): Promise<ActionResult
     .safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) return { error: "Invalid visibility mode." };
   return patchSettings(parsed.data);
+}
+
+export async function updateWorkflow(formData: FormData): Promise<ActionResult> {
+  await requireManager();
+  let raw: unknown;
+  try {
+    raw = JSON.parse(String(formData.get("workflow") ?? ""));
+  } catch {
+    return { error: "Malformed workflow payload." };
+  }
+  const parsed = workflowSchema.safeParse(raw);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  return patchSettings({ workflow: parsed.data });
 }
 
 export async function updatePermissions(formData: FormData): Promise<ActionResult> {

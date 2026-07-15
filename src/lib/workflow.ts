@@ -147,6 +147,26 @@ export const workflowSchema = z
 export type Workflow = z.infer<typeof workflowSchema>;
 
 /**
+ * Derive a stable UPPER_SNAKE key from a human label. Keys are immutable
+ * after creation (they live in DB rows and URLs) — renames only touch the
+ * label. Collides against `taken` (including archived keys, never reused).
+ */
+export function slugifyKey(label: string, taken: Iterable<string>): string {
+  let base = label
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 27);
+  if (!/^[A-Z]/.test(base)) base = `K${base ? "_" + base : "EY"}`.slice(0, 27);
+  const takenSet = new Set(taken);
+  if (!takenSet.has(base)) return base;
+  for (let i = 2; ; i++) {
+    const candidate = `${base}_${i}`.slice(0, 30);
+    if (!takenSet.has(candidate)) return candidate;
+  }
+}
+
+/**
  * Non-fatal editor advisories: shapes an admin may legitimately save
  * mid-edit, but that will strand projects if left that way.
  */
