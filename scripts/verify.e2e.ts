@@ -642,6 +642,87 @@ async function main() {
   check("engineer nav lacks Settings", !(await engPage.textContent("header"))!.includes("Settings"));
   check("engineer nav has Data", (await engPage.textContent("header"))!.includes("Data"));
 
+  // 27b. ROLE-ACCESS MATRIX — the vision-and-permissions contract, per
+  // persona: exact nav sets and a full route sweep (render vs redirect).
+  // Personas: prof (manager+coordinator multi-hat, `page`), sara (engineer,
+  // `engPage`), taylor (secretary, `secPage`), lena (engineer+analyst).
+  const lenaPage = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
+  await lenaPage.goto(BASE + "/login");
+  await lenaPage.fill("#email", "lena@lab.local");
+  await lenaPage.fill("#password", "mebar-demo");
+  await lenaPage.click("button[type=submit]");
+  await lenaPage.waitForURL(BASE + "/");
+
+  type P = typeof page;
+  async function navSet(p: P): Promise<string> {
+    await p.goto(BASE + "/");
+    return (await p.locator("nav").first().textContent()) ?? "";
+  }
+  async function routeLandsOn(p: P, route: string): Promise<string> {
+    await p.goto(BASE + route);
+    await p.waitForLoadState("networkidle");
+    return new URL(p.url()).pathname;
+  }
+
+  // Exact nav contents per persona.
+  const profNav = await navSet(page);
+  for (const item of ["Fight List", "Board", "Data", "Compute", "Tasks", "Initiatives", "Performance", "People", "Feedback", "Settings"]) {
+    check(`matrix: prof nav has ${item}`, profNav.includes(item));
+  }
+  const saraNavFull = await navSet(engPage);
+  for (const item of ["Fight List", "Board", "Data", "Compute", "Tasks"]) {
+    check(`matrix: sara nav has ${item}`, saraNavFull.includes(item));
+  }
+  for (const item of ["Initiatives", "Performance", "People", "Feedback", "Settings"]) {
+    check(`matrix: sara nav lacks ${item}`, !saraNavFull.includes(item));
+  }
+  const taylorNav = await navSet(secPage);
+  check(
+    "matrix: taylor nav is exactly Fight List + Tasks",
+    taylorNav.includes("Fight List") &&
+      taylorNav.includes("Tasks") &&
+      !taylorNav.includes("Board") &&
+      !taylorNav.includes("Initiatives") &&
+      !taylorNav.includes("Settings")
+  );
+  const lenaNav = await navSet(lenaPage);
+  check(
+    "matrix: analyst nav = engineer nav (add-on grants no surfaces)",
+    lenaNav.includes("Data") && !lenaNav.includes("Performance") && !lenaNav.includes("Settings")
+  );
+
+  // Route sweep: [route, prof, sara, taylor] — expected landing pathname.
+  const ROUTE_MATRIX: Array<[string, string, string, string]> = [
+    ["/board", "/board", "/board", "/tasks"],
+    ["/data", "/data", "/data", "/tasks"],
+    ["/compute", "/compute", "/compute", "/tasks"],
+    ["/tasks", "/tasks", "/tasks", "/tasks"],
+    ["/initiatives", "/initiatives", "/", "/"],
+    ["/performance", "/performance", "/", "/"],
+    ["/admin/users", "/admin/users", "/", "/"],
+    ["/admin/feedback", "/admin/feedback", "/", "/"],
+    ["/admin/settings", "/admin/settings", "/", "/"],
+  ];
+  for (const [route, profDest, saraDest, taylorDest] of ROUTE_MATRIX) {
+    check(`matrix: prof ${route} → ${profDest}`, (await routeLandsOn(page, route)) === profDest);
+    check(`matrix: sara ${route} → ${saraDest}`, (await routeLandsOn(engPage, route)) === saraDest);
+    check(`matrix: taylor ${route} → ${taylorDest}`, (await routeLandsOn(secPage, route)) === taylorDest);
+  }
+
+  // Multi-hat positive checks: prof approves compute AND appears on
+  // /performance AND owns the whole board (the hats compose, none lost).
+  await page.goto(BASE + "/compute");
+  check(
+    "matrix: multi-hat prof keeps compute verdict buttons",
+    (await page.textContent("body"))!.includes("Approve")
+  );
+  await page.goto(BASE + "/performance");
+  check(
+    "matrix: multi-hat prof is scored too",
+    (await page.textContent("body"))!.includes("Prof. Mebar")
+  );
+  await lenaPage.close();
+
   // 28. Password change (dan) + manager reset (omid)
   const danPage = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
   await danPage.goto(BASE + "/login");

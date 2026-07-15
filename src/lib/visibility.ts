@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { projects, blockers, dataRequests, computeRequests, tasks } from "@/lib/db/schema";
 import type { SessionUser } from "@/lib/session";
 import { getSettings, type LabSettings } from "@/lib/settings";
+import { projectScope, taskScope } from "@/lib/access-rules";
 
 /**
  * RESTRICTED visibility: managers see everything; researchers see only
@@ -22,8 +23,9 @@ export async function visibleProjectIds(
   user: SessionUser,
   settings: LabSettings
 ): Promise<Set<string> | null> {
-  if (user.role === "SECRETARY") return new Set();
-  if (user.role === "MANAGER" || settings.visibilityMode === "OPEN") return null;
+  const scope = projectScope(user, settings.visibilityMode);
+  if (scope === "NONE") return new Set();
+  if (scope === "ALL") return null;
 
   const rows = await union(
     db
@@ -64,17 +66,16 @@ export async function visibleTaskIds(
   user: SessionUser,
   settings: LabSettings
 ): Promise<Set<string> | null> {
-  if (user.role === "MANAGER") return null;
+  const scope = taskScope(user, settings.visibilityMode);
+  if (scope === "ALL") return null;
 
-  if (user.role === "SECRETARY") {
+  if (scope === "OWN") {
     const rows = await db
       .select({ id: tasks.id })
       .from(tasks)
       .where(or(eq(tasks.assigneeId, user.id), eq(tasks.requesterId, user.id)));
     return new Set(rows.map((r) => r.id));
   }
-
-  if (settings.visibilityMode === "OPEN") return null;
 
   const projectIds = await visibleProjectIds(user, settings);
   const rows = await db
