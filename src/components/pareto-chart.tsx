@@ -7,17 +7,23 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { CAUSE_TAG_LABELS } from "@/lib/labels";
 import type { ParetoSlice } from "@/lib/fight-engine";
 
 const chartConfig = {
   count: { label: "Blockers", color: "var(--destructive)" },
 } satisfies ChartConfig;
 
-export function ParetoChart({ data }: { data: ParetoSlice[] }) {
+export function ParetoChart({
+  data,
+  labels,
+}: {
+  data: ParetoSlice[];
+  /** Cause-tag labels from settings — includes archived tags so history renders. */
+  labels: Record<string, string>;
+}) {
   const rows = data.map((d) => ({
     ...d,
-    label: CAUSE_TAG_LABELS[d.causeTag],
+    label: labels[d.causeTag] ?? d.causeTag,
   }));
 
   return (

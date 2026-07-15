@@ -1,7 +1,12 @@
 import { z } from "zod";
 import { permissionMatrixSchema } from "@/lib/policy";
-import { workflowSchema } from "@/lib/workflow";
-import { DEFAULT_WORKFLOW } from "@/lib/settings-defaults";
+import { workflowSchema, KEY_RE } from "@/lib/workflow";
+import {
+  DEFAULT_WORKFLOW,
+  DEFAULT_CAUSE_TAGS,
+  DEFAULT_SERVER_TYPES,
+  DEFAULT_PRACTICES,
+} from "@/lib/settings-defaults";
 import {
   STALL_DAYS,
   UNOWNED_BLOCKER_DAYS,
@@ -46,6 +51,45 @@ export const thresholdSettingsSchema = z.object({
 });
 export type ThresholdSettings = z.infer<typeof thresholdSettingsSchema>;
 
+export const taxonomyItemSchema = z.object({
+  key: z.string().regex(KEY_RE, "Keys are UPPER_SNAKE, max 30 chars."),
+  label: z.string().trim().min(1).max(80),
+  archived: z.boolean().default(false),
+});
+export type TaxonomyItemInput = z.infer<typeof taxonomyItemSchema>;
+
+export const serverTypeSchema = taxonomyItemSchema.extend({
+  /** Practice keys every request on this server type must commit to. */
+  mandatoryPractices: z.array(z.string().regex(KEY_RE)).default([]),
+});
+
+/** Unique keys + at least one non-archived entry. */
+function taxonomyList<T extends z.ZodType<{ key: string; archived: boolean }>>(
+  item: T,
+  max: number
+) {
+  return z
+    .array(item)
+    .min(1)
+    .max(max)
+    .superRefine((items, ctx) => {
+      const seen = new Set<string>();
+      for (const i of items) {
+        if (seen.has(i.key)) {
+          ctx.addIssue({ code: "custom", message: `Duplicate key "${i.key}".` });
+        }
+        seen.add(i.key);
+      }
+      if (!items.some((i) => !i.archived)) {
+        ctx.addIssue({ code: "custom", message: "At least one entry must stay active." });
+      }
+    });
+}
+
+export const causeTagListSchema = taxonomyList(taxonomyItemSchema, 30);
+export const serverTypeListSchema = taxonomyList(serverTypeSchema, 15);
+export const practiceListSchema = taxonomyList(taxonomyItemSchema, 30);
+
 export const labSettingsSchema = z.object({
   labName: z.string().trim().min(1).max(40).default("Mebar"),
   defaultTheme: z.enum(["dark", "light"]).default("dark"),
@@ -55,5 +99,14 @@ export const labSettingsSchema = z.object({
   workflow: workflowSchema
     .catch(() => structuredClone(DEFAULT_WORKFLOW))
     .default(() => structuredClone(DEFAULT_WORKFLOW)),
+  causeTags: causeTagListSchema
+    .catch(() => structuredClone(DEFAULT_CAUSE_TAGS))
+    .default(() => structuredClone(DEFAULT_CAUSE_TAGS)),
+  serverTypes: serverTypeListSchema
+    .catch(() => structuredClone(DEFAULT_SERVER_TYPES))
+    .default(() => structuredClone(DEFAULT_SERVER_TYPES)),
+  practices: practiceListSchema
+    .catch(() => structuredClone(DEFAULT_PRACTICES))
+    .default(() => structuredClone(DEFAULT_PRACTICES)),
 });
 export type LabSettings = z.infer<typeof labSettingsSchema>;

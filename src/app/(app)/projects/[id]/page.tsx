@@ -17,7 +17,6 @@ import { user } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/session";
 import { expireOverdueDecisions } from "@/lib/maintenance";
 import { getSettings } from "@/lib/settings";
-import { CAUSE_TAG_LABELS } from "@/lib/labels";
 import { editProject } from "@/actions/projects";
 import { addUpdate, editUpdate } from "@/actions/updates";
 import { raiseBlocker } from "@/actions/blockers";
@@ -117,6 +116,16 @@ export default async function ProjectPage({
 
   const now = new Date();
   const workflow = settings.workflow;
+  const causeLabels = Object.fromEntries(settings.causeTags.map((t) => [t.key, t.label]));
+  const activeCauseOptions = settings.causeTags
+    .filter((t) => !t.archived)
+    .map((t) => ({ value: t.key, label: t.label }));
+  const serverTypeLabels = Object.fromEntries(
+    settings.serverTypes.map((s) => [s.key, s.label])
+  );
+  const practiceLabels = Object.fromEntries(
+    settings.practices.map((p) => [p.key, p.label])
+  );
   const activationKeys = activationStateKeys(workflow);
   const stateFlags = stateByKey(workflow, project.state)?.flags;
   const stateDisplay = resolveStateDisplay(workflow, project.state);
@@ -345,7 +354,7 @@ export default async function ProjectPage({
             </div>
             <div className="flex flex-col gap-2">
               <Label>Cause</Label>
-              <CauseSelect />
+              <CauseSelect options={activeCauseOptions} />
             </div>
             <div className="flex flex-col gap-2">
               <Label>Owner (who kills it)</Label>
@@ -388,7 +397,7 @@ export default async function ProjectPage({
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{CAUSE_TAG_LABELS[b.causeTag]}</Badge>
+                      <Badge variant="secondary">{causeLabels[b.causeTag] ?? b.causeTag}</Badge>
                     </TableCell>
                     <TableCell
                       className={
@@ -422,6 +431,9 @@ export default async function ProjectPage({
                           description: b.description,
                           causeTag: b.causeTag,
                           deadlineISO: format(b.deadline, "yyyy-MM-dd"),
+                          causeOptions: settings.causeTags
+                            .filter((t) => !t.archived || t.key === b.causeTag)
+                            .map((t) => ({ value: t.key, label: t.label })),
                         }}
                       />
                     </TableCell>
@@ -822,6 +834,8 @@ export default async function ProjectPage({
                 request={cr}
                 requesterName={cr.requester.name}
                 me={me}
+                serverTypeLabel={serverTypeLabels[cr.serverType] ?? cr.serverType}
+                practiceLabels={practiceLabels}
               />
             ))
           )}

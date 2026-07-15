@@ -1,5 +1,5 @@
 import { differenceInDays, differenceInHours, differenceInMinutes, addHours } from "date-fns";
-import type { CauseTag, BlockerStatus, MilestoneStatus } from "@/lib/db/schema";
+import type { BlockerStatus, MilestoneStatus } from "@/lib/db/schema";
 import { engineStateFlags } from "@/lib/workflow";
 import { DEFAULT_WORKFLOW } from "@/lib/settings-defaults";
 import {
@@ -37,7 +37,8 @@ export interface BlockerRow {
   id: string;
   projectId: string;
   description: string;
-  causeTag: CauseTag;
+  /** Admin-defined cause-tag key. */
+  causeTag: string;
   ownerId: string | null;
   owner: PersonRef | null;
   deadline: Date;
@@ -78,6 +79,8 @@ export interface ComputeRequestRow {
   id: string;
   projectId: string;
   serverType: string;
+  /** Resolved from settings by the snapshot loader; falls back to the key. */
+  serverTypeLabel?: string;
   hoursNeeded: number;
   status: string;
   createdAt: Date;
@@ -404,7 +407,7 @@ export function computeFightList(
         projectId: cr.projectId,
         projectTitle: project.title,
         entityId: cr.id,
-        headline: `Compute request (${cr.serverType.replace("_", "-")}, ${cr.hoursNeeded}h) waiting ${hoursOld}h for a decision`,
+        headline: `Compute request (${cr.serverTypeLabel ?? cr.serverType.replace("_", "-")}, ${cr.hoursNeeded}h) waiting ${hoursOld}h for a decision`,
         detail: "Compute requests never auto-proceed. Approve it or deny it with a reason.",
         responsible: snap.computeCoordinator,
       });
@@ -436,7 +439,7 @@ export function computeFightList(
 }
 
 export interface ParetoSlice {
-  causeTag: CauseTag;
+  causeTag: string;
   count: number;
   pct: number;
 }
@@ -445,7 +448,7 @@ export interface ParetoSlice {
 export function computeParetoData(
   blockers: Pick<BlockerRow, "causeTag">[]
 ): ParetoSlice[] {
-  const counts = new Map<CauseTag, number>();
+  const counts = new Map<string, number>();
   for (const b of blockers) {
     counts.set(b.causeTag, (counts.get(b.causeTag) ?? 0) + 1);
   }

@@ -15,7 +15,9 @@ import { DEFAULT_WORKFLOW } from "@/lib/settings-defaults";
 export async function loadLabSnapshot(
   visibleIds: Set<string> | null = null,
   /** States whose entry resets the stall clock (workflow resetsStallClock). */
-  activationStates: readonly string[] = activationStateKeys(DEFAULT_WORKFLOW)
+  activationStates: readonly string[] = activationStateKeys(DEFAULT_WORKFLOW),
+  /** Server-type labels from settings, for fight headlines. */
+  serverTypeLabels: Record<string, string> = {}
 ): Promise<LabSnapshot> {
   // inArray needs a non-empty list; a workflow with no activation states
   // simply never resets the clock via transitions.
@@ -134,6 +136,7 @@ export async function loadLabSnapshot(
       id: cr.id,
       projectId: cr.projectId,
       serverType: cr.serverType,
+      serverTypeLabel: serverTypeLabels[cr.serverType],
       hoursNeeded: cr.hoursNeeded,
       status: cr.status,
       createdAt: cr.createdAt,

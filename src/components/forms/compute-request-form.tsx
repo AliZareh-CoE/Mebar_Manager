@@ -4,8 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { submitComputeRequest, updateComputeRequest } from "@/actions/compute-requests";
-import { OPTIMIZATION_PRACTICES, SERVER_TYPE_LABELS } from "@/lib/labels";
-import { SERVER_TYPES, type ServerType, type OptimizationKey } from "@/lib/db/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,6 +21,8 @@ export function ComputeRequestForm({
   projectId,
   requestId,
   defaults,
+  serverTypes,
+  practices,
 }: {
   projectId: string;
   /** Set when editing an existing pending request. */
@@ -37,13 +37,26 @@ export function ComputeRequestForm({
     expectedResults: string;
     optimizations: string[];
   };
+  /** Admin-defined, non-archived (∪ the row's current values on edit). */
+  serverTypes: { key: string; label: string; mandatoryPractices: string[] }[];
+  practices: { key: string; label: string }[];
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
-  const [serverType, setServerType] = useState<ServerType>(
-    (defaults?.serverType as ServerType) ?? "SINGLE_GPU"
+  const [serverType, setServerType] = useState<string>(
+    defaults?.serverType ??
+      (serverTypes.find((s) => s.key === "SINGLE_GPU") ?? serverTypes[0])?.key ??
+      ""
   );
-  const multiGpu = serverType === "MULTI_GPU";
+  const practiceKeys = new Set(practices.map((p) => p.key));
+  const selected = serverTypes.find((s) => s.key === serverType);
+  // Forced = the selected type's mandatory practices (that still exist).
+  const forcedKeys = new Set(
+    (selected?.mandatoryPractices ?? []).filter((k) => practiceKeys.has(k))
+  );
+  const forcedLabels = [...forcedKeys].map(
+    (k) => practices.find((p) => p.key === k)?.label.split(" — ")[0] ?? k
+  );
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -76,19 +89,20 @@ export function ComputeRequestForm({
               <Label>Server type</Label>
               <Select
                 value={serverType}
-                onValueChange={(v) => v && setServerType(v as ServerType)}
+                onValueChange={(v) => v && setServerType(String(v))}
               >
                 <SelectTrigger>
                   <SelectValue>
                     {(v: string | null) =>
-                      v ? SERVER_TYPE_LABELS[v as ServerType] : "Server type"
+                      (v && (serverTypes.find((s) => s.key === v)?.label ?? v)) ||
+                      "Server type"
                     }
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {SERVER_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {SERVER_TYPE_LABELS[t]}
+                  {serverTypes.map((t) => (
+                    <SelectItem key={t.key} value={t.key}>
+                      {t.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -157,40 +171,39 @@ export function ComputeRequestForm({
             <Label>Optimization practices you commit to</Label>
             <p className="text-xs text-muted-foreground">
               Full-system utilization is expected. Check what applies
-              {multiGpu && (
+              {forcedLabels.length > 0 && (
                 <span className="text-amber-600 dark:text-amber-400">
                   {" "}
-                  — DDP/FSDP is mandatory on multi-GPU servers.
+                  — mandatory on {selected?.label ?? serverType}:{" "}
+                  {forcedLabels.join(", ")}.
                 </span>
               )}
             </p>
             <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-              {(Object.entries(OPTIMIZATION_PRACTICES) as [OptimizationKey, string][]).map(
-                ([key, label]) => {
-                  const forced = multiGpu && key === "DDP_FSDP";
-                  return (
-                    <label
-                      key={key}
-                      className="flex items-start gap-2 text-sm text-foreground/90"
-                    >
-                      <input
-                        type="checkbox"
-                        name="optimizations"
-                        value={key}
-                        checked={forced ? true : undefined}
-                        disabled={forced}
-                        defaultChecked={
-                          defaults ? defaults.optimizations.includes(key) : key === "CHECKPOINTING"
-                        }
-                        className="mt-0.5 accent-red-500"
-                      />
-                      {/* Disabled checkboxes don't submit — twin carries the value. */}
-                      {forced && <input type="hidden" name="optimizations" value={key} />}
-                      <span>{label}</span>
-                    </label>
-                  );
-                }
-              )}
+              {practices.map(({ key, label }) => {
+                const forced = forcedKeys.has(key);
+                return (
+                  <label
+                    key={key}
+                    className="flex items-start gap-2 text-sm text-foreground/90"
+                  >
+                    <input
+                      type="checkbox"
+                      name="optimizations"
+                      value={key}
+                      checked={forced ? true : undefined}
+                      disabled={forced}
+                      defaultChecked={
+                        defaults ? defaults.optimizations.includes(key) : key === "CHECKPOINTING"
+                      }
+                      className="mt-0.5 accent-red-500"
+                    />
+                    {/* Disabled checkboxes don't submit — twin carries the value. */}
+                    {forced && <input type="hidden" name="optimizations" value={key} />}
+                    <span>{label}</span>
+                  </label>
+                );
+              })}
             </div>
           </fieldset>
 

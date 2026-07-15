@@ -329,6 +329,41 @@ async function main() {
     !(await page.textContent("body"))!.includes("TRIAGE")
   );
 
+  // 22c. Categories: archive a cause tag → gone from the raise-blocker select,
+  // but the Pareto chart keeps showing history. Self-restoring.
+  await page.goto(BASE + "/admin/settings/categories");
+  const knowledgeRow = page.locator("div.rounded-md", {
+    has: page.locator('input[value="Knowledge gap"]'),
+  });
+  await knowledgeRow.locator("button:has-text('Archive')").click();
+  await page.locator("button:has-text('Save')").first().click();
+  await page.waitForTimeout(1500);
+  await page.goto(BASE + "/");
+  check(
+    "archived tag still labels Pareto history",
+    (await page.textContent("body"))!.includes("Knowledge gap")
+  );
+  const projHref = await page
+    .goto(BASE + "/board")
+    .then(() => page.locator("a", { hasText: "Cryo-stage vibration isolation" }).first().getAttribute("href"));
+  await page.goto(BASE + projHref);
+  await page.click("text=Blockers (");
+  await page.click("button:has-text('Raise blocker')");
+  // The open dialog is the only mounted form with a deadline input; its
+  // first plain button is the cause select trigger.
+  const raiseForm = page.locator("form", { has: page.locator("input[name=deadline]") });
+  await raiseForm.locator("button[type=button]").first().click();
+  check(
+    "archived tag not selectable for new blockers",
+    !(await page.locator("[role=listbox]").textContent())!.includes("Knowledge gap")
+  );
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await page.goto(BASE + "/admin/settings/categories");
+  await knowledgeRow.locator("button:has-text('Restore')").click();
+  await page.locator("button:has-text('Save')").first().click();
+  await page.waitForTimeout(1500);
+
   // 23. Restricted visibility: sara sees only her project
   await engPage.goto(BASE + "/board");
   const saraBoard = await engPage.textContent("body");

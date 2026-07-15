@@ -10,6 +10,11 @@ import {
   labSettingsSchema,
   thresholdSettingsSchema,
 } from "@/lib/settings";
+import {
+  causeTagListSchema,
+  practiceListSchema,
+  serverTypeListSchema,
+} from "@/lib/settings-schema";
 import { permissionMatrixSchema, CONFIGURABLE_CAPABILITIES } from "@/lib/policy";
 import { workflowSchema } from "@/lib/workflow";
 import type { ActionResult } from "@/lib/action-utils";
@@ -76,6 +81,44 @@ export async function updateWorkflow(formData: FormData): Promise<ActionResult> 
   const parsed = workflowSchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   return patchSettings({ workflow: parsed.data });
+}
+
+function parseJsonField(formData: FormData, field: string): unknown {
+  try {
+    return JSON.parse(String(formData.get(field) ?? ""));
+  } catch {
+    return undefined;
+  }
+}
+
+export async function updateCauseTags(formData: FormData): Promise<ActionResult> {
+  await requireManager();
+  const parsed = causeTagListSchema.safeParse(parseJsonField(formData, "items"));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  return patchSettings({ causeTags: parsed.data });
+}
+
+export async function updatePractices(formData: FormData): Promise<ActionResult> {
+  await requireManager();
+  const parsed = practiceListSchema.safeParse(parseJsonField(formData, "items"));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  return patchSettings({ practices: parsed.data });
+}
+
+export async function updateServerTypes(formData: FormData): Promise<ActionResult> {
+  await requireManager();
+  const parsed = serverTypeListSchema.safeParse(parseJsonField(formData, "items"));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  // Cross-slice check: mandatory practices must reference existing practices.
+  const settings = await getSettings();
+  const practiceKeys = new Set(settings.practices.map((p) => p.key));
+  for (const st of parsed.data) {
+    const ghost = st.mandatoryPractices.find((p) => !practiceKeys.has(p));
+    if (ghost) {
+      return { error: `"${st.label}" requires unknown practice "${ghost}".` };
+    }
+  }
+  return patchSettings({ serverTypes: parsed.data });
 }
 
 export async function updatePermissions(formData: FormData): Promise<ActionResult> {

@@ -25,7 +25,8 @@ export default async function EditComputeRequestPage({
   ]);
   if (!project || !request || request.projectId !== project.id) notFound();
 
-  const visibleIds = await visibleProjectIds(me, await getSettings());
+  const settings = await getSettings();
+  const visibleIds = await visibleProjectIds(me, settings);
   if (!isVisible(visibleIds, project.id)) notFound();
 
   if (request.status !== "PENDING") redirect(`/projects/${project.id}`);
@@ -61,6 +62,12 @@ export default async function EditComputeRequestPage({
           expectedResults: request.expectedResults,
           optimizations: request.optimizations,
         }}
+        serverTypes={settings.serverTypes
+          .filter((s) => !s.archived || s.key === request.serverType)
+          .map(({ key, label, mandatoryPractices }) => ({ key, label, mandatoryPractices }))}
+        practices={settings.practices
+          .filter((p) => !p.archived || request.optimizations.includes(p.key))
+          .map(({ key, label }) => ({ key, label }))}
       />
     </div>
   );

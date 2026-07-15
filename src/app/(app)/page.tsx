@@ -117,7 +117,11 @@ export default async function FightListPage() {
 
   const visibleIds = await visibleProjectIds(me, settings);
   const [snapshot, causes, allPeople] = await Promise.all([
-    loadLabSnapshot(visibleIds, activationStateKeys(workflow)),
+    loadLabSnapshot(
+      visibleIds,
+      activationStateKeys(workflow),
+      Object.fromEntries(settings.serverTypes.map((s) => [s.key, s.label]))
+    ),
     loadAllBlockerCauses(visibleIds),
     db
       .select({ id: user.id, name: user.name, isDataAnalyst: user.isDataAnalyst })
@@ -327,7 +331,10 @@ export default async function FightListPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ParetoChart data={pareto} />
+            <ParetoChart
+              data={pareto}
+              labels={Object.fromEntries(settings.causeTags.map((t) => [t.key, t.label]))}
+            />
           </CardContent>
         </Card>
       )}

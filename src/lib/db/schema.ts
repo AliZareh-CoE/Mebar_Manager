@@ -95,15 +95,8 @@ export const milestones = sqliteTable(
   (t) => [index("milestones_project_idx").on(t.projectId)]
 );
 
-export const CAUSE_TAGS = [
-  "WAITING_DECISION",
-  "WAITING_EQUIPMENT",
-  "TECHNICAL",
-  "WAITING_EXTERNAL",
-  "KNOWLEDGE_GAP",
-  "OTHER",
-] as const;
-export type CauseTag = (typeof CAUSE_TAGS)[number];
+// Blocker cause tags are admin-defined (settings.causeTags) — the column is
+// plain TEXT holding a tag key. Stock tags: DEFAULT_CAUSE_TAGS.
 
 // CANCELLED reuses resolutionNote/resolvedAt as closure note/time.
 export const BLOCKER_STATUSES = ["OPEN", "ESCALATED", "RESOLVED", "CANCELLED"] as const;
@@ -117,7 +110,7 @@ export const blockers = sqliteTable(
       .notNull()
       .references(() => projects.id),
     description: text("description").notNull(),
-    causeTag: text("cause_tag", { enum: CAUSE_TAGS }).notNull(),
+    causeTag: text("cause_tag").notNull(),
     ownerId: text("owner_id").references(() => user.id),
     deadline: integer("deadline", { mode: "timestamp_ms" }).notNull(),
     status: text("status", { enum: BLOCKER_STATUSES }).notNull().default("OPEN"),
@@ -222,23 +215,9 @@ export const dataRequests = sqliteTable(
   ]
 );
 
-export const SERVER_TYPES = ["CPU", "SINGLE_GPU", "MULTI_GPU"] as const;
-export type ServerType = (typeof SERVER_TYPES)[number];
-
-// Keys live here because both the DB column type and zod need them;
-// human-readable labels are in labels.ts.
-export const OPTIMIZATION_KEYS = [
-  "VECTORIZED_OPS",
-  "CACHING",
-  "CHECKPOINTING",
-  "CUPY",
-  "AMP",
-  "DALI",
-  "DDP_FSDP",
-  "GRAD_ACCUM",
-  "TENSORRT",
-] as const;
-export type OptimizationKey = (typeof OPTIMIZATION_KEYS)[number];
+// Server types and optimization practices are admin-defined
+// (settings.serverTypes / settings.practices) — plain TEXT key columns.
+// Stock lists: DEFAULT_SERVER_TYPES / DEFAULT_PRACTICES.
 
 export const COMPUTE_REQUEST_STATUSES = [
   "PENDING",
@@ -259,7 +238,7 @@ export const computeRequests = sqliteTable(
     requesterId: text("requester_id")
       .notNull()
       .references(() => user.id),
-    serverType: text("server_type", { enum: SERVER_TYPES }).notNull(),
+    serverType: text("server_type").notNull(),
     hoursNeeded: integer("hours_needed").notNull(),
     // justification + utilization plan (sweeps/ablations, schedule, metrics)
     justification: text("justification").notNull(),
@@ -268,7 +247,7 @@ export const computeRequests = sqliteTable(
     dryRunEvidence: text("dry_run_evidence").notNull(),
     expectedResults: text("expected_results").notNull(),
     optimizations: text("optimizations", { mode: "json" })
-      .$type<OptimizationKey[]>()
+      .$type<string[]>()
       .notNull(),
     status: text("status", { enum: COMPUTE_REQUEST_STATUSES })
       .notNull()

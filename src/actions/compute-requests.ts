@@ -6,8 +6,9 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { computeRequests, projects } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
+import { getSettings } from "@/lib/settings";
 import { getPolicy } from "@/lib/policy-server";
-import { submitComputeRequestSchema } from "@/lib/validation/compute";
+import { buildComputeRequestSchema } from "@/lib/validation/compute";
 import type { ActionResult } from "@/lib/action-utils";
 import { canAccessProject } from "@/lib/visibility";
 
@@ -32,7 +33,11 @@ export async function submitComputeRequest(
     ...Object.fromEntries(formData.entries()),
     optimizations: formData.getAll("optimizations").map(String),
   };
-  const parsed = submitComputeRequestSchema.safeParse(raw);
+  const settings = await getSettings();
+  const parsed = buildComputeRequestSchema({
+    serverTypes: settings.serverTypes,
+    practices: settings.practices,
+  }).safeParse(raw);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     return { error: issue.message };
@@ -187,7 +192,13 @@ export async function updateComputeRequest(
     ...Object.fromEntries(formData.entries()),
     optimizations: formData.getAll("optimizations").map(String),
   };
-  const parsed = submitComputeRequestSchema.safeParse(raw);
+  const settings = await getSettings();
+  const parsed = buildComputeRequestSchema({
+    serverTypes: settings.serverTypes,
+    practices: settings.practices,
+    // The row's existing (possibly archived) values stay valid on edit.
+    current: { serverType: request.serverType, optimizations: request.optimizations },
+  }).safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   await db.update(computeRequests).set(parsed.data).where(eq(computeRequests.id, requestId));

@@ -6,8 +6,8 @@ import {
   submitComputeResults,
   withdrawComputeRequest,
 } from "@/actions/compute-requests";
-import { SERVER_TYPE_LABELS, COMPUTE_STATUS_LABELS, OPTIMIZATION_PRACTICES } from "@/lib/labels";
-import type { ComputeRequest, ServerType, ComputeRequestStatus, OptimizationKey } from "@/lib/db/schema";
+import { COMPUTE_STATUS_LABELS } from "@/lib/labels";
+import type { ComputeRequest, ComputeRequestStatus } from "@/lib/db/schema";
 import type { SessionUser } from "@/lib/session";
 import { FormDialog } from "@/components/form-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -31,12 +31,17 @@ export function ComputeRequestCard({
   requesterName,
   me,
   projectTitle,
+  serverTypeLabel,
+  practiceLabels,
 }: {
   request: ComputeRequest;
   requesterName: string;
   me: SessionUser;
   /** Set when rendering outside the project page — adds a project link. */
   projectTitle?: string;
+  /** Resolved from settings (archived types still resolve on old rows). */
+  serverTypeLabel: string;
+  practiceLabels: Record<string, string>;
 }) {
   const status = request.status as ComputeRequestStatus;
   const canSeeAccess =
@@ -50,7 +55,7 @@ export function ComputeRequestCard({
       <CardContent className="flex flex-col gap-2 pt-0">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="font-medium">
-            {SERVER_TYPE_LABELS[request.serverType as ServerType]} · {request.hoursNeeded}h
+            {serverTypeLabel} · {request.hoursNeeded}h
             <span className="ml-2 text-sm font-normal text-muted-foreground">
               by {requesterName} · {format(request.createdAt, "MMM d")}
             </span>
@@ -84,7 +89,7 @@ export function ComputeRequestCard({
           <div className="flex flex-wrap gap-1">
             {request.optimizations.map((key) => (
               <Badge key={key} variant="secondary" className="text-xs font-normal">
-                {OPTIMIZATION_PRACTICES[key as OptimizationKey]?.split(" — ")[0] ?? key}
+                {practiceLabels[key]?.split(" — ")[0] ?? key}
               </Badge>
             ))}
           </div>

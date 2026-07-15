@@ -42,6 +42,12 @@ export default async function ComputePage() {
   ]);
 
   const requests = allRequests.filter((r) => isVisible(visibleIds, r.projectId));
+  const serverTypeLabels = Object.fromEntries(
+    settings.serverTypes.map((s) => [s.key, s.label])
+  );
+  const practiceLabels = Object.fromEntries(
+    settings.practices.map((p) => [p.key, p.label])
+  );
 
   return (
     <div className="flex flex-col gap-8">
@@ -86,6 +92,8 @@ export default async function ComputePage() {
                   requesterName={r.requester.name}
                   me={me}
                   projectTitle={r.project.title}
+                  serverTypeLabel={serverTypeLabels[r.serverType] ?? r.serverType}
+                  practiceLabels={practiceLabels}
                 />
               ))}
             </section>

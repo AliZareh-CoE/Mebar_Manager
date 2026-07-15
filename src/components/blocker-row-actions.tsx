@@ -39,7 +39,13 @@ export function BlockerRowActions({
   ownerId: string | null;
   people: { id: string; name: string }[];
   /** Current values — enables the Edit/Cancel dialogs where provided. */
-  edit?: { description: string; causeTag: string; deadlineISO: string };
+  edit?: {
+    description: string;
+    causeTag: string;
+    deadlineISO: string;
+    /** Admin-defined tags (non-archived ∪ this row's tag). */
+    causeOptions: { value: string; label: string }[];
+  };
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -150,7 +156,7 @@ export function BlockerRowActions({
             </div>
             <div className="flex flex-col gap-2">
               <Label>Cause</Label>
-              <CauseSelect defaultValue={edit.causeTag} />
+              <CauseSelect options={edit.causeOptions} defaultValue={edit.causeTag} />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor={`eb-deadline-${blockerId}`}>Deadline</Label>

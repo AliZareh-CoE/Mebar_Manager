@@ -7,7 +7,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CAUSE_TAG_LABELS } from "@/lib/labels";
 
 /**
  * Client wrappers so selected values render their labels (Base UI needs
@@ -80,24 +79,28 @@ export function EnumSelect({
 
 export function CauseSelect({
   name = "causeTag",
-  defaultValue = "TECHNICAL",
+  options,
+  defaultValue,
 }: {
   name?: string;
+  /** Admin-defined cause tags (non-archived, plus the row's current tag). */
+  options: { value: string; label: string }[];
   defaultValue?: string;
 }) {
+  const fallback = defaultValue ?? options[0]?.value;
   return (
-    <Select name={name} defaultValue={defaultValue}>
+    <Select name={name} defaultValue={fallback}>
       <SelectTrigger>
         <SelectValue>
           {(v: string | null) =>
-            (v && CAUSE_TAG_LABELS[v as keyof typeof CAUSE_TAG_LABELS]) || "Cause"
+            (v && (options.find((o) => o.value === v)?.label ?? v)) || "Cause"
           }
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
-        {Object.entries(CAUSE_TAG_LABELS).map(([tag, label]) => (
-          <SelectItem key={tag} value={tag}>
-            {label}
+        {options.map((o) => (
+          <SelectItem key={o.value} value={o.value}>
+            {o.label}
           </SelectItem>
         ))}
       </SelectContent>

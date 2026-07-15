@@ -21,7 +21,8 @@ export default async function NewComputeRequestPage({
 
   const project = await db.select().from(projects).where(eq(projects.id, id)).get();
   if (!project) notFound();
-  const visibleIds = await visibleProjectIds(me, await getSettings());
+  const settings = await getSettings();
+  const visibleIds = await visibleProjectIds(me, settings);
   if (!isVisible(visibleIds, project.id)) notFound();
 
   const coordinator = await db
@@ -75,7 +76,15 @@ export default async function NewComputeRequestPage({
         </p>
       </div>
 
-      <ComputeRequestForm projectId={project.id} />
+      <ComputeRequestForm
+        projectId={project.id}
+        serverTypes={settings.serverTypes
+          .filter((s) => !s.archived)
+          .map(({ key, label, mandatoryPractices }) => ({ key, label, mandatoryPractices }))}
+        practices={settings.practices
+          .filter((p) => !p.archived)
+          .map(({ key, label }) => ({ key, label }))}
+      />
     </div>
   );
 }

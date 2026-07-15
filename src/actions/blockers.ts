@@ -4,11 +4,22 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { blockers, CAUSE_TAGS } from "@/lib/db/schema";
+import { blockers } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
+import { getSettings } from "@/lib/settings";
 import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 import { canAccessProject } from "@/lib/visibility";
+
+/** Non-archived cause-tag keys, plus optionally a row's current tag. */
+async function selectableCauseTags(current?: string): Promise<Set<string>> {
+  const settings = await getSettings();
+  const keys = new Set(
+    settings.causeTags.filter((t) => !t.archived).map((t) => t.key)
+  );
+  if (current) keys.add(current);
+  return keys;
+}
 
 function revalidateBlocker(projectId: string) {
   revalidatePath("/");
@@ -18,7 +29,7 @@ function revalidateBlocker(projectId: string) {
 
 const raiseBlockerSchema = z.object({
   description: z.string().trim().min(1, "Describe what's stuck, what you tried, and what you need"),
-  causeTag: z.enum(CAUSE_TAGS),
+  causeTag: z.string(),
   ownerId: z.string().optional(),
   deadline: z.coerce.date({ error: "A deadline is required — blockers without deadlines rot" }),
 });
@@ -32,6 +43,9 @@ export async function raiseBlocker(
 
   const parsed = parseForm(raiseBlockerSchema, formData);
   if (!parsed.success) return { error: parsed.error };
+  if (!(await selectableCauseTags()).has(parsed.data.causeTag)) {
+    return { error: "Pick a valid cause." };
+  }
 
   await db.insert(blockers).values({
     projectId,
@@ -90,7 +104,7 @@ export async function assignBlocker(
 
 const editBlockerSchema = z.object({
   description: z.string().trim().min(1, "Describe what's stuck"),
-  causeTag: z.enum(CAUSE_TAGS),
+  causeTag: z.string(),
   deadline: z.coerce.date({ error: "A deadline is required" }),
 });
 
@@ -107,6 +121,10 @@ export async function editBlocker(
   if (!blocker) return { error: "Blocker not found." };
   if (blocker.status === "RESOLVED" || blocker.status === "CANCELLED") {
     return { error: "This blocker is closed." };
+  }
+  // Archived tags stay valid on rows that already carry them.
+  if (!(await selectableCauseTags(blocker.causeTag)).has(parsed.data.causeTag)) {
+    return { error: "Pick a valid cause." };
   }
 
   const policy = await getPolicy(me);
