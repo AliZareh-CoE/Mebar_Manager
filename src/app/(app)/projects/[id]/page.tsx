@@ -13,12 +13,11 @@ import { expireOverdueDecisions } from "@/lib/maintenance";
 import { getSettings } from "@/lib/settings";
 import { CAUSE_TAG_LABELS } from "@/lib/labels";
 import { editProject } from "@/actions/projects";
-import { addUpdate } from "@/actions/updates";
+import { addUpdate, editUpdate } from "@/actions/updates";
 import { raiseBlocker } from "@/actions/blockers";
-import { addMilestone } from "@/actions/milestones";
+import { addMilestone, editMilestone } from "@/actions/milestones";
 import { fileDataRequest } from "@/actions/data-requests";
-import { requestDecision } from "@/actions/decisions";
-import { decideDecision } from "@/actions/decisions";
+import { requestDecision, decideDecision, editDecision, cancelDecision } from "@/actions/decisions";
 import { StateBadge } from "@/components/state-badge";
 import { AgePill } from "@/components/age-pill";
 import { Initials } from "@/components/initials";
@@ -260,8 +259,33 @@ export default async function ProjectPage({
               {project.updates.map((u) => (
                 <li key={u.id} className="relative">
                   <span className="absolute -left-[26px] top-1.5 size-2.5 rounded-full bg-primary/60" />
-                  <div className="text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     {u.author.name} · {format(u.createdAt, "MMM d, yyyy")}
+                    {(policy.can("update.edit", { involvedUserIds: [u.authorId] })) && (
+                      <FormDialog
+                        trigger={
+                          <button className="underline-offset-4 hover:underline" type="button">
+                            edit
+                          </button>
+                        }
+                        title="Edit update"
+                        submitLabel="Save"
+                        action={editUpdate.bind(null, u.id)}
+                      >
+                        <div className="flex flex-col gap-2">
+                          <Label htmlFor={`eu-m-${u.id}`}>What moved</Label>
+                          <Textarea id={`eu-m-${u.id}`} name="whatMoved" defaultValue={u.whatMoved} required />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <Label htmlFor={`eu-b-${u.id}`}>What&apos;s blocked</Label>
+                          <Textarea id={`eu-b-${u.id}`} name="whatsBlocked" defaultValue={u.whatsBlocked} />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <Label htmlFor={`eu-n-${u.id}`}>What&apos;s next</Label>
+                          <Textarea id={`eu-n-${u.id}`} name="whatsNext" defaultValue={u.whatsNext} required />
+                        </div>
+                      </FormDialog>
+                    )}
                   </div>
                   <div className="mt-1 grid gap-1 text-sm">
                     <p><span className="font-medium text-green-600 dark:text-green-400">Moved:</span> {u.whatMoved}</p>
@@ -353,7 +377,9 @@ export default async function ProjectPage({
                       {format(b.deadline, "MMM d")}
                     </TableCell>
                     <TableCell>
-                      {b.status === "RESOLVED" ? (
+                      {b.status === "CANCELLED" ? (
+                        <Badge variant="outline" className="text-muted-foreground">Cancelled</Badge>
+                      ) : b.status === "RESOLVED" ? (
                         <Badge variant="outline" className="text-emerald-500">Resolved</Badge>
                       ) : b.status === "ESCALATED" ? (
                         <Badge variant="destructive">Escalated</Badge>
@@ -367,6 +393,11 @@ export default async function ProjectPage({
                         status={b.status}
                         ownerId={b.ownerId}
                         people={people}
+                        edit={{
+                          description: b.description,
+                          causeTag: b.causeTag,
+                          deadlineISO: format(b.deadline, "yyyy-MM-dd"),
+                        }}
                       />
                     </TableCell>
                   </TableRow>
@@ -417,6 +448,8 @@ export default async function ProjectPage({
                           </Badge>
                         ) : d.status === "DECIDED" ? (
                           <Badge variant="outline" className="text-emerald-500">Decided</Badge>
+                        ) : d.status === "CANCELLED" ? (
+                          <Badge variant="outline" className="text-muted-foreground">Withdrawn</Badge>
                         ) : (
                           <Badge variant="outline" className="text-blue-600 dark:text-blue-400">
                             Auto-proceeded with recommendation
@@ -435,6 +468,42 @@ export default async function ProjectPage({
                           <span className="font-medium text-emerald-500">Decision:</span>{" "}
                           {d.decisionNote}
                         </p>
+                      )}
+                      {d.status === "PENDING" && (
+                        <div className="flex items-center gap-2 self-start">
+                          <FormDialog
+                            trigger={<Button variant="ghost" size="sm">Edit</Button>}
+                            title="Edit decision request"
+                            submitLabel="Save"
+                            action={editDecision.bind(null, d.id)}
+                          >
+                            <div className="flex flex-col gap-2">
+                              <Label htmlFor={`ed-q-${d.id}`}>The fork in the road</Label>
+                              <Textarea id={`ed-q-${d.id}`} name="question" defaultValue={d.question} required />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <Label htmlFor={`ed-o-${d.id}`}>Options (one per line)</Label>
+                              <Textarea id={`ed-o-${d.id}`} name="options" defaultValue={d.options} rows={3} required />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <Label htmlFor={`ed-r-${d.id}`}>Your recommendation</Label>
+                              <Textarea id={`ed-r-${d.id}`} name="recommendation" defaultValue={d.recommendation} required />
+                            </div>
+                          </FormDialog>
+                          <FormDialog
+                            trigger={<Button variant="ghost" size="sm">Withdraw…</Button>}
+                            title="Withdraw decision request"
+                            description="The question no longer needs an answer? Say why."
+                            submitLabel="Withdraw"
+                            successMessage="Decision withdrawn."
+                            action={cancelDecision.bind(null, d.id)}
+                          >
+                            <div className="flex flex-col gap-2">
+                              <Label htmlFor={`cd-${d.id}`}>Why?</Label>
+                              <Textarea id={`cd-${d.id}`} name="reason" required />
+                            </div>
+                          </FormDialog>
+                        </div>
                       )}
                       {d.status === "PENDING" && me.role === "MANAGER" && (
                         <FormDialog
@@ -523,7 +592,9 @@ export default async function ProjectPage({
                         {format(m.dueDate, "MMM d")}
                       </TableCell>
                       <TableCell>
-                        {m.status === "DONE" ? (
+                        {m.status === "CANCELLED" ? (
+                          <Badge variant="outline" className="text-muted-foreground">Cancelled</Badge>
+                        ) : m.status === "DONE" ? (
                           <Badge variant="outline" className="text-emerald-500">Done</Badge>
                         ) : missed ? (
                           <Badge variant="destructive">Missed</Badge>
@@ -534,7 +605,53 @@ export default async function ProjectPage({
                         )}
                       </TableCell>
                       <TableCell>
-                        <MilestoneStatusButtons milestoneId={m.id} status={m.status} />
+                        <div className="flex items-center justify-end gap-2">
+                          {m.status !== "DONE" && m.status !== "CANCELLED" && (
+                            <FormDialog
+                              trigger={<Button variant="ghost" size="sm">Edit</Button>}
+                              title="Edit milestone"
+                              submitLabel="Save"
+                              action={editMilestone.bind(null, m.id)}
+                            >
+                              <div className="flex flex-col gap-2">
+                                <Label htmlFor={`em-title-${m.id}`}>Title</Label>
+                                <Input id={`em-title-${m.id}`} name="title" defaultValue={m.title} required />
+                              </div>
+                              <div className="flex flex-col gap-2">
+                                <Label htmlFor={`em-del-${m.id}`}>Deliverable</Label>
+                                <Textarea
+                                  id={`em-del-${m.id}`}
+                                  name="deliverable"
+                                  defaultValue={m.deliverable}
+                                  required
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="flex flex-col gap-2">
+                                  <Label htmlFor={`em-start-${m.id}`}>Start</Label>
+                                  <Input
+                                    id={`em-start-${m.id}`}
+                                    name="startDate"
+                                    type="date"
+                                    defaultValue={format(m.startDate, "yyyy-MM-dd")}
+                                    required
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                  <Label htmlFor={`em-due-${m.id}`}>Due</Label>
+                                  <Input
+                                    id={`em-due-${m.id}`}
+                                    name="dueDate"
+                                    type="date"
+                                    defaultValue={format(m.dueDate, "yyyy-MM-dd")}
+                                    required
+                                  />
+                                </div>
+                              </div>
+                            </FormDialog>
+                          )}
+                          <MilestoneStatusButtons milestoneId={m.id} status={m.status} />
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -633,6 +750,8 @@ export default async function ProjectPage({
                     <TableCell>
                       {dr.status === "DELIVERED" ? (
                         <Badge variant="outline" className="text-emerald-500">Delivered</Badge>
+                      ) : dr.status === "CANCELLED" ? (
+                        <Badge variant="outline" className="text-muted-foreground">Cancelled</Badge>
                       ) : (
                         <Badge variant="outline">Open</Badge>
                       )}
@@ -645,6 +764,11 @@ export default async function ProjectPage({
                         analysts={analysts}
                         meId={me.id}
                         meIsAnalyst={me.isDataAnalyst}
+                        edit={{
+                          title: dr.title,
+                          description: dr.description,
+                          neededByISO: format(dr.neededBy, "yyyy-MM-dd"),
+                        }}
                       />
                     </TableCell>
                   </TableRow>

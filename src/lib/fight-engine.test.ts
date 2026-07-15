@@ -628,6 +628,33 @@ describe("projectAgeDays", () => {
   });
 });
 
+describe("cancelled and withdrawn items never fight", () => {
+  it("cancelled blocker, milestone, and data request are silent", () => {
+    const items = computeFightList(
+      snap({
+        openBlockers: [blocker({ status: "CANCELLED", deadline: subDays(NOW, 10) })],
+        openMilestones: [milestone({ status: "CANCELLED", dueDate: subDays(NOW, 10) })],
+        openDataRequests: [dataRequest({ status: "CANCELLED", neededBy: subDays(NOW, 10) })],
+      }),
+      NOW
+    );
+    expect(items).toEqual([]);
+  });
+
+  it("cancelled decision and withdrawn compute request are silent", () => {
+    const items = computeFightList(
+      snap({
+        pendingDecisions: [decision({ status: "CANCELLED", createdAt: subDays(NOW, 10) })],
+        activeComputeRequests: [
+          computeRequest({ status: "WITHDRAWN", createdAt: subDays(NOW, 10) }),
+        ],
+      }),
+      NOW
+    );
+    expect(items).toEqual([]);
+  });
+});
+
 describe("custom thresholds", () => {
   const custom = {
     stallDays: 30,

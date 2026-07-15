@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { assignDataRequest, deliverDataRequest } from "@/actions/data-requests";
+import { assignDataRequest, cancelDataRequest, deliverDataRequest, editDataRequest } from "@/actions/data-requests";
+import { FormDialog } from "@/components/form-dialog";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,6 +32,7 @@ export function DataRequestRowActions({
   analysts,
   meId,
   meIsAnalyst,
+  edit,
 }: {
   requestId: string;
   status: string;
@@ -37,6 +40,8 @@ export function DataRequestRowActions({
   analysts: { id: string; name: string }[];
   meId: string;
   meIsAnalyst: boolean;
+  /** Current values — enables the Edit/Cancel dialogs where provided. */
+  edit?: { title: string; description: string; neededByISO: string };
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -126,6 +131,55 @@ export function DataRequestRowActions({
           </form>
         </DialogContent>
       </Dialog>
+
+      {edit && (
+        <>
+          <FormDialog
+            trigger={<Button variant="ghost" size="sm">Edit</Button>}
+            title="Edit data request"
+            submitLabel="Save"
+            action={(fd) => editDataRequest(requestId, fd)}
+          >
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`edr-title-${requestId}`}>What data do you need?</Label>
+              <Input id={`edr-title-${requestId}`} name="title" defaultValue={edit.title} required />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`edr-desc-${requestId}`}>Details</Label>
+              <Textarea
+                id={`edr-desc-${requestId}`}
+                name="description"
+                defaultValue={edit.description}
+                rows={3}
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`edr-needed-${requestId}`}>Needed by</Label>
+              <Input
+                id={`edr-needed-${requestId}`}
+                name="neededBy"
+                type="date"
+                defaultValue={edit.neededByISO}
+                required
+              />
+            </div>
+          </FormDialog>
+          <FormDialog
+            trigger={<Button variant="ghost" size="sm">Cancel…</Button>}
+            title="Cancel data request"
+            description="No longer needed? Say why — it stays on the record."
+            submitLabel="Cancel request"
+            successMessage="Data request cancelled."
+            action={(fd) => cancelDataRequest(requestId, fd)}
+          >
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`cdr-${requestId}`}>Why?</Label>
+              <Textarea id={`cdr-${requestId}`} name="reason" required />
+            </div>
+          </FormDialog>
+        </>
+      )}
     </div>
   );
 }

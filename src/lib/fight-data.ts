@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, ne, notInArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { blockers, milestones, dataRequests, computeRequests, user } from "@/lib/db/schema";
 import type { LabSnapshot } from "@/lib/fight-engine";
@@ -42,7 +42,7 @@ export async function loadLabSnapshot(
       },
     }),
     db.query.blockers.findMany({
-      where: ne(blockers.status, "RESOLVED"),
+      where: notInArray(blockers.status, ["RESOLVED", "CANCELLED"]),
       with: { owner: { columns: { id: true, name: true } } },
     }),
     db.query.decisions.findMany({
@@ -54,7 +54,7 @@ export async function loadLabSnapshot(
       .from(milestones)
       .where(inArray(milestones.status, ["PLANNED", "IN_PROGRESS"])),
     db.query.dataRequests.findMany({
-      where: ne(dataRequests.status, "DELIVERED"),
+      where: notInArray(dataRequests.status, ["DELIVERED", "CANCELLED"]),
       with: { assignee: { columns: { id: true, name: true } } },
     }),
     db.query.computeRequests.findMany({
@@ -140,6 +140,8 @@ export async function loadLabSnapshot(
 export async function loadAllBlockerCauses(visibleIds: Set<string> | null = null) {
   const rows = await db
     .select({ causeTag: blockers.causeTag, projectId: blockers.projectId })
-    .from(blockers);
+    .from(blockers)
+    // cancelled blockers were never real fights — keep them out of the Pareto
+    .where(ne(blockers.status, "CANCELLED"));
   return visibleIds ? rows.filter((r) => visibleIds.has(r.projectId)) : rows;
 }

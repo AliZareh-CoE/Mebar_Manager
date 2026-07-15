@@ -78,9 +78,15 @@ export function EnumSelect({
   );
 }
 
-export function CauseSelect({ name = "causeTag" }: { name?: string }) {
+export function CauseSelect({
+  name = "causeTag",
+  defaultValue = "TECHNICAL",
+}: {
+  name?: string;
+  defaultValue?: string;
+}) {
   return (
-    <Select name={name} defaultValue="TECHNICAL">
+    <Select name={name} defaultValue={defaultValue}>
       <SelectTrigger>
         <SelectValue>
           {(v: string | null) =>

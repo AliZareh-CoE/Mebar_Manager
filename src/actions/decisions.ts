@@ -69,3 +69,73 @@ export async function decideDecision(
   revalidateDecision(decision.projectId);
   return {};
 }
+
+export async function editDecision(
+  decisionId: string,
+  formData: FormData
+): Promise<ActionResult> {
+  const me = await requireUser();
+
+  const parsed = parseForm(requestDecisionSchema, formData);
+  if (!parsed.success) return { error: parsed.error };
+
+  const decision = await db.select().from(decisions).where(eq(decisions.id, decisionId)).get();
+  if (!decision) return { error: "Decision not found." };
+  if (decision.status !== "PENDING") return { error: "This decision is already settled." };
+
+  const project = await db
+    .select()
+    .from(projects)
+    .where(eq(projects.id, decision.projectId))
+    .get();
+
+  const policy = await getPolicy(me);
+  if (
+    !policy.can("decision.cancel", {
+      involvedUserIds: [project?.ownerId, project?.advisorId],
+    })
+  ) {
+    return { error: "You don't have permission to edit this decision." };
+  }
+
+  await db.update(decisions).set(parsed.data).where(eq(decisions.id, decisionId));
+  revalidateDecision(decision.projectId);
+  return {};
+}
+
+export async function cancelDecision(
+  decisionId: string,
+  formData: FormData
+): Promise<ActionResult> {
+  const me = await requireUser();
+
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (!reason) return { error: "Say why the question no longer needs an answer." };
+
+  const decision = await db.select().from(decisions).where(eq(decisions.id, decisionId)).get();
+  if (!decision) return { error: "Decision not found." };
+  if (decision.status !== "PENDING") return { error: "This decision is already settled." };
+
+  const project = await db
+    .select()
+    .from(projects)
+    .where(eq(projects.id, decision.projectId))
+    .get();
+
+  const policy = await getPolicy(me);
+  if (
+    !policy.can("decision.cancel", {
+      involvedUserIds: [project?.ownerId, project?.advisorId],
+    })
+  ) {
+    return { error: "You don't have permission to withdraw this decision." };
+  }
+
+  await db
+    .update(decisions)
+    .set({ status: "CANCELLED", decisionNote: reason, decidedAt: new Date() })
+    .where(eq(decisions.id, decisionId));
+
+  revalidateDecision(decision.projectId);
+  return {};
+}

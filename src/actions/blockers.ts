@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { blockers, CAUSE_TAGS } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
+import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 
 function revalidateBlocker(projectId: string) {
@@ -76,6 +77,66 @@ export async function assignBlocker(
   if (blocker.status === "RESOLVED") return { error: "Already resolved." };
 
   await db.update(blockers).set({ ownerId: ownerId || null }).where(eq(blockers.id, blockerId));
+  revalidateBlocker(blocker.projectId);
+  return {};
+}
+
+const editBlockerSchema = z.object({
+  description: z.string().trim().min(1, "Describe what's stuck"),
+  causeTag: z.enum(CAUSE_TAGS),
+  deadline: z.coerce.date({ error: "A deadline is required" }),
+});
+
+export async function editBlocker(
+  blockerId: string,
+  formData: FormData
+): Promise<ActionResult> {
+  const me = await requireUser();
+
+  const parsed = parseForm(editBlockerSchema, formData);
+  if (!parsed.success) return { error: parsed.error };
+
+  const blocker = await db.select().from(blockers).where(eq(blockers.id, blockerId)).get();
+  if (!blocker) return { error: "Blocker not found." };
+  if (blocker.status === "RESOLVED" || blocker.status === "CANCELLED") {
+    return { error: "This blocker is closed." };
+  }
+
+  const policy = await getPolicy(me);
+  if (!policy.can("blocker.edit", { involvedUserIds: [blocker.ownerId] })) {
+    return { error: "You don't have permission to edit this blocker." };
+  }
+
+  await db.update(blockers).set(parsed.data).where(eq(blockers.id, blockerId));
+  revalidateBlocker(blocker.projectId);
+  return {};
+}
+
+export async function cancelBlocker(
+  blockerId: string,
+  formData: FormData
+): Promise<ActionResult> {
+  const me = await requireUser();
+
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (!reason) return { error: "Say why it's no longer a blocker — for the record." };
+
+  const blocker = await db.select().from(blockers).where(eq(blockers.id, blockerId)).get();
+  if (!blocker) return { error: "Blocker not found." };
+  if (blocker.status === "RESOLVED" || blocker.status === "CANCELLED") {
+    return { error: "This blocker is already closed." };
+  }
+
+  const policy = await getPolicy(me);
+  if (!policy.can("blocker.cancel", { involvedUserIds: [blocker.ownerId] })) {
+    return { error: "You don't have permission to cancel this blocker." };
+  }
+
+  await db
+    .update(blockers)
+    .set({ status: "CANCELLED", resolutionNote: reason, resolvedAt: new Date() })
+    .where(eq(blockers.id, blockerId));
+
   revalidateBlocker(blocker.projectId);
   return {};
 }

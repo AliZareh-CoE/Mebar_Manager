@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { setMilestoneStatus } from "@/actions/milestones";
+import { cancelMilestone, setMilestoneStatus } from "@/actions/milestones";
 import { Button } from "@/components/ui/button";
 import type { MilestoneStatus } from "@/lib/db/schema";
 
@@ -17,7 +17,7 @@ export function MilestoneStatusButtons({
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
-  if (status === "DONE") return null;
+  if (status === "DONE" || status === "CANCELLED") return null;
 
   async function set(next: MilestoneStatus, message: string) {
     setPending(true);
@@ -49,6 +49,24 @@ export function MilestoneStatusButtons({
         onClick={() => set("DONE", "Milestone done. That's progress.")}
       >
         Mark done
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={pending}
+        onClick={async () => {
+          setPending(true);
+          const result = await cancelMilestone(milestoneId);
+          setPending(false);
+          if (result.error) {
+            toast.error(result.error);
+            return;
+          }
+          toast.success("Milestone cancelled.");
+          router.refresh();
+        }}
+      >
+        Cancel…
       </Button>
     </div>
   );

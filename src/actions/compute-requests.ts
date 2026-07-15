@@ -161,3 +161,63 @@ export async function submitComputeResults(
   revalidateComputeRequest(request.projectId);
   return {};
 }
+
+export async function updateComputeRequest(
+  requestId: string,
+  formData: FormData
+): Promise<ActionResult> {
+  const me = await requireUser();
+
+  const request = await db
+    .select()
+    .from(computeRequests)
+    .where(eq(computeRequests.id, requestId))
+    .get();
+  if (!request) return { error: "Request not found." };
+  if (request.status !== "PENDING") return { error: "Only pending requests can be edited." };
+
+  const policy = await getPolicy(me);
+  if (!policy.can("computeRequest.withdraw", { involvedUserIds: [request.requesterId] })) {
+    return { error: "Only the requester (or a manager) can edit this request." };
+  }
+
+  const raw = {
+    ...Object.fromEntries(formData.entries()),
+    optimizations: formData.getAll("optimizations").map(String),
+  };
+  const parsed = submitComputeRequestSchema.safeParse(raw);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  await db.update(computeRequests).set(parsed.data).where(eq(computeRequests.id, requestId));
+  revalidateComputeRequest(request.projectId);
+  return {};
+}
+
+export async function withdrawComputeRequest(
+  requestId: string,
+  _formData?: FormData
+): Promise<ActionResult> {
+  void _formData;
+  const me = await requireUser();
+
+  const request = await db
+    .select()
+    .from(computeRequests)
+    .where(eq(computeRequests.id, requestId))
+    .get();
+  if (!request) return { error: "Request not found." };
+  if (request.status !== "PENDING") return { error: "Only pending requests can be withdrawn." };
+
+  const policy = await getPolicy(me);
+  if (!policy.can("computeRequest.withdraw", { involvedUserIds: [request.requesterId] })) {
+    return { error: "Only the requester (or a manager) can withdraw this request." };
+  }
+
+  await db
+    .update(computeRequests)
+    .set({ status: "WITHDRAWN" })
+    .where(eq(computeRequests.id, requestId));
+
+  revalidateComputeRequest(request.projectId);
+  return {};
+}

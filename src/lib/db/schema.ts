@@ -79,7 +79,7 @@ export const stateTransitions = sqliteTable(
   (t) => [index("transitions_project_idx").on(t.projectId)]
 );
 
-export const MILESTONE_STATUSES = ["PLANNED", "IN_PROGRESS", "DONE"] as const;
+export const MILESTONE_STATUSES = ["PLANNED", "IN_PROGRESS", "DONE", "CANCELLED"] as const;
 export type MilestoneStatus = (typeof MILESTONE_STATUSES)[number];
 
 export const milestones = sqliteTable(
@@ -112,7 +112,8 @@ export const CAUSE_TAGS = [
 ] as const;
 export type CauseTag = (typeof CAUSE_TAGS)[number];
 
-export const BLOCKER_STATUSES = ["OPEN", "ESCALATED", "RESOLVED"] as const;
+// CANCELLED reuses resolutionNote/resolvedAt as closure note/time.
+export const BLOCKER_STATUSES = ["OPEN", "ESCALATED", "RESOLVED", "CANCELLED"] as const;
 export type BlockerStatus = (typeof BLOCKER_STATUSES)[number];
 
 export const blockers = sqliteTable(
@@ -155,7 +156,8 @@ export const updates = sqliteTable(
   (t) => [index("updates_project_created_idx").on(t.projectId, t.createdAt)]
 );
 
-export const DECISION_STATUSES = ["PENDING", "DECIDED", "AUTO_PROCEEDED"] as const;
+// CANCELLED reuses decisionNote/decidedAt as closure note/time.
+export const DECISION_STATUSES = ["PENDING", "DECIDED", "AUTO_PROCEEDED", "CANCELLED"] as const;
 export type DecisionStatus = (typeof DECISION_STATUSES)[number];
 
 export const decisions = sqliteTable(
@@ -196,7 +198,8 @@ export const labSettings = sqliteTable("lab_settings", {
     .$defaultFn(() => new Date()),
 });
 
-export const DATA_REQUEST_STATUSES = ["OPEN", "DELIVERED"] as const;
+// CANCELLED reuses deliveryNote/deliveredAt as closure note/time.
+export const DATA_REQUEST_STATUSES = ["OPEN", "DELIVERED", "CANCELLED"] as const;
 export type DataRequestStatus = (typeof DATA_REQUEST_STATUSES)[number];
 
 export const dataRequests = sqliteTable(
@@ -249,6 +252,7 @@ export const COMPUTE_REQUEST_STATUSES = [
   "APPROVED",
   "DENIED",
   "COMPLETED",
+  "WITHDRAWN",
 ] as const;
 export type ComputeRequestStatus = (typeof COMPUTE_REQUEST_STATUSES)[number];
 

@@ -11,6 +11,7 @@ import { parseForm, type ActionResult } from "@/lib/action-utils";
 
 function revalidateDataRequest(projectId: string) {
   revalidatePath("/");
+  revalidatePath("/data");
   revalidatePath(`/projects/${projectId}`);
 }
 
@@ -119,6 +120,87 @@ export async function deliverDataRequest(
   await db
     .update(dataRequests)
     .set({ status: "DELIVERED", deliveryNote, deliveredAt: new Date() })
+    .where(eq(dataRequests.id, requestId));
+
+  revalidateDataRequest(request.projectId);
+  return {};
+}
+
+export async function editDataRequest(
+  requestId: string,
+  formData: FormData
+): Promise<ActionResult> {
+  const me = await requireUser();
+
+  const parsed = parseForm(fileDataRequestSchema, formData);
+  if (!parsed.success) return { error: parsed.error };
+
+  const request = await db
+    .select()
+    .from(dataRequests)
+    .where(eq(dataRequests.id, requestId))
+    .get();
+  if (!request) return { error: "Data request not found." };
+  if (request.status !== "OPEN") return { error: "This request is closed." };
+
+  const policy = await getPolicy(me);
+  if (
+    !policy.can("dataRequest.edit", {
+      involvedUserIds: [request.requesterId, request.assigneeId],
+    })
+  ) {
+    return { error: "You don't have permission to edit this request." };
+  }
+
+  const assigneeId = parsed.data.assigneeId || null;
+  if (assigneeId && assigneeId !== request.assigneeId) {
+    const problem = await verifyAnalyst(assigneeId);
+    if (problem) return { error: problem };
+  }
+
+  await db
+    .update(dataRequests)
+    .set({
+      title: parsed.data.title,
+      description: parsed.data.description,
+      neededBy: parsed.data.neededBy,
+      assigneeId,
+    })
+    .where(eq(dataRequests.id, requestId));
+
+  revalidateDataRequest(request.projectId);
+  return {};
+}
+
+export async function cancelDataRequest(
+  requestId: string,
+  formData: FormData
+): Promise<ActionResult> {
+  const me = await requireUser();
+
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (!reason) return { error: "Say why the data is no longer needed." };
+
+  const request = await db
+    .select()
+    .from(dataRequests)
+    .where(eq(dataRequests.id, requestId))
+    .get();
+  if (!request) return { error: "Data request not found." };
+  if (request.status !== "OPEN") return { error: "This request is already closed." };
+
+  const policy = await getPolicy(me);
+  if (
+    !policy.can("dataRequest.cancel", {
+      involvedUserIds: [request.requesterId, request.assigneeId],
+    })
+  ) {
+    return { error: "You don't have permission to cancel this request." };
+  }
+
+  await db
+    .update(dataRequests)
+    .set({ status: "CANCELLED", deliveryNote: reason, deliveredAt: new Date() })
     .where(eq(dataRequests.id, requestId));
 
   revalidateDataRequest(request.projectId);

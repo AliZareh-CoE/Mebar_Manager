@@ -220,7 +220,7 @@ export function computeFightList(
   }
 
   for (const b of snap.openBlockers) {
-    if (b.status === "RESOLVED") continue;
+    if (b.status === "RESOLVED" || b.status === "CANCELLED") continue;
     const project = projectById.get(b.projectId);
     if (!project || TERMINAL_OR_PAUSED.includes(project.state)) continue;
 
@@ -268,7 +268,7 @@ export function computeFightList(
   // analyst (or the advisor if unowned), unowned ones escalate after the
   // grace period. "All rules apply to them."
   for (const dr of snap.openDataRequests) {
-    if (dr.status === "DELIVERED") continue;
+    if (dr.status === "DELIVERED" || dr.status === "CANCELLED") continue;
     const project = projectById.get(dr.projectId);
     if (!project || TERMINAL_OR_PAUSED.includes(project.state)) continue;
 
@@ -337,7 +337,7 @@ export function computeFightList(
 
   // Missed milestones on projects that are still supposed to be moving.
   for (const m of snap.openMilestones) {
-    if (m.status === "DONE") continue;
+    if (m.status === "DONE" || m.status === "CANCELLED") continue;
     const project = projectById.get(m.projectId);
     if (!project || TERMINAL_OR_PAUSED.includes(project.state)) continue;
     const over = differenceInDays(now, m.dueDate);

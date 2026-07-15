@@ -25,6 +25,7 @@ export const COMPUTE_STATUS_LABELS: Record<ComputeRequestStatus, string> = {
   APPROVED: "Approved",
   DENIED: "Denied",
   COMPLETED: "Completed",
+  WITHDRAWN: "Withdrawn",
 };
 
 /** The optimization practices a requester commits to. */

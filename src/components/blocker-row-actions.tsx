@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { assignBlocker, escalateBlocker, resolveBlocker } from "@/actions/blockers";
+import { assignBlocker, cancelBlocker, editBlocker, escalateBlocker, resolveBlocker } from "@/actions/blockers";
+import { FormDialog } from "@/components/form-dialog";
+import { CauseSelect } from "@/components/forms/labeled-selects";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,17 +32,20 @@ export function BlockerRowActions({
   status,
   ownerId,
   people,
+  edit,
 }: {
   blockerId: string;
   status: BlockerStatus;
   ownerId: string | null;
   people: { id: string; name: string }[];
+  /** Current values — enables the Edit/Cancel dialogs where provided. */
+  edit?: { description: string; causeTag: string; deadlineISO: string };
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [resolveOpen, setResolveOpen] = useState(false);
 
-  if (status === "RESOLVED") return null;
+  if (status === "RESOLVED" || status === "CANCELLED") return null;
 
   async function run(fn: () => Promise<{ error?: string }>, success: string) {
     setPending(true);
@@ -123,6 +129,55 @@ export function BlockerRowActions({
           </form>
         </DialogContent>
       </Dialog>
+
+      {edit && (
+        <>
+          <FormDialog
+            trigger={<Button variant="ghost" size="sm">Edit</Button>}
+            title="Edit blocker"
+            submitLabel="Save"
+            action={(fd) => editBlocker(blockerId, fd)}
+          >
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`eb-desc-${blockerId}`}>What&apos;s stuck?</Label>
+              <Textarea
+                id={`eb-desc-${blockerId}`}
+                name="description"
+                defaultValue={edit.description}
+                rows={3}
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>Cause</Label>
+              <CauseSelect defaultValue={edit.causeTag} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`eb-deadline-${blockerId}`}>Deadline</Label>
+              <Input
+                id={`eb-deadline-${blockerId}`}
+                name="deadline"
+                type="date"
+                defaultValue={edit.deadlineISO}
+                required
+              />
+            </div>
+          </FormDialog>
+          <FormDialog
+            trigger={<Button variant="ghost" size="sm">Cancel…</Button>}
+            title="Cancel blocker"
+            description="No longer a blocker? Say why — it stays on the record."
+            submitLabel="Cancel blocker"
+            successMessage="Blocker cancelled."
+            action={(fd) => cancelBlocker(blockerId, fd)}
+          >
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`cb-${blockerId}`}>Why?</Label>
+              <Textarea id={`cb-${blockerId}`} name="reason" required />
+            </div>
+          </FormDialog>
+        </>
+      )}
     </div>
   );
 }

@@ -10,13 +10,14 @@ import { ComputeRequestCard } from "@/components/compute-request-card";
 
 export const dynamic = "force-dynamic";
 
-const GROUP_ORDER: ComputeRequestStatus[] = ["PENDING", "APPROVED", "COMPLETED", "DENIED"];
+const GROUP_ORDER: ComputeRequestStatus[] = ["PENDING", "APPROVED", "COMPLETED", "DENIED", "WITHDRAWN"];
 
 const GROUP_BLURBS: Record<ComputeRequestStatus, string> = {
   PENDING: "The coordinator's queue. Nothing here auto-proceeds.",
   APPROVED: "Hours ticking. Results summaries come due when the window closes.",
   COMPLETED: "Results in — outcomes vs. expectations, on the record.",
   DENIED: "Denied with reasons. Better requests come back.",
+  WITHDRAWN: "Withdrawn by their requesters before a decision.",
 };
 
 export default async function ComputePage() {

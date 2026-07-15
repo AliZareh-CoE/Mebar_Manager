@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { submitComputeRequest } from "@/actions/compute-requests";
+import { submitComputeRequest, updateComputeRequest } from "@/actions/compute-requests";
 import { OPTIMIZATION_PRACTICES, SERVER_TYPE_LABELS } from "@/lib/labels";
 import { SERVER_TYPES, type ServerType, type OptimizationKey } from "@/lib/db/schema";
 import { Button } from "@/components/ui/button";
@@ -19,10 +19,30 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export function ComputeRequestForm({ projectId }: { projectId: string }) {
+export function ComputeRequestForm({
+  projectId,
+  requestId,
+  defaults,
+}: {
+  projectId: string;
+  /** Set when editing an existing pending request. */
+  requestId?: string;
+  defaults?: {
+    serverType: string;
+    hoursNeeded: number;
+    justification: string;
+    datasetSize: string;
+    preprocessingNote: string;
+    dryRunEvidence: string;
+    expectedResults: string;
+    optimizations: string[];
+  };
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
-  const [serverType, setServerType] = useState<ServerType>("SINGLE_GPU");
+  const [serverType, setServerType] = useState<ServerType>(
+    (defaults?.serverType as ServerType) ?? "SINGLE_GPU"
+  );
   const multiGpu = serverType === "MULTI_GPU";
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -30,13 +50,19 @@ export function ComputeRequestForm({ projectId }: { projectId: string }) {
     setPending(true);
     const formData = new FormData(event.currentTarget);
     formData.set("serverType", serverType);
-    const result = await submitComputeRequest(projectId, formData);
+    const result = requestId
+      ? await updateComputeRequest(requestId, formData)
+      : await submitComputeRequest(projectId, formData);
     setPending(false);
     if (result.error) {
       toast.error(result.error);
       return;
     }
-    toast.success("Compute request submitted. The coordinator owes you a decision.");
+    toast.success(
+      requestId
+        ? "Request updated."
+        : "Compute request submitted. The coordinator owes you a decision."
+    );
     router.push(`/projects/${projectId}`);
     router.refresh();
   }
@@ -70,7 +96,7 @@ export function ComputeRequestForm({ projectId }: { projectId: string }) {
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="cr-hours">Hours needed</Label>
-              <Input id="cr-hours" name="hoursNeeded" type="number" min={1} step={1} required />
+              <Input id="cr-hours" name="hoursNeeded" type="number" min={1} step={1} defaultValue={defaults?.hoursNeeded} required />
             </div>
           </div>
 
@@ -79,6 +105,7 @@ export function ComputeRequestForm({ projectId }: { projectId: string }) {
             <Textarea
               id="cr-justification"
               name="justification"
+              defaultValue={defaults?.justification}
               rows={5}
               placeholder="Why these hours, and exactly how you'll use them: hyperparameter sweeps and ablation studies, training strategy and experiment schedule, evaluation metrics and success criteria."
               required
@@ -88,13 +115,14 @@ export function ComputeRequestForm({ projectId }: { projectId: string }) {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor="cr-dataset">Exact dataset size</Label>
-              <Input id="cr-dataset" name="datasetSize" placeholder="e.g. 40k images, 18 GB" required />
+              <Input id="cr-dataset" name="datasetSize" placeholder="e.g. 40k images, 18 GB" defaultValue={defaults?.datasetSize} required />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="cr-preprocessing">Preprocessing proof</Label>
               <Input
                 id="cr-preprocessing"
                 name="preprocessingNote"
+                defaultValue={defaults?.preprocessingNote}
                 placeholder="How you know it's fully preprocessed"
                 required
               />
@@ -106,6 +134,7 @@ export function ComputeRequestForm({ projectId }: { projectId: string }) {
             <Textarea
               id="cr-dryrun"
               name="dryRunEvidence"
+              defaultValue={defaults?.dryRunEvidence}
               rows={2}
               placeholder="What you ran on a small subset, and how you know the pipeline works end-to-end."
               required
@@ -117,6 +146,7 @@ export function ComputeRequestForm({ projectId }: { projectId: string }) {
             <Textarea
               id="cr-expected"
               name="expectedResults"
+              defaultValue={defaults?.expectedResults}
               rows={2}
               placeholder="You'll submit a summary comparing final outcomes against this."
               required
@@ -149,7 +179,9 @@ export function ComputeRequestForm({ projectId }: { projectId: string }) {
                         value={key}
                         checked={forced ? true : undefined}
                         disabled={forced}
-                        defaultChecked={key === "CHECKPOINTING"}
+                        defaultChecked={
+                          defaults ? defaults.optimizations.includes(key) : key === "CHECKPOINTING"
+                        }
                         className="mt-0.5 accent-red-500"
                       />
                       {/* Disabled checkboxes don't submit — twin carries the value. */}
@@ -163,7 +195,7 @@ export function ComputeRequestForm({ projectId }: { projectId: string }) {
           </fieldset>
 
           <Button type="submit" disabled={pending}>
-            {pending ? "Submitting…" : "Submit request"}
+            {pending ? "Working…" : requestId ? "Save changes" : "Submit request"}
           </Button>
         </form>
       </CardContent>

@@ -4,6 +4,7 @@ import {
   approveComputeRequest,
   denyComputeRequest,
   submitComputeResults,
+  withdrawComputeRequest,
 } from "@/actions/compute-requests";
 import { SERVER_TYPE_LABELS, COMPUTE_STATUS_LABELS, OPTIMIZATION_PRACTICES } from "@/lib/labels";
 import type { ComputeRequest, ServerType, ComputeRequestStatus, OptimizationKey } from "@/lib/db/schema";
@@ -21,6 +22,7 @@ const STATUS_STYLES: Record<ComputeRequestStatus, string> = {
   APPROVED: "text-blue-600 dark:text-blue-400",
   DENIED: "text-red-600 dark:text-red-400",
   COMPLETED: "text-emerald-500",
+  WITHDRAWN: "text-muted-foreground",
 };
 
 /** One compute request, with role-appropriate actions. Server component. */
@@ -40,6 +42,8 @@ export function ComputeRequestCard({
   const canSeeAccess =
     me.id === request.requesterId || me.role === "MANAGER" || me.isComputeCoordinator;
   const canSubmitResults = me.id === request.requesterId || me.role === "MANAGER";
+  const canEditRequest =
+    status === "PENDING" && (me.id === request.requesterId || me.role === "MANAGER");
 
   return (
     <Card>
@@ -127,6 +131,32 @@ export function ComputeRequestCard({
             <p className="text-sm text-muted-foreground">
               Waiting on the compute coordinator.
             </p>
+          )}
+          {canEditRequest && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                nativeButton={false}
+                render={
+                  <Link href={`/projects/${request.projectId}/compute/${request.id}/edit`}>
+                    Edit
+                  </Link>
+                }
+              />
+              <FormDialog
+                trigger={<Button variant="ghost" size="sm">Withdraw…</Button>}
+                title="Withdraw compute request"
+                description="Pulls the request out of the coordinator's queue. It stays in the history as withdrawn."
+                submitLabel="Withdraw"
+                successMessage="Request withdrawn."
+                action={withdrawComputeRequest.bind(null, request.id)}
+              >
+                <p className="text-sm text-muted-foreground">
+                  You can submit a new request later.
+                </p>
+              </FormDialog>
+            </>
           )}
           {status === "APPROVED" && canSubmitResults && (
             <FormDialog

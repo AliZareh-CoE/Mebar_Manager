@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { milestones, MILESTONE_STATUSES } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
+import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 
 function revalidateMilestone(projectId: string) {
@@ -86,6 +87,66 @@ export async function pushMilestoneDueDate(
   await db
     .update(milestones)
     .set({ dueDate: parsed.data.dueDate })
+    .where(eq(milestones.id, milestoneId));
+
+  revalidateMilestone(milestone.projectId);
+  return {};
+}
+
+export async function editMilestone(
+  milestoneId: string,
+  formData: FormData
+): Promise<ActionResult> {
+  const me = await requireUser();
+
+  const parsed = parseForm(addMilestoneSchema, formData);
+  if (!parsed.success) return { error: parsed.error };
+
+  const milestone = await db
+    .select()
+    .from(milestones)
+    .where(eq(milestones.id, milestoneId))
+    .get();
+  if (!milestone) return { error: "Milestone not found." };
+  if (milestone.status === "DONE" || milestone.status === "CANCELLED") {
+    return { error: "This milestone is closed." };
+  }
+
+  const policy = await getPolicy(me);
+  if (!policy.can("milestone.edit")) {
+    return { error: "You don't have permission to edit milestones." };
+  }
+
+  await db.update(milestones).set(parsed.data).where(eq(milestones.id, milestoneId));
+  revalidateMilestone(milestone.projectId);
+  return {};
+}
+
+export async function cancelMilestone(
+  milestoneId: string,
+  _formData?: FormData
+): Promise<ActionResult> {
+  void _formData;
+  const me = await requireUser();
+
+  const milestone = await db
+    .select()
+    .from(milestones)
+    .where(eq(milestones.id, milestoneId))
+    .get();
+  if (!milestone) return { error: "Milestone not found." };
+  if (milestone.status === "DONE" || milestone.status === "CANCELLED") {
+    return { error: "This milestone is already closed." };
+  }
+
+  const policy = await getPolicy(me);
+  if (!policy.can("milestone.cancel")) {
+    return { error: "You don't have permission to cancel milestones." };
+  }
+
+  await db
+    .update(milestones)
+    .set({ status: "CANCELLED" })
     .where(eq(milestones.id, milestoneId));
 
   revalidateMilestone(milestone.projectId);
