@@ -6,12 +6,15 @@ import { cn } from "@/lib/utils";
 
 export function NavLinks({
   role,
+  isCoordinator,
   fightCount,
 }: {
   role: "MANAGER" | "ENGINEER" | "SECRETARY";
+  isCoordinator: boolean;
   fightCount: number;
 }) {
   const pathname = usePathname();
+  const isLeadership = role === "MANAGER" || isCoordinator;
   // Secretaries live in their task list — no projects, board, or compute.
   const links =
     role === "SECRETARY"
@@ -25,6 +28,7 @@ export function NavLinks({
           { href: "/data", label: "Data" },
           { href: "/compute", label: "Compute" },
           { href: "/tasks", label: "Tasks" },
+          ...(isLeadership ? [{ href: "/initiatives", label: "Initiatives" }] : []),
           ...(role === "MANAGER"
             ? [
                 { href: "/admin/users", label: "People" },

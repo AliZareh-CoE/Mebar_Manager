@@ -1,7 +1,15 @@
 import "server-only";
 import { and, desc, eq, inArray, ne, notInArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { blockers, milestones, dataRequests, computeRequests, tasks, user } from "@/lib/db/schema";
+import {
+  blockers,
+  milestones,
+  dataRequests,
+  computeRequests,
+  tasks,
+  initiatives,
+  user,
+} from "@/lib/db/schema";
 import type { LabSnapshot } from "@/lib/fight-engine";
 import { activationStateKeys } from "@/lib/workflow";
 import { DEFAULT_WORKFLOW } from "@/lib/settings-defaults";
@@ -19,7 +27,12 @@ export async function loadLabSnapshot(
   /** Server-type labels from settings, for fight headlines. */
   serverTypeLabels: Record<string, string> = {},
   /** From visibleTaskIds — null means all tasks. */
-  taskIds: Set<string> | null = null
+  taskIds: Set<string> | null = null,
+  /**
+   * Leadership (managers + the compute coordinator) sees all initiatives;
+   * everyone else none. Default false — fails closed for existing callers.
+   */
+  includeInitiatives = false
 ): Promise<LabSnapshot> {
   // inArray needs a non-empty list; a workflow with no activation states
   // simply never resets the clock via transitions.
@@ -32,6 +45,7 @@ export async function loadLabSnapshot(
     dataRequestRows,
     computeRequestRows,
     taskRows,
+    initiativeRows,
     coordinatorRow,
   ] = await Promise.all([
     db.query.projects.findMany({
@@ -81,6 +95,15 @@ export async function loadLabSnapshot(
         requester: { columns: { id: true, name: true } },
       },
     }),
+    includeInitiatives
+      ? db.query.initiatives.findMany({
+          where: eq(initiatives.status, "OPEN"),
+          with: {
+            assignee: { columns: { id: true, name: true } },
+            requester: { columns: { id: true, name: true } },
+          },
+        })
+      : Promise.resolve([]),
     db
       .select({ id: user.id, name: user.name })
       .from(user)
@@ -152,6 +175,16 @@ export async function loadLabSnapshot(
       createdAt: cr.createdAt,
       requester: cr.requester,
       windowEnd: cr.windowEnd,
+    })),
+    openInitiatives: initiativeRows.map((i) => ({
+      id: i.id,
+      title: i.title,
+      deadline: i.deadline,
+      createdAt: i.createdAt,
+      status: i.status,
+      assigneeId: i.assigneeId,
+      assignee: i.assignee,
+      requester: i.requester,
     })),
     openTasks: taskRows
       .filter((t) => taskIds === null || taskIds.has(t.id))

@@ -50,7 +50,21 @@ export type FixedCapability =
   | "settings.manage"
   | "decision.decide"
   | "compute.decide"
-  | "dataRequest.deliver";
+  | "dataRequest.deliver"
+  // Lab-leadership surface (initiatives = the weekly meeting's big fights).
+  | "initiative.file"
+  | "initiative.edit";
+
+/**
+ * Managers and the compute coordinator — the people who run the lab's big
+ * fights, see everything, and appear on /performance. Pure so nav, pages,
+ * loaders, and tests can all share it.
+ */
+export function isLabLeadership(
+  u: Pick<SessionUser, "role" | "isComputeCoordinator">
+): boolean {
+  return u.role === "MANAGER" || u.isComputeCoordinator;
+}
 
 export type Capability = ConfigurableCapability | FixedCapability;
 
@@ -123,6 +137,10 @@ export function can(
       return user.isComputeCoordinator;
     case "dataRequest.deliver":
       return user.role === "MANAGER"; // assignee covered by involvement
+    case "initiative.file":
+      return isLabLeadership(user);
+    case "initiative.edit":
+      return user.role === "MANAGER"; // requester/assignee covered by involvement
     default:
       // Rank comparison, not equality: "ENGINEER" in the matrix means
       // "engineer or above" — secretaries (rank 0) are always below it.

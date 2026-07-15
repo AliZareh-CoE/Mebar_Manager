@@ -23,6 +23,7 @@ import {
   dataRequests,
   computeRequests,
   tasks,
+  initiatives,
 } from "../src/lib/db/schema";
 
 async function createUserRaw(input: {
@@ -111,6 +112,7 @@ async function seedDemo() {
   db.delete(dataRequests).run();
   db.delete(computeRequests).run();
   db.delete(tasks).run();
+  db.delete(initiatives).run();
   db.delete(projects).run();
 
   const password = "mebar-demo";
@@ -623,6 +625,45 @@ async function seedDemo() {
         completionNote: "Renewed for 12 months; license keys in the vault.",
         completedAt: subDays(new Date(), 18),
         createdAt: subDays(new Date(), 25),
+      },
+    ])
+    .run();
+
+  // Initiatives — the weekly meeting's big fights. One overdue (assigned),
+  // one unowned past grace, one WON for history and performance credit.
+  db.insert(initiatives)
+    .values([
+      {
+        title: "Cryostat service contract — get facilities to pay",
+        description:
+          "Annual service is $12k; facilities claims it's 'departmental equipment'. Escalate to the associate dean.",
+        deadline: subDays(new Date(), 4),
+        requesterId: noa,
+        assigneeId: prof,
+        status: "OPEN",
+        createdAt: subDays(new Date(), 20),
+      },
+      {
+        title: "Dedicated GPU budget line in the 2027 university budget",
+        description:
+          "Cluster contention costs us weeks per quarter. Need a named line item before the budget cycle closes.",
+        deadline: addDays(new Date(), 30),
+        requesterId: prof,
+        assigneeId: null,
+        status: "OPEN",
+        createdAt: subDays(new Date(), 6),
+      },
+      {
+        title: "Second wet-lab room from space committee",
+        description: "The chemistry expansion needs a certified fume hood room.",
+        deadline: subDays(new Date(), 30),
+        requesterId: prof,
+        assigneeId: noa,
+        status: "WON",
+        closureNote:
+          "Space committee approved room B214 after the utilization report. Keys in September.",
+        createdAt: subDays(new Date(), 60),
+        closedAt: subDays(new Date(), 8),
       },
     ])
     .run();

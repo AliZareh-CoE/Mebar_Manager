@@ -305,6 +305,46 @@ export const tasks = sqliteTable(
   ]
 );
 
+// WON/LOST/CANCELLED reuse closureNote/closedAt as closure note/time.
+export const INITIATIVE_STATUSES = ["OPEN", "WON", "LOST", "CANCELLED"] as const;
+export type InitiativeStatus = (typeof INITIATIVE_STATUSES)[number];
+
+// "Big fights" from the weekly meeting — equipment, budgets, university
+// management. Lab-level (no project link), leadership-only surface.
+export const initiatives = sqliteTable(
+  "initiatives",
+  {
+    id: id(),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    deadline: integer("deadline", { mode: "timestamp_ms" }).notNull(),
+    requesterId: text("requester_id")
+      .notNull()
+      .references(() => user.id),
+    // a manager or the compute coordinator; null → unowned, escalates
+    assigneeId: text("assignee_id").references(() => user.id),
+    status: text("status", { enum: INITIATIVE_STATUSES }).notNull().default("OPEN"),
+    closureNote: text("closure_note"),
+    createdAt: createdAt(),
+    closedAt: integer("closed_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [
+    index("initiatives_status_idx").on(t.status),
+    index("initiatives_assignee_idx").on(t.assigneeId),
+  ]
+);
+
+export const initiativesRelations = relations(initiatives, ({ one }) => ({
+  requester: one(user, {
+    fields: [initiatives.requesterId],
+    references: [user.id],
+  }),
+  assignee: one(user, {
+    fields: [initiatives.assigneeId],
+    references: [user.id],
+  }),
+}));
+
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   owner: one(user, {
     fields: [projects.ownerId],
@@ -434,3 +474,4 @@ export type Blocker = typeof blockers.$inferSelect;
 export type Update = typeof updates.$inferSelect;
 export type Decision = typeof decisions.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
+export type Initiative = typeof initiatives.$inferSelect;

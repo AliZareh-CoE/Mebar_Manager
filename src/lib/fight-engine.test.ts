@@ -826,3 +826,106 @@ describe("OVERDUE_TASK / UNOWNED_TASK", () => {
     expect(items).toEqual([]);
   });
 });
+
+// ————————————————————————————————————— initiatives (v5)
+
+function initiative(over: Partial<import("./fight-engine").InitiativeRow> = {}) {
+  return {
+    id: "i1",
+    title: "Dedicated GPU budget line for 2027",
+    deadline: addDays(NOW, 14),
+    createdAt: subDays(NOW, 1),
+    status: "OPEN",
+    assigneeId: prof.id,
+    assignee: prof,
+    requester: prof,
+    ...over,
+  };
+}
+
+describe("OVERDUE_INITIATIVE / UNOWNED_INITIATIVE", () => {
+  it("healthy assigned initiative → no fights", () => {
+    expect(computeFightList(snap({ openInitiatives: [initiative()] }), NOW)).toEqual([]);
+  });
+
+  it("overdue initiative yells at the assignee, severity 3, no project link", () => {
+    const items = computeFightList(
+      snap({ openInitiatives: [initiative({ deadline: subDays(NOW, 4) })] }),
+      NOW
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      type: "OVERDUE_INITIATIVE",
+      severity: 3,
+      ageDays: 4,
+      projectId: null,
+      projectTitle: null,
+      responsible: prof,
+    });
+  });
+
+  it("overdue unowned falls back to the requester; overdue beats unowned", () => {
+    const items = computeFightList(
+      snap({
+        openInitiatives: [
+          initiative({
+            deadline: subDays(NOW, 2),
+            assigneeId: null,
+            assignee: null,
+            requester: alice,
+            createdAt: subDays(NOW, 20),
+          }),
+        ],
+      }),
+      NOW
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ type: "OVERDUE_INITIATIVE", responsible: alice });
+  });
+
+  it("unowned escalates only past the grace period, severity 2", () => {
+    const fresh = snap({
+      openInitiatives: [initiative({ assigneeId: null, assignee: null, createdAt: subDays(NOW, 1) })],
+    });
+    expect(computeFightList(fresh, NOW)).toEqual([]);
+
+    const stale = snap({
+      openInitiatives: [
+        initiative({ assigneeId: null, assignee: null, requester: prof, createdAt: subDays(NOW, 5) }),
+      ],
+    });
+    const items = computeFightList(stale, NOW);
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      type: "UNOWNED_INITIATIVE",
+      severity: 2,
+      ageDays: 3,
+      responsible: prof,
+    });
+  });
+
+  it("initiative rules honor enabledRules toggles", () => {
+    const snapshot = snap({
+      openInitiatives: [
+        initiative({ deadline: subDays(NOW, 3) }),
+        initiative({ id: "i2", assigneeId: null, assignee: null, createdAt: subDays(NOW, 10) }),
+      ],
+    });
+    expect(
+      computeFightList(snapshot, NOW, undefined, {
+        enabledRules: { OVERDUE_INITIATIVE: false, UNOWNED_INITIATIVE: false },
+      })
+    ).toEqual([]);
+  });
+
+  it("closed initiatives never fight", () => {
+    for (const status of ["WON", "LOST", "CANCELLED"]) {
+      expect(
+        computeFightList(
+          snap({ openInitiatives: [initiative({ status, deadline: subDays(NOW, 30) })] }),
+          NOW
+        )
+      ).toEqual([]);
+    }
+  });
+});

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   can,
+  isLabLeadership,
   permissionMatrixSchema,
   DEFAULT_MATRIX,
   CONFIGURABLE_CAPABILITIES,
@@ -131,5 +132,44 @@ describe("SECRETARY rank semantics", () => {
   it("engineers and managers keep task capabilities via rank", () => {
     expect(can(engineer, "task.edit", matrix)).toBe(true);
     expect(can(manager, "task.cancel", matrix)).toBe(true);
+  });
+});
+
+describe("initiative capabilities (leadership = manager OR compute coordinator)", () => {
+  const engineerCoordinator: SessionUser = {
+    ...engineer,
+    id: "u-eng-coord",
+    isComputeCoordinator: true,
+  };
+  const secretary2: SessionUser = { ...engineer, id: "u-sec2", role: "SECRETARY" };
+
+  it("isLabLeadership: managers and coordinators only", () => {
+    expect(isLabLeadership(manager)).toBe(true);
+    expect(isLabLeadership(coordinator)).toBe(true);
+    expect(isLabLeadership(engineerCoordinator)).toBe(true);
+    expect(isLabLeadership(engineer)).toBe(false);
+    expect(isLabLeadership(secretary2)).toBe(false);
+  });
+
+  it("filing: leadership only", () => {
+    expect(can(manager, "initiative.file", matrix)).toBe(true);
+    expect(can(engineerCoordinator, "initiative.file", matrix)).toBe(true);
+    expect(can(engineer, "initiative.file", matrix)).toBe(false);
+    expect(can(secretary2, "initiative.file", matrix)).toBe(false);
+  });
+
+  it("editing: any manager, or involved requester/assignee", () => {
+    expect(can(manager, "initiative.edit", matrix)).toBe(true);
+    expect(
+      can(engineerCoordinator, "initiative.edit", matrix, {
+        involvedUserIds: [engineerCoordinator.id],
+      })
+    ).toBe(true);
+    // An uninvolved non-manager coordinator can't edit others' initiatives.
+    expect(
+      can(engineerCoordinator, "initiative.edit", matrix, {
+        involvedUserIds: ["someone-else"],
+      })
+    ).toBe(false);
   });
 });

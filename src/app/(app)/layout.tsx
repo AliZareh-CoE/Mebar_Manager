@@ -6,6 +6,7 @@ import { getSettings } from "@/lib/settings";
 import { expireOverdueDecisions } from "@/lib/maintenance";
 import { loadLabSnapshot } from "@/lib/fight-data";
 import { visibleProjectIds, visibleTaskIds } from "@/lib/visibility";
+import { isLabLeadership } from "@/lib/policy";
 import { computeFightList } from "@/lib/fight-engine";
 import {
   activationStateKeys,
@@ -40,7 +41,8 @@ export default async function AppLayout({
       visibleIds,
       activationStateKeys(workflow),
       Object.fromEntries(settings.serverTypes.map((s) => [s.key, s.label])),
-      taskIds
+      taskIds,
+      isLabLeadership(user)
     ),
     new Date(),
     settings.thresholds,
@@ -63,7 +65,11 @@ export default async function AppLayout({
             <Flame className="size-5 text-red-500" />
             {settings.labName}
           </Link>
-          <NavLinks role={user.role} fightCount={fightCount} />
+          <NavLinks
+            role={user.role}
+            isCoordinator={user.isComputeCoordinator}
+            fightCount={fightCount}
+          />
           <div className="ml-auto flex items-center gap-3">
             <Link
               href="/account"

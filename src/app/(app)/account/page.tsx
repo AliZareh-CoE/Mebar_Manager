@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
-import { visibleProjectIds } from "@/lib/visibility";
+import { visibleProjectIds, visibleTaskIds } from "@/lib/visibility";
 import { loadLabSnapshot } from "@/lib/fight-data";
 import { computeFightList } from "@/lib/fight-engine";
+import { activationStateKeys, engineStateFlags } from "@/lib/workflow";
+import { isLabLeadership } from "@/lib/policy";
 import { ChangeNameForm, ChangePasswordForm } from "@/components/forms/account-forms";
 import { FightItemCard } from "@/components/fight-item-card";
 import { Badge } from "@/components/ui/badge";
@@ -22,11 +24,27 @@ export default async function AccountPage() {
   if (!me) redirect("/login");
 
   const settings = await getSettings();
+  const workflow = settings.workflow;
   const visibleIds = await visibleProjectIds(me, settings);
+  const taskIds = await visibleTaskIds(me, settings);
+  // Parity with the layout/fight-list call: custom workflow flags, rule
+  // toggles, server-type labels, task + initiative scoping all apply here too.
   const myFights = computeFightList(
-    await loadLabSnapshot(visibleIds),
+    await loadLabSnapshot(
+      visibleIds,
+      activationStateKeys(workflow),
+      Object.fromEntries(settings.serverTypes.map((s) => [s.key, s.label])),
+      taskIds,
+      isLabLeadership(me)
+    ),
     new Date(),
-    settings.thresholds
+    settings.thresholds,
+    {
+      stateFlags: engineStateFlags(workflow),
+      enabledRules: Object.fromEntries(
+        Object.entries(settings.fightRules).map(([type, rule]) => [type, rule.enabled])
+      ),
+    }
   ).filter((item) => item.responsible?.id === me.id);
 
   return (
@@ -34,7 +52,11 @@ export default async function AccountPage() {
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">{me.name}</h1>
         <Badge variant={me.role === "MANAGER" ? "default" : "secondary"}>
-          {me.role === "MANAGER" ? "Manager" : "Engineer"}
+          {me.role === "MANAGER"
+            ? "Manager"
+            : me.role === "SECRETARY"
+              ? "Secretary"
+              : "Engineer"}
         </Badge>
         {me.isDataAnalyst && (
           <Badge variant="outline" className="text-blue-600 dark:text-blue-400">

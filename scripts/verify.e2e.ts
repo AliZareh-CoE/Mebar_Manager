@@ -49,6 +49,8 @@ async function main() {
     "Unowned blockers",
     "Overdue tasks",
     "Unowned tasks",
+    "Overdue initiatives",
+    "Unowned initiatives",
     "Decisions waiting",
     "Missed milestones",
     "What keeps blocking us",
@@ -493,6 +495,40 @@ async function main() {
   const mgrTasks = await page.textContent("body");
   check("manager sees unowned tasks too", mgrTasks!.includes("fab partners"));
   check("manager sees the secretary roster", mgrTasks!.includes("Taylor Reed"));
+
+  // 24c. Initiatives: leadership-only surface with full CRUD round-trip.
+  await page.goto(BASE + "/initiatives");
+  const iniBody = await page.textContent("body");
+  check("initiatives page renders groups", iniBody!.includes("Open fights") && iniBody!.includes("Won"));
+  check("seeded WON initiative shows", iniBody!.includes("Second wet-lab room"));
+  await page.click("button:has-text('File initiative')");
+  await page.fill("input[name=title]", "E2E test initiative — new oscilloscope budget");
+  await page.fill("input[name=deadline]", "2030-01-01");
+  await page.click("div[role=dialog] button[type=submit]");
+  await page.waitForTimeout(1500);
+  check(
+    "filed initiative appears",
+    (await page.textContent("body"))!.includes("E2E test initiative")
+  );
+  const e2eIniRow = page.locator("tr", { hasText: "E2E test initiative" }).first();
+  await e2eIniRow.locator("button:has-text('Cancel…')").click();
+  await page.fill("div[role=dialog] textarea[name=reason]", "Test cleanup — not a real fight.");
+  await page.click("div[role=dialog] button:has-text('Cancel initiative')");
+  await page.waitForTimeout(1500);
+  check(
+    "cancelled initiative moves to Cancelled",
+    (await page.textContent("body"))!.includes("Cancelled")
+  );
+  // Engineer sara: no nav entry, redirected away, no initiative fights.
+  await engPage.goto(BASE + "/initiatives");
+  await engPage.waitForURL(BASE + "/");
+  check("engineer /initiatives redirects home", engPage.url() === BASE + "/");
+  const saraNav = await engPage.locator("nav").first().textContent();
+  check("engineer nav lacks Initiatives", !saraNav!.includes("Initiatives"));
+  check(
+    "engineer fight list has no initiative sections",
+    !(await engPage.textContent("body"))!.includes("Overdue initiatives")
+  );
 
   // 25. Cancel a blocker → its fight clears
   await page.goto(BASE + "/board?state=BLOCKED");

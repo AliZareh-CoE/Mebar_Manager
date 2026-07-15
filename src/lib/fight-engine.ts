@@ -102,6 +102,17 @@ export interface TaskRow {
   projectId: string | null;
 }
 
+export interface InitiativeRow {
+  id: string;
+  title: string;
+  deadline: Date;
+  createdAt: Date;
+  status: string;
+  assigneeId: string | null;
+  assignee: PersonRef | null;
+  requester: PersonRef;
+}
+
 export interface LabSnapshot {
   projects: ProjectRow[];
   openBlockers: BlockerRow[];
@@ -112,6 +123,8 @@ export interface LabSnapshot {
   activeComputeRequests: ComputeRequestRow[];
   /** OPEN secretary tasks. Optional so older snapshots/tests stay valid. */
   openTasks?: TaskRow[];
+  /** OPEN initiatives — the loader returns [] for non-leadership viewers. */
+  openInitiatives?: InitiativeRow[];
   /** The one flagged manager, if any. */
   computeCoordinator: PersonRef | null;
 }
@@ -479,6 +492,44 @@ export function computeFightList(
           headline: `No secretary owns this task (${unownedDays}d old)`,
           detail: task.title,
           responsible: task.requester,
+        });
+      }
+    }
+  }
+
+  // Initiatives: lab-level big fights — no project, so nothing freezes them.
+  for (const ini of snap.openInitiatives ?? []) {
+    if (ini.status !== "OPEN") continue;
+
+    const overdueDays = differenceInDays(now, ini.deadline);
+    if (overdueDays > 0 && enabled("OVERDUE_INITIATIVE")) {
+      items.push({
+        type: "OVERDUE_INITIATIVE",
+        severity: 3,
+        ageDays: overdueDays,
+        projectId: null,
+        projectTitle: null,
+        entityId: ini.id,
+        headline: `Initiative ${overdueDays}d past its deadline`,
+        detail: ini.title,
+        responsible: ini.assignee ?? ini.requester,
+      });
+      continue; // overdue beats unowned — one fight per initiative
+    }
+
+    if (!ini.assigneeId && enabled("UNOWNED_INITIATIVE")) {
+      const unownedDays = differenceInDays(now, ini.createdAt);
+      if (unownedDays > t.unownedGraceDays) {
+        items.push({
+          type: "UNOWNED_INITIATIVE",
+          severity: 2,
+          ageDays: unownedDays - t.unownedGraceDays,
+          projectId: null,
+          projectTitle: null,
+          entityId: ini.id,
+          headline: `Nobody is fighting this initiative (${unownedDays}d old)`,
+          detail: ini.title,
+          responsible: ini.requester,
         });
       }
     }

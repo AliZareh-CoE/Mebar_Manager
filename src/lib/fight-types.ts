@@ -16,5 +16,9 @@ export const FIGHT_TYPES = [
   "PENDING_COMPUTE_REQUEST",
   "PENDING_DECISION",
   "MISSED_MILESTONE",
+  // Appended (not inserted) — saved section orders self-heal by appending
+  // missing types, so the end is the stable place for new rules.
+  "OVERDUE_INITIATIVE",
+  "UNOWNED_INITIATIVE",
 ] as const;
 export type FightType = (typeof FIGHT_TYPES)[number];

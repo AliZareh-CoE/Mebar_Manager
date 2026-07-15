@@ -2,6 +2,7 @@ import { PartyPopper } from "lucide-react";
 import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { getPolicy, transitionGate } from "@/lib/policy-server";
+import { isLabLeadership } from "@/lib/policy";
 import { visibleProjectIds, visibleTaskIds } from "@/lib/visibility";
 import {
   activationStateKeys,
@@ -25,6 +26,7 @@ import { FormDialog } from "@/components/form-dialog";
 import { UpdateDialog } from "@/components/forms/update-dialog";
 import { BlockerRowActions } from "@/components/blocker-row-actions";
 import { DataRequestRowActions } from "@/components/data-request-row-actions";
+import { InitiativeRowActions } from "@/components/initiative-row-actions";
 import { MilestoneStatusButtons } from "@/components/milestone-status-buttons";
 import { TaskRowActions } from "@/components/task-row-actions";
 import { TransitionButtons } from "@/components/transition-buttons";
@@ -66,7 +68,8 @@ export default async function FightListPage() {
       visibleIds,
       activationStateKeys(workflow),
       Object.fromEntries(settings.serverTypes.map((s) => [s.key, s.label])),
-      taskIds
+      taskIds,
+      isLabLeadership(me)
     ),
     loadAllBlockerCauses(visibleIds),
     db
@@ -75,6 +78,7 @@ export default async function FightListPage() {
         name: user.name,
         role: user.role,
         isDataAnalyst: user.isDataAnalyst,
+        isComputeCoordinator: user.isComputeCoordinator,
       })
       .from(user)
       .where(ne(user.banned, true)),
@@ -103,6 +107,12 @@ export default async function FightListPage() {
   const dataRequestById = new Map(snapshot.openDataRequests.map((dr) => [dr.id, dr]));
   const computeRequestById = new Map(snapshot.activeComputeRequests.map((cr) => [cr.id, cr]));
   const taskById = new Map((snapshot.openTasks ?? []).map((t) => [t.id, t]));
+  const initiativeById = new Map(
+    (snapshot.openInitiatives ?? []).map((i) => [i.id, i])
+  );
+  const leadership = allPeople
+    .filter((p) => p.role === "MANAGER" || p.isComputeCoordinator)
+    .map(({ id, name }) => ({ id, name }));
 
   function actionFor(item: FightItem) {
     switch (item.type) {
@@ -225,6 +235,20 @@ export default async function FightListPage() {
             secretaries={secretaries}
             meId={me!.id}
             meIsSecretary={me!.role === "SECRETARY"}
+          />
+        );
+      }
+      case "OVERDUE_INITIATIVE":
+      case "UNOWNED_INITIATIVE": {
+        const initiative = initiativeById.get(item.entityId);
+        if (!initiative) return null;
+        return (
+          <InitiativeRowActions
+            initiativeId={initiative.id}
+            status={initiative.status}
+            assigneeId={initiative.assigneeId}
+            leadership={leadership}
+            meId={me!.id}
           />
         );
       }

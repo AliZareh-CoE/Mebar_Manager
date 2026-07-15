@@ -98,6 +98,16 @@ export const DEFAULT_FIGHT_SECTIONS: Record<FightType, FightRuleConfig> = {
     title: "Unowned tasks",
     blurb: "No secretary has claimed these. Assign one.",
   },
+  OVERDUE_INITIATIVE: {
+    enabled: true,
+    title: "Overdue initiatives",
+    blurb: "The lab's big fights, past their deadline. Only leadership sees these.",
+  },
+  UNOWNED_INITIATIVE: {
+    enabled: true,
+    title: "Unowned initiatives",
+    blurb: "Nobody is fighting these yet. Claim one.",
+  },
 };
 
 export const DEFAULT_SECTION_ORDER: FightType[] = [...FIGHT_TYPES];
