@@ -1,4 +1,5 @@
 import { workflowSchema, type Workflow } from "@/lib/workflow";
+import type { ProposalQuestion } from "@/lib/proposal";
 
 /** An admin-editable category: archived items keep rendering on old rows. */
 export interface TaxonomyItem {
@@ -26,6 +27,17 @@ export const DEFAULT_SERVER_TYPES: ServerTypeItem[] = [
   { key: "CPU", label: "CPU", archived: false, mandatoryPractices: [] },
   { key: "SINGLE_GPU", label: "Single GPU", archived: false, mandatoryPractices: [] },
   { key: "MULTI_GPU", label: "Multi-GPU", archived: false, mandatoryPractices: ["DDP_FSDP"] },
+];
+
+// The Heilmeier Catechism — DARPA's gauntlet. Keys are projects columns.
+export const DEFAULT_PROPOSAL_QUESTIONS: ProposalQuestion[] = [
+  { key: "objective", label: "What are we trying to do? (no jargon)", builtin: true, archived: false },
+  { key: "howItsDoneToday", label: "How is it done today, and what are the limits?", builtin: true, archived: false },
+  { key: "whatsNew", label: "What's new in our approach — why will it succeed?", builtin: true, archived: false },
+  { key: "whoCares", label: "Who cares if we succeed?", builtin: true, archived: false },
+  { key: "risks", label: "What are the risks?", builtin: true, archived: false },
+  { key: "killCriteria", label: "Kill criteria — what result makes us stop?", builtin: true, archived: false },
+  { key: "successCriteria", label: "Success criteria — the mid-term and final exams", builtin: true, archived: false },
 ];
 
 // Card badges show the part before " — " when a label carries a long tail.

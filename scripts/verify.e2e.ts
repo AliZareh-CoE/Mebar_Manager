@@ -364,6 +364,31 @@ async function main() {
   await page.locator("button:has-text('Save')").first().click();
   await page.waitForTimeout(1500);
 
+  // 22d. Proposal questions: add a custom one → appears on the new-proposal
+  // form → archive it → gone. (Reseed wipes the leftover archived row.)
+  await page.goto(BASE + "/admin/settings/proposal");
+  await page.fill("input[placeholder*='ethics']", "Data management plan?");
+  await page.click("button:has-text('Add')");
+  await page.click("button:has-text('Save')");
+  await page.waitForTimeout(1500);
+  await page.goto(BASE + "/projects/new");
+  check(
+    "custom proposal question on the form",
+    (await page.textContent("body"))!.includes("Data management plan?")
+  );
+  await page.goto(BASE + "/admin/settings/proposal");
+  const dmpRow = page.locator("div.rounded-md", {
+    has: page.locator('input[value="Data management plan?"]'),
+  });
+  await dmpRow.locator("button:has-text('Archive')").click();
+  await page.click("button:has-text('Save')");
+  await page.waitForTimeout(1500);
+  await page.goto(BASE + "/projects/new");
+  check(
+    "archived question off the form",
+    !(await page.textContent("body"))!.includes("Data management plan?")
+  );
+
   // 23. Restricted visibility: sara sees only her project
   await engPage.goto(BASE + "/board");
   const saraBoard = await engPage.textContent("body");

@@ -13,8 +13,10 @@ import {
 import {
   causeTagListSchema,
   practiceListSchema,
+  proposalQuestionListSchema,
   serverTypeListSchema,
 } from "@/lib/settings-schema";
+import { HEILMEIER_COLUMNS } from "@/lib/proposal";
 import { permissionMatrixSchema, CONFIGURABLE_CAPABILITIES } from "@/lib/policy";
 import { workflowSchema } from "@/lib/workflow";
 import type { ActionResult } from "@/lib/action-utils";
@@ -119,6 +121,24 @@ export async function updateServerTypes(formData: FormData): Promise<ActionResul
     }
   }
   return patchSettings({ serverTypes: parsed.data });
+}
+
+export async function updateProposalQuestions(formData: FormData): Promise<ActionResult> {
+  await requireManager();
+  const raw = parseJsonField(formData, "items");
+  // The editor doesn't carry the builtin flag — re-derive it from the key so
+  // a crafted payload can't flip a built-in to custom (or vice versa).
+  const withBuiltin = Array.isArray(raw)
+    ? raw.map((item) => ({
+        ...(typeof item === "object" && item !== null ? item : {}),
+        builtin: (HEILMEIER_COLUMNS as readonly string[]).includes(
+          (item as { key?: string })?.key ?? ""
+        ),
+      }))
+    : raw;
+  const parsed = proposalQuestionListSchema.safeParse(withBuiltin);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  return patchSettings({ proposalQuestions: parsed.data });
 }
 
 export async function updatePermissions(formData: FormData): Promise<ActionResult> {

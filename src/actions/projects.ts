@@ -10,6 +10,7 @@ import { requireUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { getPolicy, transitionGate } from "@/lib/policy-server";
 import { applyEvent, initialStateKey, stateByKey, KEY_RE } from "@/lib/workflow";
+import { collectProposalAnswers } from "@/lib/proposal";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 import { canAccessProject } from "@/lib/visibility";
 
@@ -19,22 +20,11 @@ function revalidateProject(id: string) {
   revalidatePath(`/projects/${id}`);
 }
 
-const heilmeierFields = {
-  objective: z.string().trim().default(""),
-  howItsDoneToday: z.string().trim().default(""),
-  whatsNew: z.string().trim().default(""),
-  whoCares: z.string().trim().default(""),
-  risks: z.string().trim().default(""),
-  killCriteria: z.string().trim().default(""),
-  successCriteria: z.string().trim().default(""),
-};
-
 const createProjectSchema = z.object({
   title: z.string().trim().min(1, "Title is required"),
   description: z.string().trim().default(""),
   ownerId: z.string().min(1, "Owner is required"),
   advisorId: z.string().min(1, "Advisor is required"),
-  ...heilmeierFields,
 });
 
 export async function createProject(formData: FormData): Promise<ActionResult> {
@@ -47,10 +37,18 @@ export async function createProject(formData: FormData): Promise<ActionResult> {
   const parsed = parseForm(createProjectSchema, formData);
   if (!parsed.success) return { error: parsed.error };
 
-  const { workflow } = await getSettings();
+  const settings = await getSettings();
+  // Proposal answers: built-ins map to columns, customs to extraAnswers.
+  const answers = collectProposalAnswers(settings.proposalQuestions, formData);
   const [project] = await db
     .insert(projects)
-    .values({ ...parsed.data, createdById: me.id, state: initialStateKey(workflow) })
+    .values({
+      ...parsed.data,
+      ...answers.columns,
+      extraAnswers: answers.extraAnswers,
+      createdById: me.id,
+      state: initialStateKey(settings.workflow),
+    })
     .returning();
   revalidatePath("/board");
   redirect(`/projects/${project.id}`);
@@ -59,7 +57,6 @@ export async function createProject(formData: FormData): Promise<ActionResult> {
 const editProjectSchema = z.object({
   title: z.string().trim().min(1, "Title is required"),
   description: z.string().trim().default(""),
-  ...heilmeierFields,
 });
 
 export async function editProject(
@@ -79,7 +76,17 @@ export async function editProject(
   const parsed = parseForm(editProjectSchema, formData);
   if (!parsed.success) return { error: parsed.error };
 
-  await db.update(projects).set(parsed.data).where(eq(projects.id, projectId));
+  const settings = await getSettings();
+  // Archived questions and absent fields keep their stored answers.
+  const answers = collectProposalAnswers(
+    settings.proposalQuestions,
+    formData,
+    project.extraAnswers
+  );
+  await db
+    .update(projects)
+    .set({ ...parsed.data, ...answers.columns, extraAnswers: answers.extraAnswers })
+    .where(eq(projects.id, projectId));
   revalidateProject(projectId);
   return {};
 }

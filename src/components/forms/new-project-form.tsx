@@ -9,21 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PersonSelect } from "@/components/forms/labeled-selects";
-
-const HEILMEIER_FIELDS = [
-  ["objective", "What are we trying to do? (no jargon)"],
-  ["howItsDoneToday", "How is it done today, and what are the limits?"],
-  ["whatsNew", "What's new in our approach — why will it succeed?"],
-  ["whoCares", "Who cares if we succeed?"],
-  ["risks", "What are the risks?"],
-  ["killCriteria", "Kill criteria — what result makes us stop?"],
-  ["successCriteria", "Success criteria — the mid-term and final exams"],
-] as const;
+import { proposalFieldName } from "@/lib/proposal";
 
 export function NewProjectForm({
   people,
+  questions,
 }: {
   people: { id: string; name: string; role: string | null }[];
+  /** Admin-defined proposal questions (non-archived), from settings. */
+  questions: { key: string; label: string; builtin: boolean }[];
 }) {
   const [pending, setPending] = useState(false);
   const managers = people.filter((p) => p.role === "MANAGER");
@@ -64,12 +58,15 @@ export function NewProjectForm({
               />
             </div>
           </div>
-          {HEILMEIER_FIELDS.map(([field, label]) => (
-            <div key={field} className="flex flex-col gap-2">
-              <Label htmlFor={field}>{label}</Label>
-              <Textarea id={field} name={field} rows={2} />
-            </div>
-          ))}
+          {questions.map((q) => {
+            const field = proposalFieldName(q);
+            return (
+              <div key={q.key} className="flex flex-col gap-2">
+                <Label htmlFor={field}>{q.label}</Label>
+                <Textarea id={field} name={field} rows={2} />
+              </div>
+            );
+          })}
           <Button type="submit" disabled={pending}>
             {pending ? "Creating…" : "Create proposal"}
           </Button>

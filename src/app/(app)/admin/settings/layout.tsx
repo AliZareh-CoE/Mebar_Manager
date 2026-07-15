@@ -6,6 +6,7 @@ const TABS = [
   { href: "/admin/settings", label: "General" },
   { href: "/admin/settings/workflow", label: "Workflow" },
   { href: "/admin/settings/categories", label: "Categories" },
+  { href: "/admin/settings/proposal", label: "Proposal form" },
   { href: "/admin/settings/fights", label: "Fight rules" },
   { href: "/admin/settings/permissions", label: "Permissions" },
 ];

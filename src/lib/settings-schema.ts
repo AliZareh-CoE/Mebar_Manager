@@ -6,7 +6,9 @@ import {
   DEFAULT_CAUSE_TAGS,
   DEFAULT_SERVER_TYPES,
   DEFAULT_PRACTICES,
+  DEFAULT_PROPOSAL_QUESTIONS,
 } from "@/lib/settings-defaults";
+import { HEILMEIER_COLUMNS } from "@/lib/proposal";
 import {
   STALL_DAYS,
   UNOWNED_BLOCKER_DAYS,
@@ -90,6 +92,41 @@ export const causeTagListSchema = taxonomyList(taxonomyItemSchema, 30);
 export const serverTypeListSchema = taxonomyList(serverTypeSchema, 15);
 export const practiceListSchema = taxonomyList(taxonomyItemSchema, 30);
 
+export const proposalQuestionSchema = z.object({
+  // Built-in keys are camelCase column names; custom keys are slugified.
+  key: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]{0,39}$/),
+  label: z.string().trim().min(1).max(160),
+  builtin: z.boolean().default(false),
+  archived: z.boolean().default(false),
+});
+
+export const proposalQuestionListSchema = z
+  .array(proposalQuestionSchema)
+  .max(20)
+  .superRefine((questions, ctx) => {
+    const seen = new Set<string>();
+    for (const q of questions) {
+      if (seen.has(q.key)) {
+        ctx.addIssue({ code: "custom", message: `Duplicate question key "${q.key}".` });
+      }
+      seen.add(q.key);
+      if (q.builtin !== (HEILMEIER_COLUMNS as readonly string[]).includes(q.key)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `"${q.key}" has the wrong builtin flag.`,
+        });
+      }
+    }
+    for (const col of HEILMEIER_COLUMNS) {
+      if (!questions.some((q) => q.key === col)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Built-in question "${col}" can be archived but not removed.`,
+        });
+      }
+    }
+  });
+
 export const labSettingsSchema = z.object({
   labName: z.string().trim().min(1).max(40).default("Mebar"),
   defaultTheme: z.enum(["dark", "light"]).default("dark"),
@@ -108,5 +145,8 @@ export const labSettingsSchema = z.object({
   practices: practiceListSchema
     .catch(() => structuredClone(DEFAULT_PRACTICES))
     .default(() => structuredClone(DEFAULT_PRACTICES)),
+  proposalQuestions: proposalQuestionListSchema
+    .catch(() => structuredClone(DEFAULT_PROPOSAL_QUESTIONS))
+    .default(() => structuredClone(DEFAULT_PROPOSAL_QUESTIONS)),
 });
 export type LabSettings = z.infer<typeof labSettingsSchema>;

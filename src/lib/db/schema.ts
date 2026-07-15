@@ -38,7 +38,7 @@ export const projects = sqliteTable(
     // required at app level whenever state === PAUSED
     pauseReason: text("pause_reason"),
     reviveDate: integer("revive_date", { mode: "timestamp_ms" }),
-    // Heilmeier Catechism
+    // Heilmeier Catechism (the 7 built-in proposal questions)
     objective: text("objective").notNull().default(""),
     howItsDoneToday: text("how_its_done_today").notNull().default(""),
     whatsNew: text("whats_new").notNull().default(""),
@@ -46,6 +46,11 @@ export const projects = sqliteTable(
     risks: text("risks").notNull().default(""),
     killCriteria: text("kill_criteria").notNull().default(""),
     successCriteria: text("success_criteria").notNull().default(""),
+    // answers to admin-added custom proposal questions, keyed by question key
+    extraAnswers: text("extra_answers", { mode: "json" })
+      .$type<Record<string, string>>()
+      .notNull()
+      .default({}),
     createdAt: createdAt(),
   },
   (t) => [

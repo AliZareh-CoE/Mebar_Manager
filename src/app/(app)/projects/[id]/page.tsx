@@ -17,6 +17,7 @@ import { user } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/session";
 import { expireOverdueDecisions } from "@/lib/maintenance";
 import { getSettings } from "@/lib/settings";
+import { proposalFieldName, type HeilmeierColumn } from "@/lib/proposal";
 import { editProject } from "@/actions/projects";
 import { addUpdate, editUpdate } from "@/actions/updates";
 import { raiseBlocker } from "@/actions/blockers";
@@ -50,16 +51,6 @@ import {
 import { CauseSelect, PersonSelect } from "@/components/forms/labeled-selects";
 
 export const dynamic = "force-dynamic";
-
-const HEILMEIER_FIELDS = [
-  ["objective", "What are we trying to do? (no jargon)"],
-  ["howItsDoneToday", "How is it done today?"],
-  ["whatsNew", "What's new in our approach?"],
-  ["whoCares", "Who cares if we succeed?"],
-  ["risks", "What are the risks?"],
-  ["killCriteria", "Kill criteria — when do we stop?"],
-  ["successCriteria", "Success criteria — what are the exams?"],
-] as const;
 
 export default async function ProjectPage({
   params,
@@ -126,6 +117,15 @@ export default async function ProjectPage({
   const practiceLabels = Object.fromEntries(
     settings.practices.map((p) => [p.key, p.label])
   );
+  const answerFor = (q: { key: string; builtin: boolean }): string =>
+    q.builtin
+      ? project[q.key as HeilmeierColumn]
+      : (project.extraAnswers[q.key] ?? "");
+  // Archived questions keep rendering wherever an answer exists.
+  const visibleQuestions = settings.proposalQuestions.filter(
+    (q) => !q.archived || answerFor(q).length > 0
+  );
+  const editableQuestions = settings.proposalQuestions.filter((q) => !q.archived);
   const activationKeys = activationStateKeys(workflow);
   const stateFlags = stateByKey(workflow, project.state)?.flags;
   const stateDisplay = resolveStateDisplay(workflow, project.state);
@@ -215,24 +215,27 @@ export default async function ProjectPage({
                 <Label htmlFor="description">Description</Label>
                 <Textarea id="description" name="description" defaultValue={project.description} />
               </div>
-              {HEILMEIER_FIELDS.map(([field, label]) => (
-                <div key={field} className="flex flex-col gap-2">
-                  <Label htmlFor={field}>{label}</Label>
-                  <Textarea id={field} name={field} defaultValue={project[field]} rows={2} />
-                </div>
-              ))}
+              {editableQuestions.map((q) => {
+                const field = proposalFieldName(q);
+                return (
+                  <div key={q.key} className="flex flex-col gap-2">
+                    <Label htmlFor={field}>{q.label}</Label>
+                    <Textarea id={field} name={field} defaultValue={answerFor(q)} rows={2} />
+                  </div>
+                );
+              })}
             </FormDialog>
           )}
         </CardHeader>
         <CardContent>
           <dl className="grid gap-4 sm:grid-cols-2">
-            {HEILMEIER_FIELDS.map(([field, label]) => (
-              <div key={field}>
+            {visibleQuestions.map((q) => (
+              <div key={q.key}>
                 <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {label}
+                  {q.label}
                 </dt>
                 <dd className="mt-1 text-sm">
-                  {project[field] || <span className="text-muted-foreground">—</span>}
+                  {answerFor(q) || <span className="text-muted-foreground">—</span>}
                 </dd>
               </div>
             ))}
