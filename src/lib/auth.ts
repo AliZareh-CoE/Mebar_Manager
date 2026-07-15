@@ -28,6 +28,14 @@ export const auth = betterAuth({
   // a real secret (see check above).
   secret: process.env.BETTER_AUTH_SECRET ?? "mebar-dev-secret-change-in-production",
   database: drizzleAdapter(db, { provider: "sqlite" }),
+  rateLimit: {
+    // Production default is 3 sign-ins per 10s PER IP — a whole lab behind
+    // one campus NAT would trip it on a busy morning. Keep brute-force
+    // protection, but sized for shared-IP reality.
+    customRules: {
+      "/sign-in/email": { window: 10, max: 15 },
+    },
+  },
   emailAndPassword: {
     enabled: true,
     // No self-signup: accounts are created by a manager via the admin plugin.

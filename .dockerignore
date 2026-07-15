@@ -1,0 +1,14 @@
+node_modules
+.next
+data
+*.db
+*.db-shm
+*.db-wal
+.git
+.env*
+!.env.example
+!.env.production.example
+npm-debug.log*
+Dockerfile
+deploy
+README.md

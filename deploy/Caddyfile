@@ -1,0 +1,13 @@
+# Caddy fronts the app with automatic HTTPS (Let's Encrypt).
+# DOMAIN comes from deploy/.env via docker-compose.
+{$DOMAIN} {
+	reverse_proxy app:3000
+	encode gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+}

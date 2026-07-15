@@ -1,0 +1,48 @@
+# Mebar Manager — full VPS stack: the app + Caddy (automatic HTTPS).
+#
+#   1. cp .env.production.example .env   (in this deploy/ directory) and fill it in
+#   2. docker compose up -d --build
+#   3. First boot only: create the admin account —
+#        docker compose exec app npx tsx scripts/seed.ts
+#
+# Data lives in the named volumes; see backup.sh for nightly backups.
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in deploy/.env}
+      BETTER_AUTH_URL: https://${DOMAIN:?set DOMAIN in deploy/.env}
+      DATABASE_URL: /app/data/mebar.db
+      # Optional SMTP for "forgot password" emails:
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+    volumes:
+      - mebar-data:/app/data
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+
+volumes:
+  mebar-data:
+  caddy-data:
+  caddy-config:

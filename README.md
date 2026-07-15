@@ -157,3 +157,34 @@ rendering:
 Auth accounts are created by managers at **People** — there is no self-signup.
 Deactivating a person revokes their sessions. See `.env.example` for
 production configuration (set `BETTER_AUTH_SECRET`).
+
+## Deploy (VPS)
+
+Everything you need ships in `Dockerfile` + `deploy/`. A ~$5/month VPS
+(Hetzner CX22, DigitalOcean basic) runs a lab of any realistic size.
+
+```bash
+# On a fresh Ubuntu VPS with Docker installed and your domain's DNS A record
+# pointed at it:
+git clone <this repo> /opt/mebar-manager
+cd /opt/mebar-manager/deploy
+cp .env.production.example .env
+nano .env                       # set DOMAIN and BETTER_AUTH_SECRET (openssl rand -base64 32)
+docker compose up -d --build    # app + Caddy (automatic HTTPS)
+
+# First boot only — create the schema and the first manager account:
+docker compose exec app npx drizzle-kit push --force
+MANAGER_EMAIL=you@lab.org MANAGER_PASSWORD=... docker compose exec -e MANAGER_EMAIL -e MANAGER_PASSWORD app npx tsx scripts/seed.ts
+
+# Survive reboots + nightly backups:
+sudo cp mebar.service /etc/systemd/system/ && sudo systemctl enable --now mebar
+chmod +x backup.sh && crontab -e   # add: 15 3 * * * /opt/mebar-manager/deploy/backup.sh >> /var/log/mebar-backup.log 2>&1
+```
+
+- **Backups**: `deploy/backup.sh` takes an online SQLite backup (safe with
+  WAL, zero downtime) into `/opt/mebar-backups`, rotating after 14 days. The
+  restore drill is documented in the script header — practice it once.
+- **Updates**: `git pull && docker compose up -d --build` (or
+  `systemctl reload mebar`).
+- **Without Docker**: `npm ci && npm run build && BETTER_AUTH_SECRET=... npm start`
+  behind any reverse proxy; the app is a single Node process + one SQLite file.
