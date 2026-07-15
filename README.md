@@ -28,11 +28,23 @@ The rules (thresholds in `src/lib/thresholds.ts`):
 | Unowned data request | no analyst assigned for **2 days** | advisor |
 | Pending compute request | every pending request; **never auto-proceeds**; red after 48h | compute coordinator |
 | Compute results owed | approved request past its usage window without a results summary | requester |
+| Missing PI / first author | active project without a named PI and first author | owner |
+| Paperless project | active project **30 days** old with no paper on record | owner |
+| Underloaded researcher | owner/advisor of fewer than **5** active projects | the researcher |
 
 Other opinions built in:
 
 - **Pausing requires a reason and a revive date.** Standby is a decision, not a drift.
 - **Killing a project is a respectable outcome** — manager-only, with a reason, on the record.
+- **Researchers file, coordinators activate.** A proposal can't enter an
+  active state until leadership fires the transition AND the project names a
+  **PI and a first author** on its People tab — either can be a lab member or
+  an external person (students, outside PIs, assistants all live on the
+  lineup, no account needed).
+- **Every project must lead to a Q1 paper.** The Papers tab tracks the
+  manuscript from draft through submission to acceptance (rejections
+  resubmit, reasons on the record); submission and acceptance score
+  performance points for the project owner.
 - Proposals answer the **Heilmeier Catechism** (DARPA's eight questions).
 - Resolved blockers are tagged by cause; the **Pareto chart** on the Fight List
   shows what systemically blocks the lab.
@@ -165,8 +177,8 @@ rendering:
   approval stay fixed).
 - **Visibility**: RESTRICTED (default) — managers see everything, researchers
   see only projects they're involved in (owner, advisor, creator, blocker
-  owner, data-request requester/assignee, compute requester). OPEN shows
-  everything to everyone.
+  owner, data-request requester/assignee, compute requester, or listed on the
+  project's People lineup). OPEN shows everything to everyone.
 - **Accounts**: everyone has an /account page (change name/password, see
   their own fights). Managers reset passwords, rename, promote/demote from
   the People page. "Forgot password" emails a reset link when SMTP_* env vars

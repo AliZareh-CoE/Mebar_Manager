@@ -723,6 +723,166 @@ async function main() {
   );
   await lenaPage.close();
 
+  // 27c. v6 SWEEP — lineups, activation checkpoint, papers, underload,
+  // watcher toggle. Mutations are self-restoring (swap back, toggle back)
+  // or additive-once-per-seed (P8 lineup/paper — reseed wipes them).
+  await page.goto(BASE + "/");
+  const profFights = (await page.textContent("body"))!;
+  check("v6: missing-people fight section renders", profFights.includes("Missing PI / first author"));
+  check("v6: paperless fight section renders", profFights.includes("Projects without a paper"));
+  check("v6: underload fight section renders", profFights.includes("Underloaded researchers"));
+  check("v6: underload headline n/min format", /has \d+\/\d+ active projects/.test(profFights));
+  check("v6: manager sees other researchers' underload", /Omid Rahimi has \d+\/\d+/.test(profFights));
+
+  await engPage.goto(BASE + "/");
+  const saraFights = (await engPage.textContent("body"))!;
+  check("v6: engineer sees own underload item", /Sara Kim has \d+\/\d+ active projects/.test(saraFights));
+  check("v6: engineer never sees others' underload", !/Omid Rahimi has \d+\/\d+/.test(saraFights));
+  await engPage.goto(BASE + "/account");
+  check(
+    "v6: own underload item on account page",
+    /Sara Kim has \d+\/\d+ active projects/.test((await engPage.textContent("body"))!)
+  );
+
+  // Engineer owner sees no activation button at all (leadership-only).
+  const danV6 = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
+  await danV6.goto(BASE + "/login");
+  await danV6.fill("#email", "dan@lab.local");
+  await danV6.fill("#password", "mebar-demo");
+  await danV6.click("button[type=submit]");
+  await danV6.waitForURL(BASE + "/");
+  await danV6.goto(BASE + "/board?state=SCOPING");
+  await danV6.click("text=Terahertz waveguide mapper");
+  await danV6.waitForSelector("text=The Heilmeier questions");
+  check(
+    "v6: engineer owner has no Start button (leadership activates)",
+    (await danV6.locator("button:has-text('Start project')").count()) === 0
+  );
+  await danV6.close();
+
+  // Leadership hits the lineup gate, completes the lineup, then activates.
+  await page.goto(BASE + "/board?state=SCOPING");
+  await page.click("text=Terahertz waveguide mapper");
+  await page.waitForSelector("text=The Heilmeier questions");
+  check("v6: header shows missing-PI hint", (await page.textContent("body"))!.includes("no PI set"));
+  await page.click("button:has-text('Start project')");
+  await page.waitForSelector("text=needs a PI and a first author");
+  check("v6: activation blocked without lineup", true);
+  await page.keyboard.press("Escape");
+
+  await page.click("text=People (");
+  await page.click("button:has-text('Add person')");
+  await page.click("div[role=dialog] >> text=External person");
+  await page.fill("div[role=dialog] input[name=externalName]", "Dr. Elena Vasquez");
+  await page.fill("div[role=dialog] input[name=affiliation]", "External PI — UNAM");
+  await page.click("div[role=dialog] button[type=submit]");
+  await page.waitForSelector("tr:has-text('Dr. Elena Vasquez')");
+  await page.locator("tr", { hasText: "Dr. Elena Vasquez" }).locator("button:has-text('Make PI')").click();
+  await page.waitForTimeout(1200);
+  await page.click("button:has-text('Add person')");
+  await page.click("div[role=dialog] >> text=External person");
+  await page.fill("div[role=dialog] input[name=externalName]", "Tomas Berg");
+  await page.fill("div[role=dialog] input[name=affiliation]", "PhD student");
+  await page.click("div[role=dialog] button[type=submit]");
+  await page.waitForSelector("tr:has-text('Tomas Berg')");
+  await page
+    .locator("tr", { hasText: "Tomas Berg" })
+    .locator("button:has-text('Make first author')")
+    .click();
+  await page.waitForTimeout(1200);
+  check(
+    "v6: lineup complete clears the header hint",
+    !(await page.textContent("body"))!.includes("no PI set")
+  );
+  await page.click("button:has-text('Start project')");
+  await page.waitForTimeout(1500);
+  check(
+    "v6: activation succeeds once lineup is set",
+    (await page.textContent("body"))!.includes("Active")
+  );
+
+  // Papers: file a draft on P8, then submit it — header chip follows.
+  check("v6: paperless empty state", (await page.textContent("body"))!.includes("no paper yet"));
+  await page.click("text=Papers (");
+  await page.click("button:has-text('File paper')");
+  await page.fill("div[role=dialog] input[name=title]", "THz near-field mode atlas");
+  await page.fill("div[role=dialog] input[name=venue]", "APL Photonics");
+  await page.click("div[role=dialog] button[type=submit]");
+  await page.waitForSelector("tr:has-text('THz near-field mode atlas')");
+  check("v6: draft chip on header", (await page.textContent("body"))!.includes("Paper: Drafting"));
+  await page.locator("tr", { hasText: "THz near-field" }).locator("button:has-text('Submit…')").click();
+  await page.click("div[role=dialog] button:has-text('Mark submitted')");
+  await page.waitForTimeout(1200);
+  check(
+    "v6: submitted chip on header",
+    (await page.textContent("body"))!.includes("Paper: Submitted — APL Photonics")
+  );
+
+  // People swap semantics on P1: promoting Maya demotes prof to contributor;
+  // swap back to restore the seed lineup.
+  await page.goto(BASE + "/board");
+  await page.click("text=Cryo-stage vibration isolation");
+  await page.waitForSelector("text=The Heilmeier questions");
+  await page.click("text=People (");
+  await page.waitForSelector("tr:has-text('Maya Chen')");
+  await page.locator("tr", { hasText: "Maya Chen" }).locator("button:has-text('Make PI')").click();
+  await page.waitForTimeout(1200);
+  const swapped = (await page.textContent("body"))!;
+  check(
+    "v6: swap demotes, never ejects",
+    swapped.includes("Maya Chen") && swapped.includes("Prof. Mebar")
+  );
+  check(
+    "v6: previous PI is now a contributor",
+    (await page.locator("tr", { hasText: "Prof. Mebar" }).locator("button:has-text('Make PI')").count()) === 1
+  );
+  await page.locator("tr", { hasText: "Prof. Mebar" }).locator("button:has-text('Make PI')").click();
+  await page.waitForTimeout(1200);
+  check("v6: swap back restores the lineup", true);
+
+  // Watcher toggle round-trip on Maya (seeded notify=on).
+  await page.locator("tr", { hasText: "Maya Chen" }).getByRole("button", { name: "Toggle notifications" }).click();
+  await page.waitForSelector("text=Notifications off.");
+  await page.waitForTimeout(1200);
+  await page.locator("tr", { hasText: "Maya Chen" }).getByRole("button", { name: "Toggle notifications" }).click();
+  await page.waitForSelector("text=big project events");
+  check("v6: watcher toggle round-trips", true);
+
+  // Performance: paper metrics visible in omid's breakdown.
+  await page.goto(BASE + "/performance");
+  await page.click("text=Omid Rahimi");
+  await page.waitForTimeout(500);
+  const v6Perf = (await page.textContent("body"))!;
+  check("v6: papers-submitted metric in breakdown", v6Perf.includes("Papers submitted"));
+  check("v6: papers-accepted metric in breakdown", v6Perf.includes("Papers accepted"));
+
+  // Settings: the two new thresholds render; minActiveProjects 0 disables
+  // the underload rule (self-restoring: back to 5).
+  await page.goto(BASE + "/admin/settings/fights");
+  check("v6: paper grace input renders", (await page.textContent("body"))!.includes("Paper grace (days)"));
+  const v6Form = page.locator("form", { has: page.locator("input[name=minActiveProjects]") });
+  check(
+    "v6: min-active-projects input renders",
+    (await page.locator("input[name=minActiveProjects]").count()) === 1
+  );
+  await v6Form.locator("input[name=minActiveProjects]").fill("0");
+  await v6Form.locator("button[type=submit]").click();
+  await page.waitForTimeout(1500);
+  await page.goto(BASE + "/");
+  check(
+    "v6: minActiveProjects 0 silences the underload section",
+    !(await page.textContent("body"))!.includes("Underloaded researchers")
+  );
+  await page.goto(BASE + "/admin/settings/fights");
+  await v6Form.locator("input[name=minActiveProjects]").fill("5");
+  await v6Form.locator("button[type=submit]").click();
+  await page.waitForTimeout(1500);
+  await page.goto(BASE + "/");
+  check(
+    "v6: restoring the threshold brings the section back",
+    (await page.textContent("body"))!.includes("Underloaded researchers")
+  );
+
   // 28. Password change (dan) + manager reset (omid)
   const danPage = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
   await danPage.goto(BASE + "/login");
