@@ -343,8 +343,8 @@ export default async function GuidePage() {
         <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
           <p>
             <span className="font-medium text-foreground">Stagger the stages. </span>
-            Never run {t.minActiveProjects} projects at the same maturity: keep
-            1–2 being scoped, 2–3 in active experiments, and one in writing.
+            {`Never run ${t.minActiveProjects} projects at the same maturity: keep
+            1–2 being scoped, 2–3 in active experiments, and one in writing.`}
             Staggered projects queue behind each other&apos;s dead time —
             reviews, data deliveries, compute windows — instead of competing
             for the same afternoon.
