@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Flame } from "lucide-react";
+import { MebarMark } from "@/components/mebar-mark";
 import { smtpConfigured } from "@/lib/email";
 import { getSettings } from "@/lib/settings";
 import { ForgotPasswordForm } from "@/components/forms/forgot-password-form";
@@ -19,7 +19,7 @@ export default async function ForgotPasswordPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 p-6">
       <div className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-        <Flame className="size-7 text-red-500" />
+        <MebarMark className="size-7" />
         {settings.labName}
       </div>
       {smtpConfigured ? (

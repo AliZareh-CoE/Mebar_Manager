@@ -1,6 +1,6 @@
 import Link from "next/link";
+import { MebarMark } from "@/components/mebar-mark";
 import { redirect } from "next/navigation";
-import { Flame } from "lucide-react";
 import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { expireOverdueDecisions } from "@/lib/maintenance";
@@ -63,7 +63,7 @@ export default async function AppLayout({
             href="/"
             className="flex items-center gap-1.5 font-semibold tracking-tight"
           >
-            <Flame className="size-5 text-red-500" />
+            <MebarMark className="size-5" />
             {settings.labName}
           </Link>
           <NavLinks
