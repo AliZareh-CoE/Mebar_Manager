@@ -245,8 +245,9 @@ chmod +x backup.sh && crontab -e   # add: 15 3 * * * /opt/mebar-manager/deploy/b
 ```
 
 - **Backups**: `deploy/backup.sh` takes an online SQLite backup (safe with
-  WAL, zero downtime) into `/opt/mebar-backups`, rotating after 14 days. The
-  restore drill is documented in the script header — practice it once.
+  WAL, zero downtime) into `/opt/mebar-backups`, rotating after 14 days. Set
+  `BACKUP_REMOTE` in the cron environment to also push each dump off-site
+  (see below). Restore with `deploy/restore.sh` — **practice it monthly**.
 - **Updates**: `git pull && docker compose up -d --build` — that's the whole
   procedure. Schema migrations apply automatically on container start, and an
   automatic pre-migrate backup lands next to the DB on the volume (newest 5
@@ -256,6 +257,63 @@ chmod +x backup.sh && crontab -e   # add: 15 3 * * * /opt/mebar-manager/deploy/b
 - **Without Docker**: `npm ci && npm run build && npm run db:migrate &&
   BETTER_AUTH_SECRET=... npm start` behind any reverse proxy; the app is a
   single Node process + one SQLite file.
+
+### Off-site backups
+
+The nightly dump lives on the same VPS as the database — fine for fat-finger
+recovery, useless if the box dies. Point `BACKUP_REMOTE` at a second location and
+`backup.sh` pushes a byte-identical copy after every local dump. A push failure is
+logged but never fails the local backup.
+
+Put the variable on the cron line (or a wrapper script):
+
+    15 3 * * * BACKUP_REMOTE=s3:mebar-backups/nightly \
+      /opt/mebar-manager/deploy/backup.sh >> /var/log/mebar-backup.log 2>&1
+
+**Object storage / cloud (rclone, recommended).** Install rclone and configure a
+remote once:
+
+    apt install rclone      # or: curl https://rclone.org/install.sh | sudo bash
+    rclone config           # create a remote named e.g. "s3" (S3, B2, Storj, GDrive…)
+
+Then set `BACKUP_REMOTE=<remote>:<bucket>/<path>` (e.g. `s3:mebar-backups/nightly`).
+Optionally set `BACKUP_REMOTE_KEEP_DAYS=30` to prune old remote copies.
+
+**Second server (ssh/rsync).** Create a key-based login for the backup user and set
+`BACKUP_REMOTE=user@host:/srv/mebar-backups`:
+
+    ssh-keygen -t ed25519 -f ~/.ssh/mebar_backup -N ''
+    ssh-copy-id -i ~/.ssh/mebar_backup.pub user@host
+    # ensure the key is used non-interactively (cron has no agent), e.g. in ~/.ssh/config:
+    #   Host host
+    #     IdentityFile ~/.ssh/mebar_backup
+
+The tool is auto-detected (rclone remote → `rclone copy`; otherwise `rsync -az`, then
+`scp`). Force it with `BACKUP_REMOTE_METHOD=rclone|scp|rsync` if needed.
+
+### Restore drill
+
+Recovering is `deploy/restore.sh`. It lists the backups in `/opt/mebar-backups`
+newest-first, lets you pick one (gzipped copies are auto-decompressed), runs a quick
+integrity check, stops the app, swaps the file into the data volume (clearing the
+stale WAL so SQLite can't replay it), restarts, and verifies row counts:
+
+    chmod +x deploy/restore.sh
+    deploy/restore.sh                       # interactive pick from /opt/mebar-backups
+    deploy/restore.sh /tmp/mebar-2026….db   # or restore a copy pulled from off-site
+    deploy/restore.sh /tmp/mebar-….db.gz    # gzipped copies work too
+
+Before swapping, the script snapshots the **current** live database (WAL included)
+to `/opt/mebar-backups/pre-restore-<stamp>.db` — so restoring the wrong file is
+undoable: just run `restore.sh` again with the pre-restore snapshot.
+
+Restoring an off-site copy: fetch it first (`rclone copy s3:mebar-backups/nightly/<file> .`
+or `scp user@host:/srv/mebar-backups/<file> .`), then pass its path to `restore.sh`.
+
+**Test it monthly.** A backup you have never restored is not a backup. Run the drill
+on a throwaway copy of the box (or accept a few seconds of downtime and run it against
+production during a quiet window) at least once a month, and confirm you can log in
+and see today's data afterward.
 
 ### Schema changes (for developers)
 
