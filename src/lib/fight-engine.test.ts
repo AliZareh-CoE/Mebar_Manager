@@ -1056,7 +1056,7 @@ describe("UNDERLOADED_RESEARCHER", () => {
       severity: 2,
       projectId: null,
       entityId: alice.id,
-      headline: "Alice has 3/5 active projects",
+      headline: "Alice has 3/5 running projects",
       responsible: alice,
     });
   });
@@ -1087,7 +1087,29 @@ describe("UNDERLOADED_RESEARCHER", () => {
       researchers: [alice],
     });
     const items = computeFightList(s, NOW).filter((i) => i.type === "UNDERLOADED_RESEARCHER");
-    expect(items[0]?.headline).toBe("Alice has 1/5 active projects");
+    expect(items[0]?.headline).toBe("Alice has 1/5 running projects");
+  });
+
+  it("blocked projects don't count — countsForStall without resetsStallClock isn't running", () => {
+    const s = snap({
+      projects: [active("p1"), project({ id: "p2", title: "p2", state: "BLOCKED" })],
+      researchers: [alice],
+    });
+    const items = computeFightList(s, NOW).filter((i) => i.type === "UNDERLOADED_RESEARCHER");
+    expect(items[0]?.headline).toBe("Alice has 1/5 running projects");
+  });
+
+  it("stalled projects don't count — silence past stallDays drops them from the load", () => {
+    const stalled = project({
+      id: "p2",
+      title: "p2",
+      createdAt: subDays(NOW, 120),
+      lastUpdateAt: subDays(NOW, DEFAULT_THRESHOLDS.stallDays + 5),
+      lastActivatedAt: null,
+    });
+    const s = snap({ projects: [active("p1"), stalled], researchers: [alice] });
+    const items = computeFightList(s, NOW).filter((i) => i.type === "UNDERLOADED_RESEARCHER");
+    expect(items[0]?.headline).toBe("Alice has 1/5 running projects");
   });
 
   it("only supplied researchers are evaluated (persona scoping is the loader's job)", () => {

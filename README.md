@@ -30,7 +30,7 @@ The rules (thresholds in `src/lib/thresholds.ts`):
 | Compute results owed | approved request past its usage window without a results summary | requester |
 | Missing PI / first author | active project without a named PI and first author | owner |
 | Paperless project | active project **30 days** old with no paper on record | owner |
-| Underloaded researcher | owner/advisor of fewer than **5** active projects | the researcher |
+| Underloaded researcher | owner/advisor of fewer than **5** running projects (blocked, stalled, paused, or unstarted ones don't count) | the researcher |
 
 Other opinions built in:
 

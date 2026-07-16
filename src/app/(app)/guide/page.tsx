@@ -189,8 +189,11 @@ export default async function GuidePage() {
           <p>
             Lifecycle: Drafting → Submitted (venue required) → Accepted 🎉 /
             Rejected / Withdrawn. Rejected and withdrawn papers resubmit on the
-            same row — the reason stays on the record. Accepted is terminal.
-            That&apos;s the whole point.
+            same row — the reason stays on the record. And the ending is not
+            optional: <span className="font-medium text-foreground">a project
+            can only be marked Done once its paper is accepted</span> — the
+            only other exit is Kill, with a reason. Acceptance is the finish
+            line. That&apos;s the whole point.
           </p>
         </CardContent>
       </Card>
@@ -292,42 +295,6 @@ export default async function GuidePage() {
         </CardHeader>
       </Card>
 
-      {/* Roles */}
-      <Card id="roles">
-        <CardHeader>
-          <CardTitle>Who can do what</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2 text-sm text-muted-foreground">
-          <p>
-            <span className="font-medium text-foreground">Admin — </span>
-            one person owns the dangerous stuff: accounts, every settings tab,
-            feedback triage. Full leadership powers everywhere else.
-          </p>
-          <p>
-            <span className="font-medium text-foreground">Managers (coordinators) — </span>
-            activate, pause and kill projects; decide decisions; run
-            initiatives; confirm paper acceptances; move locked dates; see
-            everything and everyone, including the standings.
-          </p>
-          <p>
-            <span className="font-medium text-foreground">Researchers — </span>
-            file proposals, run their projects, raise blockers, request data
-            and compute, file papers. See their own involvement (and their own
-            fights and score).
-          </p>
-          <p>
-            <span className="font-medium text-foreground">Secretary — </span>
-            receives tasks with deadlines; sees only their own task list. The
-            same anti-stall rules apply.
-          </p>
-          <p>
-            <span className="font-medium text-foreground">Add-ons — </span>
-            data analysts deliver data requests; the one compute coordinator
-            decides all compute. Add-ons stack on any role — hats compose.
-          </p>
-        </CardContent>
-      </Card>
-
       {/* Playbook */}
       <Card id="playbook">
         <CardHeader>
@@ -335,19 +302,20 @@ export default async function GuidePage() {
             The playbook: running {t.minActiveProjects} projects at once (and winning)
           </CardTitle>
           <CardDescription>
-            The rules above are the whip. This is the technique — how good
-            researchers actually carry {t.minActiveProjects} active projects
-            without drowning.
+            {`The rules above are the whip. This is the technique — how good
+            researchers actually carry ${t.minActiveProjects} running projects
+            without drowning. And "running" is literal: a blocked, stalled, or
+            paused project drops out of your count until it moves again.`}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
           <p>
             <span className="font-medium text-foreground">Stagger the stages. </span>
             {`Never run ${t.minActiveProjects} projects at the same maturity: keep
-            1–2 being scoped, 2–3 in active experiments, and one in writing.`}
-            Staggered projects queue behind each other&apos;s dead time —
-            reviews, data deliveries, compute windows — instead of competing
-            for the same afternoon.
+            1–2 being scoped, 2–3 in active experiments, and one in writing.
+            Staggered projects queue behind each other's dead time — reviews,
+            data deliveries, compute windows — instead of competing for the
+            same afternoon.`}
           </p>
           <p>
             <span className="font-medium text-foreground">Block time, don&apos;t multitask. </span>

@@ -377,7 +377,10 @@ export function resolveStateDisplay(
 /** Per-state semantics in the shape the fight engine consumes. */
 export function engineStateFlags(
   wf: Workflow
-): Record<string, { frozen: boolean; countsForStall: boolean; paused: boolean }> {
+): Record<
+  string,
+  { frozen: boolean; countsForStall: boolean; paused: boolean; running: boolean }
+> {
   return Object.fromEntries(
     wf.states.map((s) => [
       s.key,
@@ -385,6 +388,9 @@ export function engineStateFlags(
         frozen: s.flags.terminal || s.flags.paused,
         countsForStall: s.flags.countsForStall,
         paused: s.flags.paused,
+        // The truly-running state (ACTIVE in stock): counts for stall AND
+        // resets the stall clock on entry. BLOCKED counts but doesn't run.
+        running: s.flags.countsForStall && s.flags.resetsStallClock,
       },
     ])
   );

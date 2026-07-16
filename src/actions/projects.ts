@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { projects, stateTransitions, projectPeople } from "@/lib/db/schema";
+import { projects, stateTransitions, projectPeople, papers } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { getPolicy, transitionGate } from "@/lib/policy-server";
@@ -155,6 +155,25 @@ export async function fireProjectEvent(
       const stateLabel = stateByKey(workflow, result.next)?.label ?? result.next;
       return {
         error: `Can't move to ${stateLabel}: this project needs ${missing.join(" and ")} first (People tab).`,
+      };
+    }
+  }
+
+  // Completion checkpoint: a project is finished when its paper is
+  // ACCEPTED — that's the whole point of the project. A non-destructive
+  // transition into a terminal state (Mark done) is blocked without one;
+  // Kill (destructive, with a reason) stays the only other exit.
+  const targetTerminal = stateByKey(workflow, result.next)?.flags.terminal ?? false;
+  if (targetTerminal && !result.transition.destructive) {
+    const accepted = await db
+      .select({ id: papers.id })
+      .from(papers)
+      .where(and(eq(papers.projectId, projectId), eq(papers.status, "ACCEPTED")))
+      .get();
+    if (!accepted) {
+      return {
+        error:
+          "A project is finished when its paper is accepted — no accepted paper, no Done. Keep fighting, or Kill it with a reason.",
       };
     }
   }

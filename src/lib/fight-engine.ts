@@ -192,6 +192,8 @@ export interface StateSemantics {
   countsForStall: boolean;
   /** The past-revive rule watches this state. */
   paused: boolean;
+  /** Counts for stall AND resets the clock on entry — ACTIVE, not BLOCKED. */
+  running?: boolean;
 }
 
 export interface FightConfig {
@@ -611,13 +613,18 @@ export function computeFightList(
     }
   }
 
-  // Underloaded researchers: everyone runs at least minActiveProjects
-  // (owner or advisor of a project in a counts-for-stall state; the same
-  // project counts once). Lab-level — no project link. 0 disables.
+  // Underloaded researchers: everyone runs at least minActiveProjects.
+  // Only HEALTHY, RUNNING projects count (owner or advisor; the same project
+  // counts once): blocked, stalled, paused, and not-yet-started ones don't —
+  // a portfolio of stuck work is not a portfolio. Lab-level. 0 disables.
   if (t.minActiveProjects > 0 && enabled("UNDERLOADED_RESEARCHER")) {
-    const activeProjects = snap.projects.filter((p) => flagsOf(p.state).countsForStall);
+    const runningProjects = snap.projects.filter((p) => {
+      const flags = flagsOf(p.state);
+      const running = flags.running ?? flags.countsForStall;
+      return running && projectAgeDays(p, now) <= t.stallDays;
+    });
     for (const r of snap.researchers ?? []) {
-      const count = activeProjects.filter(
+      const count = runningProjects.filter(
         (p) => p.owner.id === r.id || p.advisor.id === r.id
       ).length;
       if (count >= t.minActiveProjects) continue;
@@ -628,8 +635,9 @@ export function computeFightList(
         projectId: null,
         projectTitle: null,
         entityId: r.id,
-        headline: `${r.name} has ${count}/${t.minActiveProjects} active projects`,
-        detail: "Owner or advisor of a project in an active state counts. File a proposal.",
+        headline: `${r.name} has ${count}/${t.minActiveProjects} running projects`,
+        detail:
+          "Only healthy, moving projects count — blocked, stalled, paused, or unstarted ones don't. Unstick them or file a proposal.",
         responsible: r,
       });
     }

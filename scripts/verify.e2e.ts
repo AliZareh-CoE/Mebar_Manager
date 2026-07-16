@@ -755,17 +755,17 @@ async function main() {
   check("v6: missing-people fight section renders", profFights.includes("Missing PI / first author"));
   check("v6: paperless fight section renders", profFights.includes("Projects without a paper"));
   check("v6: underload fight section renders", profFights.includes("Underloaded researchers"));
-  check("v6: underload headline n/min format", /has \d+\/\d+ active projects/.test(profFights));
+  check("v6: underload headline n/min format", /has \d+\/\d+ running projects/.test(profFights));
   check("v6: manager sees other researchers' underload", /Omid Rahimi has \d+\/\d+/.test(profFights));
 
   await engPage.goto(BASE + "/");
   const saraFights = (await engPage.textContent("body"))!;
-  check("v6: engineer sees own underload item", /Sara Kim has \d+\/\d+ active projects/.test(saraFights));
+  check("v6: engineer sees own underload item", /Sara Kim has \d+\/\d+ running projects/.test(saraFights));
   check("v6: engineer never sees others' underload", !/Omid Rahimi has \d+\/\d+/.test(saraFights));
   await engPage.goto(BASE + "/account");
   check(
     "v6: own underload item on account page",
-    /Sara Kim has \d+\/\d+ active projects/.test((await engPage.textContent("body"))!)
+    /Sara Kim has \d+\/\d+ running projects/.test((await engPage.textContent("body"))!)
   );
 
   // Engineer owner sees no activation button at all (leadership-only).
@@ -953,6 +953,11 @@ async function main() {
     "lock: admin keeps the acceptance button",
     (await page.locator("button:has-text('Accepted 🎉')").count()) === 1
   );
+  // Completion gate: P1's paper is SUBMITTED, not accepted — Done is blocked
+  // for everyone, admin included. State must stay Active.
+  await page.click("button:has-text('Mark done')");
+  await page.waitForSelector("text=no accepted paper, no Done");
+  check("lock: Done is blocked until the paper is accepted", true);
 
   // 27f. GUIDE + INFO HINTS — every mechanism explains itself, with the
   // lab's LIVE numbers. Threshold change is self-restoring.

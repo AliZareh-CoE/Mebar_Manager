@@ -138,16 +138,16 @@ export const FIGHT_TYPE_HELP: Record<FightType, (ctx: HelpContext) => FightRuleH
       "Settle authorship at the START — it's a 2-minute conversation at activation and a feud after submission. The lineup locks once active precisely so nobody relitigates it later.",
   }),
   PAPERLESS_PROJECT: ({ thresholds: t, performance: p }) => ({
-    what: `An active project ${t.paperGraceDays}+ days old with no paper on record. Every project must lead to a Q1 paper.`,
+    what: `The early warning: a project only finishes when its paper is ACCEPTED (Done is blocked without one), and this project has been active ${t.paperGraceDays}+ days with not even a draft filed.`,
     who: "The project owner.",
-    clear: "File a paper on the Papers tab — a draft counts.",
+    clear: "File the paper on the Papers tab — a draft clears this and starts the real fight.",
     advice: `Pick your top 3 target journals BEFORE writing (best fit → strong alternative → reliable fallback) and write to Target 1's format from day one. Draft the methods section while the experiments run. Filing the draft early also banks the ${p.weights.paperSubmitted}-point submission the moment it's ready.`,
   }),
   UNDERLOADED_RESEARCHER: ({ thresholds: t }) => ({
-    what: `A researcher who is owner or advisor of fewer than ${t.minActiveProjects} active projects.`,
+    what: `A researcher who is owner or advisor of fewer than ${t.minActiveProjects} running projects. Only healthy, moving projects count — blocked, stalled, paused, or not-yet-started ones don't.`,
     who: "The researcher.",
-    clear: "File a proposal and get it activated — the count updates the moment it goes active.",
-    advice: `Running ${t.minActiveProjects} projects is a portfolio, not a juggling act: stagger the stages — 1–2 being scoped, 2–3 in active work, 1 in writing — so they queue behind each other's dead time (reviews, deliveries, compute windows) instead of competing for the same afternoon. Give each project its own time block and never multitask inside one. And keep a proposal in the pipeline: activation goes through leadership, so file the next one BEFORE you're under the bar.`,
+    clear: "Unstick what's blocked or stalled, or file a proposal and get it activated — the count updates the moment a project is running again.",
+    advice: `Running ${t.minActiveProjects} projects is a portfolio, not a juggling act: stagger the stages — 1–2 being scoped, 2–3 in active work, 1 in writing — so they queue behind each other's dead time (reviews, deliveries, compute windows) instead of competing for the same afternoon. Give each project its own time block and never multitask inside one. And keep a proposal in the pipeline: activation goes through leadership, so file the next one BEFORE you're under the bar — a blocked or stalled project silently drops out of your count, so unsticking one is as good as starting one.`,
   }),
 };
 
@@ -192,7 +192,7 @@ export const MECHANISM_HELP: Record<MechanismId, (ctx: HelpContext) => HelpCopy>
     title: "Moving a project",
     body: [
       "Researchers file and work projects; only leadership activates them — and never without a PI and first author on the People tab.",
-      `Pausing needs a reason and a revive date (drifting into standby is not a thing here). Killing is leadership-only, with the reason on the record — a respectable outcome, not a shame. Anything active goes stale after ${t.stallDays} silent days.`,
+      `Pausing needs a reason and a revive date (drifting into standby is not a thing here). A project has exactly two endings: Done — blocked until its paper is ACCEPTED — or Kill (leadership-only, reason on the record; a respectable outcome, not a shame). Anything active goes stale after ${t.stallDays} silent days.`,
     ],
   }),
   lineupLock: () => ({
@@ -226,7 +226,7 @@ export const MECHANISM_HELP: Record<MechanismId, (ctx: HelpContext) => HelpCopy>
   papers: ({ thresholds: t, performance: p }) => ({
     title: "The paper track",
     body: [
-      `Every project must lead to a Q1 paper — “no paper” after ${t.paperGraceDays} days active is a fight. A draft counts.`,
+      `A project only finishes when its paper is ACCEPTED — “Mark done” is blocked without one, and “no paper” after ${t.paperGraceDays} active days is already a fight. A draft counts for the fight; only acceptance finishes the project.`,
       `Submitting earns the owner ${p.weights.paperSubmitted} points; an acceptance earns ${p.weights.paperAccepted}, once a coordinator confirms it — the biggest prize needs a second pair of eyes. Rejections resubmit on the same row, reasons on the record.`,
       "Win: pick 3 target journals before writing (best fit → alternative → reliable fallback), write to Target 1's format, and draft methods while the experiments run.",
     ],

@@ -123,7 +123,7 @@ export const DEFAULT_FIGHT_SECTIONS: Record<FightType, FightRuleConfig> = {
     enabled: true,
     title: "Underloaded researchers",
     blurb:
-      "Everyone runs at least the minimum of active projects. Fewer means a proposal needs filing.",
+      "Everyone runs at least the minimum of running projects — blocked, stalled, or unstarted ones don't count. Fewer means something needs unsticking or a proposal needs filing.",
   },
 };
 
