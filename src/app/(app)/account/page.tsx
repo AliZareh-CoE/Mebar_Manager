@@ -6,6 +6,8 @@ import { loadLabSnapshot } from "@/lib/fight-data";
 import { computeFightList } from "@/lib/fight-engine";
 import { activationStateKeys, engineStateFlags } from "@/lib/workflow";
 import { isLabLeadership } from "@/lib/policy";
+import { fightTypeHelpCopy, MECHANISM_HELP, type HelpContext } from "@/lib/help-copy";
+import { InfoHint } from "@/components/info-hint";
 import { loadPerformanceInput } from "@/lib/performance-data";
 import { computeScores } from "@/lib/performance";
 import { MetricBreakdown } from "@/components/metric-breakdown";
@@ -100,7 +102,14 @@ export default async function AccountPage() {
             </p>
           </div>
           {myFights.map((item) => (
-            <FightItemCard key={`${item.type}-${item.entityId}`} item={item} />
+            <FightItemCard
+              key={`${item.type}-${item.entityId}`}
+              item={item}
+              help={fightTypeHelpCopy(item.type, {
+                thresholds: settings.thresholds,
+                performance: settings.performance,
+              })}
+            />
           ))}
         </div>
       )}
@@ -108,9 +117,16 @@ export default async function AccountPage() {
       {myScore && (
         <Card>
           <CardHeader>
-            <CardTitle>
+            <CardTitle className="flex items-center gap-2">
               Your score (last {settings.performance.windowDays} days):{" "}
               <span className="tabular-nums">{myScore.total}</span>
+              <InfoHint
+                {...MECHANISM_HELP.accountScore({
+                  thresholds: settings.thresholds,
+                  performance: settings.performance,
+                } satisfies HelpContext)}
+                href="/guide#scoring"
+              />
             </CardTitle>
             <CardDescription>
               Computed from the record — delivery, discipline, and

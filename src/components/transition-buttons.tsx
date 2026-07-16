@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint, type HelpCopy } from "@/components/info-hint";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -20,10 +21,13 @@ import { Textarea } from "@/components/ui/textarea";
 export function TransitionButtons({
   projectId,
   transitions,
+  help,
 }: {
   projectId: string;
   /** Computed server-side from the workflow + policy gates. */
   transitions: TransitionDescriptor[];
+  /** How moving a project works, from the help-copy catalog. */
+  help?: HelpCopy;
 }) {
   const router = useRouter();
   const [dialogFor, setDialogFor] = useState<TransitionDescriptor | null>(null);
@@ -63,6 +67,7 @@ export function TransitionButtons({
           {pending === t.key ? "Working…" : t.label}
         </Button>
       ))}
+      {help && <InfoHint {...help} />}
 
       <Dialog
         open={dialogFor !== null}

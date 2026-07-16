@@ -954,6 +954,73 @@ async function main() {
     (await page.locator("button:has-text('Accepted 🎉')").count()) === 1
   );
 
+  // 27f. GUIDE + INFO HINTS — every mechanism explains itself, with the
+  // lab's LIVE numbers. Threshold change is self-restoring.
+  await page.goto(BASE + "/");
+  check(
+    "guide: nav link for admin",
+    ((await page.locator("nav").first().textContent()) ?? "").includes("Guide")
+  );
+  await page.goto(BASE + "/guide");
+  const guideBody = (await page.textContent("body"))!;
+  for (const section of ["The Fight List", "Scoring", "The project lifecycle", "How to win"]) {
+    check(`guide: renders "${section}"`, guideBody.includes(section));
+  }
+  check("guide: playbook coaching present", guideBody.includes("Stagger the stages"));
+  check("guide: further reading present", guideBody.includes("You and Your Research"));
+
+  // Live numbers: the guide reflects the CURRENT stallDays, and follows a change.
+  await page.goto(BASE + "/admin/settings/fights");
+  const stallInput = page.locator("input[name=stallDays]");
+  const stallBefore = await stallInput.inputValue();
+  check(
+    "guide: shows the live stall threshold",
+    guideBody.includes(`${stallBefore} days`)
+  );
+  const thresholdsForm = page.locator("form", { has: page.locator("input[name=stallDays]") });
+  await thresholdsForm.locator("input[name=stallDays]").fill("43");
+  await thresholdsForm.locator("button[type=submit]").click();
+  await page.waitForTimeout(1500);
+  await page.goto(BASE + "/guide");
+  check(
+    "guide: follows a threshold change instantly",
+    (await page.textContent("body"))!.includes("43 days")
+  );
+  await page.goto(BASE + "/admin/settings/fights");
+  await thresholdsForm.locator("input[name=stallDays]").fill(stallBefore);
+  await thresholdsForm.locator("button[type=submit]").click();
+  await page.waitForTimeout(1500);
+
+  // Everyone gets the guide — engineer and secretary included.
+  check(
+    "guide: engineer nav has Guide",
+    ((await engPage.locator("nav").first().textContent()) ?? "").includes("Guide")
+  );
+  await engPage.goto(BASE + "/guide");
+  check("guide: engineer can read it", (await engPage.textContent("body"))!.includes("Scoring"));
+  check(
+    "guide: secretary nav has Guide",
+    ((await secPage.locator("nav").first().textContent()) ?? "").includes("Guide")
+  );
+  await secPage.goto(BASE + "/guide");
+  check("guide: secretary can read it", (await secPage.textContent("body"))!.includes("Scoring"));
+
+  // Info hints: fight cards carry them; clicking one opens the explanation.
+  await page.goto(BASE + "/");
+  const hintCount = await page.locator("[data-slot=info-hint-trigger]").count();
+  check("hints: fight cards have info hints", hintCount > 0, `${hintCount} triggers`);
+  await page.locator("[data-slot=info-hint-trigger]").first().click();
+  await page.waitForSelector("text=Why is this here?");
+  check("hints: clicking opens the why/clear/win explanation", true);
+  await page.keyboard.press("Escape");
+  await page.goto(BASE + "/board");
+  await page.click("text=Cryo-stage vibration isolation");
+  await page.waitForSelector("text=The Heilmeier questions");
+  check(
+    "hints: project page carries info hints",
+    (await page.locator("[data-slot=info-hint-trigger]").count()) > 0
+  );
+
   // 28. Password change (dan) + manager reset (omid)
   const danPage = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
   await danPage.goto(BASE + "/login");

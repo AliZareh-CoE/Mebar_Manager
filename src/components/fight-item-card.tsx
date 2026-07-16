@@ -1,13 +1,17 @@
 import Link from "next/link";
 import { Initials } from "@/components/initials";
+import { InfoHint, type HelpCopy } from "@/components/info-hint";
 import { cn } from "@/lib/utils";
 import type { FightItem } from "@/lib/fight-engine";
 
 export function FightItemCard({
   item,
+  help,
   children,
 }: {
   item: FightItem;
+  /** Rule explanation + how to win, from the help-copy catalog. */
+  help?: HelpCopy;
   children?: React.ReactNode;
 }) {
   return (
@@ -26,6 +30,7 @@ export function FightItemCard({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-medium">{item.headline}</p>
+          {help && <InfoHint {...help} />}
           <span
             className={cn(
               "rounded-full px-2 py-0.5 text-xs font-medium tabular-nums",

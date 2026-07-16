@@ -1,3 +1,5 @@
+import { MECHANISM_HELP, type HelpContext } from "@/lib/help-copy";
+import { InfoHint } from "@/components/info-hint";
 import { redirect } from "next/navigation";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -53,7 +55,15 @@ export default async function ComputePage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Compute</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+          Compute
+          <InfoHint
+            {...MECHANISM_HELP.computeBar({
+              thresholds: settings.thresholds,
+              performance: settings.performance,
+            } satisfies HelpContext)}
+          />
+        </h1>
         <p className="text-sm text-muted-foreground">
           {coordinator ? (
             <>

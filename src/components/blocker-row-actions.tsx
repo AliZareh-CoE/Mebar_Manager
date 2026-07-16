@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint, type HelpCopy } from "@/components/info-hint";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -33,11 +34,14 @@ export function BlockerRowActions({
   ownerId,
   people,
   edit,
+  escalateHelp,
 }: {
   blockerId: string;
   status: BlockerStatus;
   ownerId: string | null;
   people: { id: string; name: string }[];
+  /** What Escalate does, from the help-copy catalog (server-provided). */
+  escalateHelp?: HelpCopy;
   /** Current values — enables the Edit/Cancel dialogs where provided. */
   edit?: {
     description: string;
@@ -91,14 +95,17 @@ export function BlockerRowActions({
       </Select>
 
       {status === "OPEN" && (
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={pending}
-          onClick={() => run(() => escalateBlocker(blockerId), "Escalated.")}
-        >
-          Escalate
-        </Button>
+        <span className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={pending}
+            onClick={() => run(() => escalateBlocker(blockerId), "Escalated.")}
+          >
+            Escalate
+          </Button>
+          {escalateHelp && <InfoHint {...escalateHelp} />}
+        </span>
       )}
 
       <Dialog open={resolveOpen} onOpenChange={setResolveOpen} disablePointerDismissal>

@@ -91,6 +91,13 @@ People page:
 Everyone gets the **feedback button** in the header (bug reports / feature
 ideas, with your name attached); the admin triages them at `/admin/feedback`.
 
+**No hidden rules**: every mechanism explains itself. Small (?) info hints
+sit next to every non-obvious button and column (hover on desktop, tap on
+phones), and the **Guide** page (`/guide`, in everyone's nav) is the full
+manual — all fight rules, the lifecycle, scoring weights, and a playbook of
+how-to-win advice — interpolated with the lab's *live* configured numbers,
+so it can never go stale.
+
 - **Data analyst** (add-on, any engineer): researchers file **data requests**
   on their projects; the assigned analyst (or a self-claiming one) is
   responsible for delivering. Data requests obey all anti-stall rules.

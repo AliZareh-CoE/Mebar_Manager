@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { getPolicy, transitionGate } from "@/lib/policy-server";
 import { isLabLeadership, isManagerOrAbove } from "@/lib/policy";
+import { fightTypeHelpCopy, type HelpContext } from "@/lib/help-copy";
 import { visibleProjectIds, visibleTaskIds } from "@/lib/visibility";
 import {
   activationStateKeys,
@@ -103,6 +104,10 @@ export default async function FightListPage() {
     enabledRules,
   });
   const pareto = computeParetoData(causes);
+  const helpCtx: HelpContext = {
+    thresholds: settings.thresholds,
+    performance: settings.performance,
+  };
   const projectStateById = new Map(snapshot.projects.map((p) => [p.id, p.state]));
   const blockerById = new Map(snapshot.openBlockers.map((b) => [b.id, b]));
   const milestoneById = new Map(snapshot.openMilestones.map((m) => [m.id, m]));
@@ -338,7 +343,11 @@ export default async function FightListPage() {
                 <p className="text-xs text-muted-foreground">{section.blurb}</p>
               </div>
               {sectionItems.map((item) => (
-                <FightItemCard key={`${item.type}-${item.entityId}`} item={item}>
+                <FightItemCard
+                  key={`${item.type}-${item.entityId}`}
+                  item={item}
+                  help={fightTypeHelpCopy(item.type, helpCtx)}
+                >
                   {actionFor(item)}
                 </FightItemCard>
               ))}

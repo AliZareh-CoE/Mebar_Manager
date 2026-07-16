@@ -1,3 +1,5 @@
+import { MECHANISM_HELP, type HelpContext } from "@/lib/help-copy";
+import { InfoHint } from "@/components/info-hint";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
@@ -34,6 +36,10 @@ export default async function PerformancePage() {
     },
     now
   );
+  const helpCtx: HelpContext = {
+    thresholds: settings.thresholds,
+    performance: settings.performance,
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -48,7 +54,9 @@ export default async function PerformancePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Standings</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            Standings <InfoHint {...MECHANISM_HELP.perfTotal(helpCtx)} href="/guide#scoring" />
+          </CardTitle>
           <CardDescription>
             Delivery (closing things) + Discipline (weekly rhythm minus what
             rots on you) + Initiative-taking (starting fights).
@@ -58,9 +66,15 @@ export default async function PerformancePage() {
           <div className="grid grid-cols-[2rem_1fr_repeat(4,4.5rem)] items-center gap-2 border-b pb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             <span>#</span>
             <span>Person</span>
-            <span className="text-right">Delivery</span>
-            <span className="text-right">Discipline</span>
-            <span className="text-right">Initiative</span>
+            <span className="flex items-center justify-end gap-1 text-right">
+              Delivery <InfoHint {...MECHANISM_HELP.perfDelivery(helpCtx)} />
+            </span>
+            <span className="flex items-center justify-end gap-1 text-right">
+              Discipline <InfoHint {...MECHANISM_HELP.perfDiscipline(helpCtx)} />
+            </span>
+            <span className="flex items-center justify-end gap-1 text-right">
+              Initiative <InfoHint {...MECHANISM_HELP.perfInitiative(helpCtx)} />
+            </span>
             <span className="text-right">Total</span>
           </div>
           {scores.map((s, index) => (

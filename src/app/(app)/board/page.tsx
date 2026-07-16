@@ -1,3 +1,5 @@
+import { MECHANISM_HELP, type HelpContext } from "@/lib/help-copy";
+import { InfoHint } from "@/components/info-hint";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { desc, asc, ne } from "drizzle-orm";
@@ -88,8 +90,14 @@ export default async function BoardPage({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Board</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
             Every project, colored by how long since it moved.
+            <InfoHint
+              {...MECHANISM_HELP.agePill({
+                thresholds: settings.thresholds,
+                performance: settings.performance,
+              } satisfies HelpContext)}
+            />
           </p>
         </div>
         <div className="flex items-center gap-2">

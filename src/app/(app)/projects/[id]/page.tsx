@@ -12,6 +12,8 @@ import {
 } from "@/lib/workflow";
 import { getPolicy, transitionGate } from "@/lib/policy-server";
 import { isLabLeadership, isManagerOrAbove } from "@/lib/policy";
+import { MECHANISM_HELP, type HelpContext } from "@/lib/help-copy";
+import { InfoHint } from "@/components/info-hint";
 import { visibleProjectIds, isVisible } from "@/lib/visibility";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
@@ -167,6 +169,13 @@ export default async function ProjectPage({
   const projectActivated =
     (stateFlags?.countsForStall || stateFlags?.paused || stateFlags?.terminal) ?? true;
   const rolesLocked = projectActivated && !isManagerOrAbove(me);
+  const helpCtx: HelpContext = {
+    thresholds: settings.thresholds,
+    performance: settings.performance,
+  };
+  const hint = (id: keyof typeof MECHANISM_HELP) => (
+    <InfoHint {...MECHANISM_HELP[id](helpCtx)} />
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -176,11 +185,14 @@ export default async function ProjectPage({
           <h1 className="text-2xl font-semibold tracking-tight">{project.title}</h1>
           <StateBadge label={stateDisplay.label} color={stateDisplay.color} />
           {stateFlags?.countsForStall && (
-            <AgePill
-              ageDays={ageDays}
-              freshDays={settings.thresholds.ageFreshDays}
-              agingDays={settings.thresholds.ageAgingDays}
-            />
+            <>
+              <AgePill
+                ageDays={ageDays}
+                freshDays={settings.thresholds.ageFreshDays}
+                agingDays={settings.thresholds.ageAgingDays}
+              />
+              {hint("agePill")}
+            </>
           )}
         </div>
         {project.description && (
@@ -246,6 +258,7 @@ export default async function ProjectPage({
             transitionGate(me, policy),
             isLabLeadership(me)
           )}
+          help={MECHANISM_HELP.transitions(helpCtx)}
         />
       </div>
 
@@ -435,7 +448,9 @@ export default async function ProjectPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>Blocker</TableHead>
-                  <TableHead>Cause</TableHead>
+                  <TableHead>
+                    <span className="flex items-center gap-1">Cause {hint("paretoCause")}</span>
+                  </TableHead>
                   <TableHead>Deadline</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -481,6 +496,7 @@ export default async function ProjectPage({
                     </TableCell>
                     <TableCell>
                       <BlockerRowActions
+                        escalateHelp={MECHANISM_HELP.escalate(helpCtx)}
                         blockerId={b.id}
                         status={b.status}
                         ownerId={b.ownerId}
@@ -504,6 +520,9 @@ export default async function ProjectPage({
 
         {/* Decisions */}
         <TabsContent value="decisions" className="flex flex-col gap-4 pt-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            How decisions work {hint("autoProceed")}
+          </div>
           <FormDialog
             trigger={<Button className="self-start">Request decision</Button>}
             title="Request a decision"
@@ -667,7 +686,9 @@ export default async function ProjectPage({
                 <TableRow>
                   <TableHead>Milestone</TableHead>
                   <TableHead>Deliverable</TableHead>
-                  <TableHead>Due</TableHead>
+                  <TableHead>
+                    <span className="flex items-center gap-1">Due {hint("dateLock")}</span>
+                  </TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -901,6 +922,9 @@ export default async function ProjectPage({
 
         {/* People */}
         <TabsContent value="people" className="flex flex-col gap-4 pt-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            How the lineup works {hint("lineupLock")}
+          </div>
           <FormDialog
             trigger={<Button className="self-start">Add person</Button>}
             title="Add someone to this project"
@@ -979,6 +1003,9 @@ export default async function ProjectPage({
 
         {/* Papers */}
         <TabsContent value="papers" className="flex flex-col gap-4 pt-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            How the paper track works {hint("papers")}
+          </div>
           <FormDialog
             trigger={<Button className="self-start">File paper</Button>}
             title="File a paper"
