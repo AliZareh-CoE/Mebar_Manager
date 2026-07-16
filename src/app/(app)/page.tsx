@@ -276,6 +276,13 @@ export default async function FightListPage() {
             File a paper
           </Button>
         );
+      case "SUBMISSION_TARGET_AT_RISK":
+        if (!item.projectId) return null;
+        return (
+          <Button variant="outline" size="sm" render={<Link href={`/projects/${item.projectId}`} />}>
+            Open the draft
+          </Button>
+        );
       case "UNDERLOADED_RESEARCHER":
         return (
           <Button variant="outline" size="sm" render={<Link href="/projects/new" />}>

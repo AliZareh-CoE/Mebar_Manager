@@ -861,6 +861,48 @@ async function main() {
   check("v7: researcher cannot move the submission target", true);
   await engPage.keyboard.press("Escape");
 
+  // v7: the benign path — a researcher saving a TITLE-ONLY edit must not
+  // trip the lock or wipe the untouched target (the dialog resubmits all
+  // fields, so an unchanged date input must read as "no change").
+  await saraDraftRow.locator("button:has-text('Edit')").click();
+  await engPage.waitForSelector("input[name=targetSubmissionAt]");
+  const titleInput = engPage.locator("input[name=title]");
+  await titleInput.fill("Sub-hertz drift compensation for cryogenic stages (rev)");
+  await engPage.click("button:has-text('Save')");
+  await engPage.waitForSelector("text=Sub-hertz drift compensation for cryogenic stages (rev)");
+  const rowAfterRename = (await engPage
+    .locator("tr", { hasText: "Sub-hertz drift compensation" })
+    .textContent())!;
+  check("v7: researcher title-only edit keeps the target date", rowAfterRename.includes("Target:"));
+  // Restore the title (still a researcher edit — target untouched again).
+  const renamedRow = engPage.locator("tr", { hasText: "Sub-hertz drift compensation" });
+  await renamedRow.locator("button:has-text('Edit')").click();
+  await engPage.waitForSelector("input[name=title]");
+  await engPage.locator("input[name=title]").fill("Sub-hertz drift compensation for cryogenic stages");
+  await engPage.click("button:has-text('Save')");
+  await engPage.waitForTimeout(800);
+
+  // v7: the escape hatch — a coordinator CAN move the target (then restores
+  // it, so the check is self-healing and the at-risk fight stays seeded).
+  await page.goto(BASE + "/board");
+  await page.click("text=Cryo-stage vibration isolation");
+  await page.click("text=Papers (");
+  await page.waitForSelector("text=Sub-hertz drift compensation");
+  const profDraftRow = page.locator("tr", { hasText: "Sub-hertz drift compensation" });
+  await profDraftRow.locator("button:has-text('Edit')").click();
+  await page.waitForSelector("input[name=targetSubmissionAt]");
+  const originalTarget = await page.locator("input[name=targetSubmissionAt]").inputValue();
+  await page.fill("input[name=targetSubmissionAt]", "2027-03-15");
+  await page.click("button:has-text('Save')");
+  await page.waitForSelector("text=Target: Mar 15, 2027");
+  check("v7: coordinator can move the submission target", true);
+  await profDraftRow.locator("button:has-text('Edit')").click();
+  await page.waitForSelector("input[name=targetSubmissionAt]");
+  await page.fill("input[name=targetSubmissionAt]", originalTarget);
+  await page.click("button:has-text('Save')");
+  await page.waitForSelector("text=— at risk");
+  check("v7: target restored after the escape-hatch check", true);
+
   // v7: resubmit pre-fills the next unused shortlist venue (P2's REJECTED
   // paper venue is shortlist[0] "Optica" → prefill "Optics Letters").
   await page.goto(BASE + "/board");

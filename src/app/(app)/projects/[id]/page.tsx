@@ -165,13 +165,23 @@ export default async function ProjectPage({
   const ROLE_LABEL = { PI: "PI", FIRST_AUTHOR: "First author", CONTRIBUTOR: "Contributor" } as const;
   const latestPaper = project.papers[0];
   // A DRAFTING paper whose target submission date is inside the lead window
-  // (or past) renders red — the same condition the fight engine uses.
+  // (or past) renders red — the same condition the fight engine uses,
+  // INCLUDING the frozen guard: paused/finished projects freeze their
+  // deadlines, so the row must not contradict the (silent) Fight List.
   const leadDays = settings.thresholds.submissionLeadDays;
+  const projectFrozen = (stateFlags?.paused || stateFlags?.terminal) ?? false;
   const paperAtRisk = (p: (typeof project.papers)[number]) =>
+    !projectFrozen &&
     p.status === "DRAFTING" &&
     !!p.targetSubmissionAt &&
     leadDays > 0 &&
     differenceInDays(p.targetSubmissionAt, new Date()) <= leadDays;
+  // Targets are stored as UTC midnights (the date input's "YYYY-MM-DD" via
+  // z.coerce.date). Rendering with local-TZ format() would show the previous
+  // day on servers behind UTC — format the UTC date parts instead, matching
+  // the edit dialog's toISOString prefill and the sameDay lock.
+  const formatTargetDate = (d: Date) =>
+    format(new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()), "MMM d, yyyy");
   // Scoring-input locks: once the project has left the drafting phase, only
   // manager rank may change PI/first author or confirm an acceptance.
   const projectActivated =
@@ -1100,7 +1110,7 @@ export default async function ProjectPage({
                               : "mt-0.5 text-xs text-muted-foreground"
                           }
                         >
-                          {`Target: ${format(paper.targetSubmissionAt, "MMM d, yyyy")}`}
+                          {`Target: ${formatTargetDate(paper.targetSubmissionAt)}`}
                           {paperAtRisk(paper) ? " — at risk" : ""}
                         </div>
                       )}
