@@ -55,17 +55,21 @@ export default async function AccountPage() {
     }
   ).filter((item) => item.responsible?.id === me.id);
 
+  // The pointing system is leadership-only — researchers never see scores,
+  // so theirs isn't even computed.
   const now = new Date();
-  const myScore = computeScores(
-    await loadPerformanceInput(settings, now),
-    {
-      weights: settings.performance.weights,
-      windowDays: settings.performance.windowDays,
-      updatesCapPerProjectPerWeek: settings.performance.updatesCapPerProjectPerWeek,
-      decisionTimeoutHours: settings.thresholds.decisionTimeoutHours,
-    },
-    now
-  ).find((s) => s.person.id === me.id);
+  const myScore = isLabLeadership(me)
+    ? computeScores(
+        await loadPerformanceInput(settings, now),
+        {
+          weights: settings.performance.weights,
+          windowDays: settings.performance.windowDays,
+          updatesCapPerProjectPerWeek: settings.performance.updatesCapPerProjectPerWeek,
+          decisionTimeoutHours: settings.thresholds.decisionTimeoutHours,
+        },
+        now
+      ).find((s) => s.person.id === me.id)
+    : undefined;
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
@@ -78,7 +82,7 @@ export default async function AccountPage() {
               ? "Manager"
               : me.role === "SECRETARY"
                 ? "Secretary"
-                : "Engineer"}
+                : "Researcher"}
         </Badge>
         {me.isDataAnalyst && (
           <Badge variant="outline" className="text-blue-600 dark:text-blue-400">
@@ -108,6 +112,7 @@ export default async function AccountPage() {
               help={fightTypeHelpCopy(item.type, {
                 thresholds: settings.thresholds,
                 performance: settings.performance,
+                viewerSeesScores: isLabLeadership(me),
               })}
             />
           ))}
@@ -124,6 +129,7 @@ export default async function AccountPage() {
                 {...MECHANISM_HELP.accountScore({
                   thresholds: settings.thresholds,
                   performance: settings.performance,
+                  viewerSeesScores: true, // card renders only for leadership
                 } satisfies HelpContext)}
                 href="/guide#scoring"
               />

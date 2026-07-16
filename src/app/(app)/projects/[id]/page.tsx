@@ -172,6 +172,7 @@ export default async function ProjectPage({
   const helpCtx: HelpContext = {
     thresholds: settings.thresholds,
     performance: settings.performance,
+    viewerSeesScores: isLabLeadership(me),
   };
   const hint = (id: keyof typeof MECHANISM_HELP) => (
     <InfoHint {...MECHANISM_HELP[id](helpCtx)} />

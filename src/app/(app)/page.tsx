@@ -107,6 +107,7 @@ export default async function FightListPage() {
   const helpCtx: HelpContext = {
     thresholds: settings.thresholds,
     performance: settings.performance,
+    viewerSeesScores: isLabLeadership(me),
   };
   const projectStateById = new Map(snapshot.projects.map((p) => [p.id, p.state]));
   const blockerById = new Map(snapshot.openBlockers.map((b) => [b.id, b]));

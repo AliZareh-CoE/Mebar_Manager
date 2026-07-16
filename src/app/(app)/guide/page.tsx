@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
+import { isLabLeadership } from "@/lib/policy";
 import { FIGHT_TYPE_HELP, MECHANISM_HELP, type HelpContext } from "@/lib/help-copy";
 import {
   PERFORMANCE_METRICS,
@@ -40,9 +41,13 @@ export default async function GuidePage() {
   const me = await getCurrentUser();
   if (!me) redirect("/login");
   const settings = await getSettings();
+  // The pointing system is leadership-only: researchers get the rules and
+  // the coaching, never the weights.
+  const seesScores = isLabLeadership(me);
   const ctx: HelpContext = {
     thresholds: settings.thresholds,
     performance: settings.performance,
+    viewerSeesScores: seesScores,
   };
   const t = settings.thresholds;
   const mech = (id: keyof typeof MECHANISM_HELP) => {
@@ -193,7 +198,7 @@ export default async function GuidePage() {
             optional: <span className="font-medium text-foreground">a project
             can only be marked Done once its paper is accepted</span> — the
             only other exit is Kill, with a reason. Acceptance is the finish
-            line. That&apos;s the whole point.
+            line — nothing else closes a project.
           </p>
         </CardContent>
       </Card>
@@ -224,7 +229,8 @@ export default async function GuidePage() {
         </CardContent>
       </Card>
 
-      {/* Scoring */}
+      {/* Scoring — leadership only; researchers never see the pointing system. */}
+      {seesScores && (
       <Card id="scoring">
         <CardHeader>
           <CardTitle>Scoring</CardTitle>
@@ -286,6 +292,7 @@ export default async function GuidePage() {
           </p>
         </CardContent>
       </Card>
+      )}
 
       {/* Age pill */}
       <Card id="age">
@@ -312,10 +319,13 @@ export default async function GuidePage() {
           <p>
             <span className="font-medium text-foreground">Stagger the stages. </span>
             {`Never run ${t.minActiveProjects} projects at the same maturity: keep
-            1–2 being scoped, 2–3 in active experiments, and one in writing.
-            Staggered projects queue behind each other's dead time — reviews,
-            data deliveries, compute windows — instead of competing for the
-            same afternoon.`}
+            a couple in early experiments, a couple mid-campaign, and one in
+            writing — a project being written up is still running. Staggered
+            projects queue behind each other's dead time — reviews, data
+            deliveries, compute windows — instead of competing for the same
+            afternoon. Scoping and proposals don't count toward the
+            ${t.minActiveProjects}, so they ride on top of the portfolio, not
+            inside it.`}
           </p>
           <p>
             <span className="font-medium text-foreground">Block time, don&apos;t multitask. </span>
@@ -333,7 +343,7 @@ export default async function GuidePage() {
           </p>
           <p>
             <span className="font-medium text-foreground">Ask early, loudly, in writing. </span>
-            The board rewards raising blockers and escalating — that&apos;s
+            Escalating early is respected here, never punished — that&apos;s
             deliberate. The researchers who compound fastest are the ones who
             surface problems while they&apos;re still small; the write-up
             itself solves half of them.
@@ -347,10 +357,10 @@ export default async function GuidePage() {
           </p>
           <p>
             <span className="font-medium text-foreground">Let the meeting work for you. </span>
-            The weekly update is five minutes that keeps your projects off the
-            Fight List, resets the stall clock, and earns points. Post it
+            {`The weekly update is five minutes that keeps your projects off the
+            Fight List and resets the stall clock${seesScores ? " — and earns points" : ""}. Post it
             before the meeting, and the meeting becomes about the science
-            instead of the status.
+            instead of the status.`}
           </p>
           <p className="border-t pt-3 text-xs">
             Further reading:{" "}

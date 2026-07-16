@@ -87,12 +87,12 @@ export function CreateUserDialog() {
               <SelectTrigger>
                 <SelectValue>
                   {(v: string | null) =>
-                    v === "MANAGER" ? "Manager" : v === "SECRETARY" ? "Secretary" : "Engineer"
+                    v === "MANAGER" ? "Manager" : v === "SECRETARY" ? "Secretary" : "Researcher"
                   }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ENGINEER">Engineer</SelectItem>
+                <SelectItem value="ENGINEER">Researcher</SelectItem>
                 <SelectItem value="MANAGER">Manager</SelectItem>
                 <SelectItem value="SECRETARY">Secretary</SelectItem>
               </SelectContent>

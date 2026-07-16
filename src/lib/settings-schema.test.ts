@@ -100,6 +100,16 @@ describe("fight rule config", () => {
     expect(settings.fightRules.OVERDUE_TASK.enabled).toBe(true);
   });
 
+  it("stock rule copy passes its own save validation (title ≤60, blurb ≤200)", async () => {
+    // A default blurb longer than the schema max silently breaks EVERY
+    // "Save fight rules" submit — the whole form fails validation.
+    const { fightRuleSchema } = await import("./settings-schema");
+    const { DEFAULT_FIGHT_SECTIONS } = await import("./settings-defaults");
+    for (const [type, rule] of Object.entries(DEFAULT_FIGHT_SECTIONS)) {
+      expect(() => fightRuleSchema.parse(rule), type).not.toThrow();
+    }
+  });
+
   it("tagline defaults and trims", () => {
     expect(labSettingsSchema.parse({}).tagline).toBe(
       "A board that gets angry when things sit still."

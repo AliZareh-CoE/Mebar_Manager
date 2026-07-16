@@ -4,7 +4,7 @@
 
 Mebar Manager is an anti-stall project manager for research groups. It exists
 to fight the three ways research labs quietly lose months: small blockers
-nobody solves, projects that drift into standby, and engineers left idle by
+nobody solves, projects that drift into standby, and researchers left idle by
 both. It doesn't manage documents or samples — it detects stalls and escalates
 them until someone fights back.
 
@@ -22,7 +22,7 @@ The rules (thresholds in `src/lib/thresholds.ts`):
 | Past revive date | PAUSED beyond its revive date | advisor (revive or kill) |
 | Overdue blocker | open blocker past its deadline | blocker owner |
 | Unowned blocker | open blocker with no owner for **2 days** | advisor |
-| Pending decision | every pending decision; **auto-proceeds at 48h** with the engineer's recommendation | advisor |
+| Pending decision | every pending decision; **auto-proceeds at 48h** with the researcher's recommendation | advisor |
 | Missed milestone | past due, not done, project still moving | owner |
 | Overdue data request | open request past its needed-by date | analyst (else advisor) |
 | Unowned data request | no analyst assigned for **2 days** | advisor |
@@ -30,7 +30,7 @@ The rules (thresholds in `src/lib/thresholds.ts`):
 | Compute results owed | approved request past its usage window without a results summary | requester |
 | Missing PI / first author | active project without a named PI and first author | owner |
 | Paperless project | active project **30 days** old with no paper on record | owner |
-| Underloaded researcher | owner/advisor of fewer than **5** running projects (blocked, stalled, paused, or unstarted ones don't count) | the researcher |
+| Underloaded researcher | owner/advisor of fewer than **5** running projects (blocked, stalled, paused, or unstarted ones don't count; analysts, secretaries, and leadership are exempt) | the researcher |
 
 Other opinions built in:
 
@@ -59,8 +59,8 @@ Other opinions built in:
 
 ## Roles
 
-Four base roles — **Admin** (the PI), **Manager** (coordinator), **Engineer**
-(researcher), and **Secretary** (lab staff) — plus add-ons granted on the
+Four base roles — **Admin** (the PI), **Manager** (coordinator), **Researcher**
+(role key `ENGINEER`), and **Secretary** (lab staff) — plus add-ons granted on the
 People page:
 
 - **Admin**: exactly one person owns the dangerous stuff — creating and
@@ -86,7 +86,9 @@ People page:
   won), Discipline (weekly updates minus whatever is currently overdue on
   you or auto-proceeded past you), and Initiative-taking (fights started).
   Weights, window, and the anti-spam update cap are tunable in Settings →
-  Performance; every person sees their own breakdown on `/account`.
+  Performance. The pointing system is **leadership-only**: researchers never
+  see scores, weights, or point values anywhere — not on their account, not
+  in the guide, not in the info hints.
 
 Everyone gets the **feedback button** in the header (bug reports / feature
 ideas, with your name attached); the admin triages them at `/admin/feedback`.
@@ -94,11 +96,11 @@ ideas, with your name attached); the admin triages them at `/admin/feedback`.
 **No hidden rules**: every mechanism explains itself. Small (?) info hints
 sit next to every non-obvious button and column (hover on desktop, tap on
 phones), and the **Guide** page (`/guide`, in everyone's nav) is the full
-manual — all fight rules, the lifecycle, scoring weights, and a playbook of
-how-to-win advice — interpolated with the lab's *live* configured numbers,
-so it can never go stale.
+manual — all fight rules, the lifecycle, and a playbook of how-to-win
+advice (scoring weights appear only for leadership) — interpolated with the
+lab's *live* configured numbers, so it can never go stale.
 
-- **Data analyst** (add-on, any engineer): researchers file **data requests**
+- **Data analyst** (add-on, any researcher): researchers file **data requests**
   on their projects; the assigned analyst (or a self-claiming one) is
   responsible for delivering. Data requests obey all anti-stall rules.
 - **Compute coordinator** (exactly one manager): the only person who decides
@@ -136,7 +138,7 @@ npm run db:seed -- --demo
 # prof@lab.local / mebar-demo (ADMIN + compute coordinator)
 # noa@lab.local / mebar-demo (manager, not coordinator)
 # taylor@lab.local / mebar-demo (secretary)
-# sara@ / omid@ / lena@ / dan@lab.local / mebar-demo (engineers)
+# sara@ / omid@ / lena@ / dan@lab.local / mebar-demo (researchers)
 ```
 
 ## Scripts

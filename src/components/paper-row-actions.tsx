@@ -37,7 +37,7 @@ export function PaperRowActions({
           title={status === "DRAFTING" ? "Submit the paper" : "Resubmit the paper"}
           description={
             status === "DRAFTING"
-              ? "This starts the clock — submission earns points."
+              ? "This starts the clock — the submission goes on the project's record."
               : "Same manuscript, next venue. The closure note clears; fold anything worth keeping into the paper's notes first."
           }
           submitLabel="Mark submitted"

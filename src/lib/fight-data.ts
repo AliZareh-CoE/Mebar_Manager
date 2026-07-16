@@ -123,6 +123,8 @@ export async function loadLabSnapshot(
       .where(inArray(projectPeople.role, ["PI", "FIRST_AUTHOR"])),
     // Any paper row (any status) suppresses the paperless rule.
     db.select({ projectId: papers.projectId }).from(papers),
+    // The 5-project rule is for researchers proper: data analysts,
+    // secretaries, and leadership are exempt (role filter + analyst flag).
     underloadScope === "NONE"
       ? Promise.resolve([])
       : db
@@ -130,10 +132,15 @@ export async function loadLabSnapshot(
           .from(user)
           .where(
             underloadScope === "ALL"
-              ? and(eq(user.role, "ENGINEER"), ne(user.banned, true))
+              ? and(
+                  eq(user.role, "ENGINEER"),
+                  ne(user.isDataAnalyst, true),
+                  ne(user.banned, true)
+                )
               : and(
                   eq(user.id, underloadScope.selfId),
                   eq(user.role, "ENGINEER"),
+                  ne(user.isDataAnalyst, true),
                   ne(user.banned, true)
                 )
           ),

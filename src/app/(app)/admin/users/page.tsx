@@ -73,7 +73,7 @@ export default async function AdminUsersPage() {
                       ? "Manager"
                       : u.role === "SECRETARY"
                         ? "Secretary"
-                        : "Engineer"}
+                        : "Researcher"}
                 </Badge>
               </TableCell>
               <TableCell>

@@ -18,6 +18,12 @@ import type { HelpCopy } from "@/components/info-hint";
 export interface HelpContext {
   thresholds: ThresholdSettings;
   performance: PerformanceSettings;
+  /**
+   * The pointing system is leadership-only — researchers never see scores,
+   * weights, or point values anywhere. Fail-closed: omitted means false,
+   * so a forgotten call site leaks nothing.
+   */
+  viewerSeesScores?: boolean;
 }
 
 export interface FightRuleHelp {
@@ -77,12 +83,13 @@ export const FIGHT_TYPE_HELP: Record<FightType, (ctx: HelpContext) => FightRuleH
     advice:
       "Retrieve data, checkpoints, and outputs BEFORE the window ends — nothing on the server is guaranteed to survive it. Write the summary the same day; it's 10 minutes while it's fresh and an afternoon a month later.",
   }),
-  UNOWNED_BLOCKER: ({ thresholds: t }) => ({
+  UNOWNED_BLOCKER: ({ thresholds: t, viewerSeesScores }) => ({
     what: `An open blocker nobody owns, ${t.unownedGraceDays} days of grace spent.`,
     who: "The project's advisor.",
     clear: "Assign an owner — including yourself.",
-    advice:
-      "Ownership isn't blame, it's permission to act. The person who takes an unowned blocker earns delivery points for resolving it.",
+    advice: viewerSeesScores
+      ? "Ownership isn't blame, it's permission to act. The person who takes an unowned blocker earns delivery points for resolving it."
+      : "Ownership isn't blame, it's permission to act. The person who takes an unowned blocker is the one who gets to close it.",
   }),
   UNOWNED_DATA_REQUEST: ({ thresholds: t }) => ({
     what: `A data request with no analyst for ${t.unownedGraceDays} days.`,
@@ -103,12 +110,13 @@ export const FIGHT_TYPE_HELP: Record<FightType, (ctx: HelpContext) => FightRuleH
     advice:
       "Requesters: the bar is the checklist — hours, utilization plan, preprocessed data with exact size, a dry run, expected results. A request that passes the bar gets decided fast because there's nothing left to argue about.",
   }),
-  PENDING_DECISION: ({ thresholds: t }) => ({
-    what: `Every pending decision. After ${t.decisionTimeoutHours} hours it auto-proceeds with the engineer's recommendation; red in the final ${t.decisionUrgentHours} hours.`,
+  PENDING_DECISION: ({ thresholds: t, viewerSeesScores }) => ({
+    what: `Every pending decision. After ${t.decisionTimeoutHours} hours it auto-proceeds with the researcher's recommendation; red in the final ${t.decisionUrgentHours} hours.`,
     who: "Whoever the decision was requested from — usually the advisor.",
     clear: "Decide it. Even “no” is faster than silence.",
-    advice:
-      "Engineers: write the recommendation you'd defend in the meeting — the timeout means YOUR judgment ships by default, so make it shippable. Advisors: an auto-proceeded decision costs you points; deciding costs you two minutes.",
+    advice: viewerSeesScores
+      ? "Researchers: write the recommendation you'd defend in the meeting — the timeout means YOUR judgment ships by default, so make it shippable. Advisors: an auto-proceeded decision costs you points; deciding costs you two minutes."
+      : "Researchers: write the recommendation you'd defend in the meeting — the timeout means YOUR judgment ships by default, so make it shippable. Advisors: an auto-proceeded decision goes on your record; deciding costs you two minutes.",
   }),
   MISSED_MILESTONE: () => ({
     what: "A milestone past due, not done, on a project that's still moving.",
@@ -137,17 +145,17 @@ export const FIGHT_TYPE_HELP: Record<FightType, (ctx: HelpContext) => FightRuleH
     advice:
       "Settle authorship at the START — it's a 2-minute conversation at activation and a feud after submission. The lineup locks once active precisely so nobody relitigates it later.",
   }),
-  PAPERLESS_PROJECT: ({ thresholds: t, performance: p }) => ({
+  PAPERLESS_PROJECT: ({ thresholds: t, performance: p, viewerSeesScores }) => ({
     what: `The early warning: a project only finishes when its paper is ACCEPTED (Done is blocked without one), and this project has been active ${t.paperGraceDays}+ days with not even a draft filed.`,
     who: "The project owner.",
     clear: "File the paper on the Papers tab — a draft clears this and starts the real fight.",
-    advice: `Pick your top 3 target journals BEFORE writing (best fit → strong alternative → reliable fallback) and write to Target 1's format from day one. Draft the methods section while the experiments run. Filing the draft early also banks the ${p.weights.paperSubmitted}-point submission the moment it's ready.`,
+    advice: `Pick your top 3 target journals BEFORE writing (best fit → strong alternative → reliable fallback) and write to Target 1's format from day one. Draft the methods section while the experiments run.${viewerSeesScores ? ` Filing the draft early also banks the ${p.weights.paperSubmitted}-point submission the moment it's ready.` : " Filing the draft early means it's ready to submit the moment the results land."}`,
   }),
   UNDERLOADED_RESEARCHER: ({ thresholds: t }) => ({
-    what: `A researcher who is owner or advisor of fewer than ${t.minActiveProjects} running projects. Only healthy, moving projects count — blocked, stalled, paused, or not-yet-started ones don't.`,
+    what: `A researcher who is owner or advisor of fewer than ${t.minActiveProjects} running projects. Only healthy, moving projects count — blocked, stalled, paused, or not-yet-started ones don't. Applies to researchers only: data analysts, secretaries, and leadership are exempt.`,
     who: "The researcher.",
     clear: "Unstick what's blocked or stalled, or file a proposal and get it activated — the count updates the moment a project is running again.",
-    advice: `Running ${t.minActiveProjects} projects is a portfolio, not a juggling act: stagger the stages — 1–2 being scoped, 2–3 in active work, 1 in writing — so they queue behind each other's dead time (reviews, deliveries, compute windows) instead of competing for the same afternoon. Give each project its own time block and never multitask inside one. And keep a proposal in the pipeline: activation goes through leadership, so file the next one BEFORE you're under the bar — a blocked or stalled project silently drops out of your count, so unsticking one is as good as starting one.`,
+    advice: `Running ${t.minActiveProjects} projects is a portfolio, not a juggling act: stagger their maturity — a couple in early experiments, a couple mid-campaign, one in writing (a project being written up is still running) — so they queue behind each other's dead time (reviews, deliveries, compute windows) instead of competing for the same afternoon. Give each project its own time block and never multitask inside one. And keep proposals in scoping ON TOP of the ${t.minActiveProjects} — they don't count until activated, so file the next one BEFORE you're under the bar. A blocked or stalled project silently drops out of your count too, so unsticking one is as good as starting one.`,
   }),
 };
 
@@ -184,7 +192,7 @@ export const MECHANISM_HELP: Record<MechanismId, (ctx: HelpContext) => HelpCopy>
   escalate: ({ thresholds: t }) => ({
     title: "What Escalate does",
     body: [
-      `Escalation puts this blocker in front of leadership NOW: it skips the ${t.unownedGraceDays}-day grace, jumps straight to red at the top of the Fight List, and points at the advisor until someone takes it.`,
+      `Escalation puts this blocker in front of leadership NOW: it skips the ${t.unownedGraceDays}-day grace, jumps straight to red at the top of the Fight List, and lands on the advisor until someone takes it.`,
       "It can never be un-escalated or buried — only resolved. Use it when waiting taught you nothing. Nobody has ever been punished for escalating too early.",
     ],
   }),
@@ -209,25 +217,33 @@ export const MECHANISM_HELP: Record<MechanismId, (ctx: HelpContext) => HelpCopy>
       `Red pills are pre-fights: at ${t.stallDays} silent days the Fight List takes over. Clear them before it does.`,
     ],
   }),
-  autoProceed: ({ thresholds: t, performance: p }) => ({
+  autoProceed: ({ thresholds: t, performance: p, viewerSeesScores }) => ({
     title: "Decisions auto-proceed",
     body: [
-      `The person asked has ${t.decisionTimeoutHours} hours; it turns red for the final ${t.decisionUrgentHours}. After that the engineer's recommendation proceeds automatically — and the sleeper's score eats ${p.weights.decisionAutoProceeded} points.`,
-      "Engineers: write the recommendation you'd defend in the meeting — your judgment ships by default. Default to action.",
+      viewerSeesScores
+        ? `The person asked has ${t.decisionTimeoutHours} hours; it turns red for the final ${t.decisionUrgentHours}. After that the researcher's recommendation proceeds automatically — and the sleeper's score eats ${p.weights.decisionAutoProceeded} points.`
+        : `The person asked has ${t.decisionTimeoutHours} hours; it turns red for the final ${t.decisionUrgentHours}. After that the researcher's recommendation proceeds automatically — and the silence goes on the sleeper's record.`,
+      "Researchers: write the recommendation you'd defend in the meeting — your judgment ships by default. Default to action.",
     ],
   }),
-  dateLock: () => ({
+  dateLock: ({ viewerSeesScores }) => ({
     title: "Why dates won't move",
     body: [
-      "Due dates and deadlines feed the on-time scoring, so once set they're locked for researchers — only leadership moves them, deliberately, on the record.",
-      "Missed one? Close it late (still worth points) or ask a coordinator to push it. Set dates you believe in the first place.",
+      viewerSeesScores
+        ? "Due dates and deadlines feed the on-time scoring, so once set they're locked for researchers — only leadership moves them, deliberately, on the record."
+        : "Due dates and deadlines are commitments on the record, so once set they're locked for researchers — only leadership moves them, deliberately, on the record.",
+      viewerSeesScores
+        ? "Missed one? Close it late (still worth points) or ask a coordinator to push it. Set dates you believe in the first place."
+        : "Missed one? Close it late (better late than abandoned) or ask a coordinator to push it. Set dates you believe in the first place.",
     ],
   }),
-  papers: ({ thresholds: t, performance: p }) => ({
+  papers: ({ thresholds: t, performance: p, viewerSeesScores }) => ({
     title: "The paper track",
     body: [
       `A project only finishes when its paper is ACCEPTED — “Mark done” is blocked without one, and “no paper” after ${t.paperGraceDays} active days is already a fight. A draft counts for the fight; only acceptance finishes the project.`,
-      `Submitting earns the owner ${p.weights.paperSubmitted} points; an acceptance earns ${p.weights.paperAccepted}, once a coordinator confirms it — the biggest prize needs a second pair of eyes. Rejections resubmit on the same row, reasons on the record.`,
+      viewerSeesScores
+        ? `Submitting earns the owner ${p.weights.paperSubmitted} points; an acceptance earns ${p.weights.paperAccepted}, once a coordinator confirms it — the biggest prize needs a second pair of eyes. Rejections resubmit on the same row, reasons on the record.`
+        : "An acceptance counts once a coordinator confirms it — the biggest milestone needs a second pair of eyes. Rejections resubmit on the same row, reasons on the record.",
       "Win: pick 3 target journals before writing (best fit → alternative → reliable fallback), write to Target 1's format, and draft methods while the experiments run.",
     ],
   }),

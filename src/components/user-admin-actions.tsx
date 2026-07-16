@@ -93,7 +93,7 @@ export function UserAdminActions({
 
   const ROLE_LABELS = {
     MANAGER: "manager",
-    ENGINEER: "engineer",
+    ENGINEER: "researcher",
     SECRETARY: "secretary",
   } as const;
 

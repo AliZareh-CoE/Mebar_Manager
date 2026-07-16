@@ -61,7 +61,7 @@ export const DEFAULT_FIGHT_SECTIONS: Record<FightType, FightRuleConfig> = {
   PENDING_DECISION: {
     enabled: true,
     title: "Decisions waiting",
-    blurb: "Answer them, or the engineer proceeds with their recommendation.",
+    blurb: "Answer them, or the researcher proceeds with their recommendation.",
   },
   MISSED_MILESTONE: {
     enabled: true,
@@ -123,7 +123,7 @@ export const DEFAULT_FIGHT_SECTIONS: Record<FightType, FightRuleConfig> = {
     enabled: true,
     title: "Underloaded researchers",
     blurb:
-      "Everyone runs at least the minimum of running projects — blocked, stalled, or unstarted ones don't count. Fewer means something needs unsticking or a proposal needs filing.",
+      "Every researcher keeps the minimum of running projects — blocked, stalled, or unstarted don't count; analysts, secretaries, and leadership are exempt. Unstick something or file a proposal.",
   },
 };
 

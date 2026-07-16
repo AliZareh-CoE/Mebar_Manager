@@ -45,7 +45,7 @@ export function NewProjectForm({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <Label>Owner (engineer)</Label>
+              <Label>Owner (researcher)</Label>
               <PersonSelect name="ownerId" people={people} placeholder="Who drives it" required />
             </div>
             <div className="flex flex-col gap-2">

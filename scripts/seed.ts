@@ -808,7 +808,7 @@ async function seedDemo() {
   console.log("Demo lab loaded:");
   console.log("  prof@lab.local / mebar-demo   (ADMIN + compute coordinator)");
   console.log("  noa@lab.local / mebar-demo    (manager, not coordinator)");
-  console.log("  lena@lab.local / mebar-demo   (engineer + data analyst)");
+  console.log("  lena@lab.local / mebar-demo   (researcher + data analyst)");
   console.log("  taylor@lab.local / mebar-demo (secretary — own tasks only)");
   console.log("  sara@lab.local, omid@lab.local, dan@lab.local / mebar-demo");
 }

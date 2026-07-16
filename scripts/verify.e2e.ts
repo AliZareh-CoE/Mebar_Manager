@@ -401,12 +401,15 @@ async function main() {
   });
   await milestoneRule.locator("input[type=checkbox]").uncheck();
   await page.click("button:has-text('Save fight rules')");
-  await page.waitForTimeout(1500);
-  await page.goto(BASE + "/");
-  check(
-    "disabled rule stops fighting",
-    !(await page.textContent("body"))!.includes("Missed milestones")
-  );
+  // Condition-based: reload until the section is gone (the save + cache
+  // revalidation can outlast a flat wait on a cold compile).
+  let milestoneSectionGone = false;
+  for (let i = 0; i < 10 && !milestoneSectionGone; i++) {
+    await page.waitForTimeout(1000);
+    await page.goto(BASE + "/");
+    milestoneSectionGone = !(await page.textContent("body"))!.includes("Missed milestones");
+  }
+  check("disabled rule stops fighting", milestoneSectionGone);
   await page.goto(BASE + "/admin/settings/fights");
   await milestoneRule.locator("input[type=checkbox]").check();
   await page.click("button:has-text('Save fight rules')");
@@ -579,10 +582,17 @@ async function main() {
   await engPage.goto(BASE + "/performance");
   await engPage.waitForURL(BASE + "/");
   check("engineer /performance redirects home", engPage.url() === BASE + "/");
+  // The pointing system is completely hidden from researchers — no score
+  // card even on their own account. Leadership keeps theirs.
   await engPage.goto(BASE + "/account");
   check(
-    "engineer sees their own score card",
-    (await engPage.textContent("body"))!.includes("Your score (last")
+    "researcher sees NO score card on their account",
+    !(await engPage.textContent("body"))!.includes("Your score (last")
+  );
+  await page.goto(BASE + "/account");
+  check(
+    "admin still sees their own score card",
+    (await page.textContent("body"))!.includes("Your score (last")
   );
   await page.goto(BASE + "/admin/settings/performance");
   const windowInput = page.locator("input[name=windowDays]");
@@ -757,6 +767,9 @@ async function main() {
   check("v6: underload fight section renders", profFights.includes("Underloaded researchers"));
   check("v6: underload headline n/min format", /has \d+\/\d+ running projects/.test(profFights));
   check("v6: manager sees other researchers' underload", /Omid Rahimi has \d+\/\d+/.test(profFights));
+  // Data analysts are exempt from the 5-project rule (as are secretaries
+  // and leadership, filtered by role) — lena must never appear.
+  check("v6: data analyst exempt from underload", !/Lena Fischer has \d+\/\d+/.test(profFights));
 
   await engPage.goto(BASE + "/");
   const saraFights = (await engPage.textContent("body"))!;
@@ -996,19 +1009,25 @@ async function main() {
   await thresholdsForm.locator("button[type=submit]").click();
   await page.waitForTimeout(1500);
 
-  // Everyone gets the guide — engineer and secretary included.
+  // Everyone gets the guide — researcher and secretary included — but the
+  // pointing system is leadership-only: no Scoring section, no weights.
   check(
-    "guide: engineer nav has Guide",
+    "guide: researcher nav has Guide",
     ((await engPage.locator("nav").first().textContent()) ?? "").includes("Guide")
   );
   await engPage.goto(BASE + "/guide");
-  check("guide: engineer can read it", (await engPage.textContent("body"))!.includes("Scoring"));
+  const engGuide = (await engPage.textContent("body"))!;
+  check("guide: researcher can read it", engGuide.includes("The Fight List"));
+  check("guide: researcher sees no Scoring section", !engGuide.includes("Points each"));
+  check("guide: researcher sees no point values in copy", !/\bpoints?\b/i.test(engGuide));
   check(
     "guide: secretary nav has Guide",
     ((await secPage.locator("nav").first().textContent()) ?? "").includes("Guide")
   );
   await secPage.goto(BASE + "/guide");
-  check("guide: secretary can read it", (await secPage.textContent("body"))!.includes("Scoring"));
+  const secGuide = (await secPage.textContent("body"))!;
+  check("guide: secretary can read it", secGuide.includes("The Fight List"));
+  check("guide: secretary sees no Scoring section", !secGuide.includes("Points each"));
 
   // Info hints: fight cards carry them; clicking one opens the explanation.
   await page.goto(BASE + "/");

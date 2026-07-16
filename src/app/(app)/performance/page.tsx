@@ -37,6 +37,7 @@ export default async function PerformancePage() {
     now
   );
   const helpCtx: HelpContext = {
+    viewerSeesScores: true, // page is leadership-only (routeAllowed)
     thresholds: settings.thresholds,
     performance: settings.performance,
   };

@@ -8,14 +8,34 @@ import {
   type HelpContext,
 } from "./help-copy";
 
-function ctx(over: Partial<HelpContext["thresholds"]> = {}, perf: Record<string, number> = {}): HelpContext {
+function ctx(
+  over: Partial<HelpContext["thresholds"]> = {},
+  perf: Record<string, number> = {},
+  viewerSeesScores?: boolean
+): HelpContext {
   return {
     thresholds: thresholdSettingsSchema.parse(over),
     performance: performanceSettingsSchema.parse(
       Object.keys(perf).length ? { weights: perf } : {}
     ),
+    ...(viewerSeesScores === undefined ? {} : { viewerSeesScores }),
   };
 }
+
+// Mechanisms that render on researcher-visible surfaces (the perf entries
+// and accountScore live on leadership-only surfaces).
+const RESEARCHER_VISIBLE_MECHANISMS = [
+  "escalate",
+  "transitions",
+  "lineupLock",
+  "agePill",
+  "autoProceed",
+  "dateLock",
+  "papers",
+  "paretoCause",
+  "computeResultsOwed",
+  "computeBar",
+] as const;
 
 describe("help copy", () => {
   it("every fight rule has non-empty what/who/clear/advice", () => {
@@ -37,11 +57,29 @@ describe("help copy", () => {
     expect(MECHANISM_HELP.agePill(c).body.toString()).toContain("42");
   });
 
-  it("interpolates LIVE weights", () => {
-    const c = ctx({}, { paperAccepted: 77, paperSubmitted: 33 });
+  it("interpolates LIVE weights for score-seeing viewers", () => {
+    const c = ctx({}, { paperAccepted: 77, paperSubmitted: 33 }, true);
     expect(MECHANISM_HELP.papers(c).body.toString()).toContain("77");
     expect(MECHANISM_HELP.papers(c).body.toString()).toContain("33");
     expect(FIGHT_TYPE_HELP.PAPERLESS_PROJECT(c).advice).toContain("33");
+  });
+
+  it("the pointing system is invisible to researchers — fail-closed by default", () => {
+    // Omitted viewerSeesScores must behave exactly like false.
+    for (const c of [ctx(), ctx({}, {}, false)]) {
+      const all: string[] = [];
+      for (const type of FIGHT_TYPES) {
+        const h = FIGHT_TYPE_HELP[type](c);
+        all.push(h.what, h.who, h.clear, h.advice);
+      }
+      for (const id of RESEARCHER_VISIBLE_MECHANISMS) {
+        const { title, body } = MECHANISM_HELP[id](c);
+        all.push(title, ...(Array.isArray(body) ? body : [body]));
+      }
+      for (const s of all) {
+        expect(s, s).not.toMatch(/\bpoints?\b|\bscore|\bscoring|\bweights?\b|\bstandings\b/i);
+      }
+    }
   });
 
   it("no copy contains undefined or NaN under defaults", () => {
