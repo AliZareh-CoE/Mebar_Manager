@@ -1,13 +1,21 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { differenceInCalendarDays } from "date-fns";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { user } from "@/lib/db/schema";
+import { user, labSettings } from "@/lib/db/schema";
 import { getSettings } from "@/lib/settings";
 import { smtpConfigured, sendDigestEmail } from "@/lib/email";
 import { loadLabSnapshot } from "@/lib/fight-data";
-import { computeFightList, projectAgeDays } from "@/lib/fight-engine";
+import { computeFightList, projectAgeDays, type FightItem } from "@/lib/fight-engine";
 import { activationStateKeys, engineStateFlags } from "@/lib/workflow";
+import { visibleProjectIds, isVisible } from "@/lib/visibility";
 import { buildDigest, type DigestDueItem } from "@/lib/digest";
+import type { SessionUser } from "@/lib/session";
+import type { Role } from "@/lib/auth";
+
+/** Re-fires inside this window are no-ops — cron retries and operator
+ * re-runs must not double-send the same Monday email. */
+const RESEND_GUARD_HOURS = 20;
 
 /**
  * Weekly digest sender. Emails each active, non-opted-out user their own
@@ -39,6 +47,22 @@ export async function POST(request: NextRequest) {
   }
 
   const now = new Date();
+
+  // Idempotency: a re-fired cron (retry, overlap, manual re-run) inside the
+  // guard window is a no-op. ?force=1 bypasses for deliberate testing.
+  const force = request.nextUrl.searchParams.get("force") === "1";
+  const lastSent = settings.digestLastSentAt ? new Date(settings.digestLastSentAt) : null;
+  if (
+    !force &&
+    lastSent &&
+    !Number.isNaN(lastSent.getTime()) &&
+    now.getTime() - lastSent.getTime() < RESEND_GUARD_HOURS * 60 * 60 * 1000
+  ) {
+    return NextResponse.json({
+      sent: 0,
+      skipped: `already sent at ${lastSent.toISOString()} (guard ${RESEND_GUARD_HOURS}h; use ?force=1 to override)`,
+    });
+  }
   const workflow = settings.workflow;
   const flags = engineStateFlags(workflow);
   const frozen = (state: string) => flags[state]?.frozen ?? false;
@@ -66,6 +90,9 @@ export async function POST(request: NextRequest) {
       id: user.id,
       name: user.name,
       email: user.email,
+      role: user.role,
+      isDataAnalyst: user.isDataAnalyst,
+      isComputeCoordinator: user.isComputeCoordinator,
       digestOptOut: user.digestOptOut,
       banned: user.banned,
     })
@@ -80,7 +107,31 @@ export async function POST(request: NextRequest) {
   for (const p of people) {
     if (p.banned || p.digestOptOut) continue;
 
-    const personFights = fights.filter((f) => f.responsible?.id === p.id);
+    // The snapshot above is full-scope (needed to compute every person's
+    // items in one pass), but RESTRICTED visibility must still hold: a
+    // recipient may learn a project TITLE only if the app would show it to
+    // them. Their items still arrive — with the title withheld — exactly
+    // like the tasks page renders "—" for projects outside their scope.
+    const personView: SessionUser = {
+      id: p.id,
+      name: p.name,
+      email: p.email,
+      role: (p.role as Role) ?? "ENGINEER",
+      isDataAnalyst: p.isDataAnalyst,
+      isComputeCoordinator: p.isComputeCoordinator,
+      digestOptOut: p.digestOptOut,
+    };
+    const personVisible = await visibleProjectIds(personView, settings);
+    const scrubTitle = <T extends { projectId: string | null; projectTitle?: string | null }>(
+      item: T
+    ): T =>
+      item.projectId && !isVisible(personVisible, item.projectId)
+        ? { ...item, projectTitle: null }
+        : item;
+
+    const personFights: FightItem[] = fights
+      .filter((f) => f.responsible?.id === p.id)
+      .map((f) => scrubTitle(f));
 
     // Age pills: their live (non-frozen) projects as owner or advisor.
     const projects = snap.projects
@@ -105,7 +156,12 @@ export async function POST(request: NextRequest) {
         dueThisWeek.push({
           kind: "task",
           title: tk.title,
-          projectTitle: tk.projectId ? (projectById.get(tk.projectId)?.title ?? null) : null,
+          // Task responsibility does NOT grant project visibility (a
+          // secretary sees "—" on the tasks page) — same rule here.
+          projectTitle:
+            tk.projectId && isVisible(personVisible, tk.projectId)
+              ? (projectById.get(tk.projectId)?.title ?? null)
+              : null,
           due: tk.deadline,
         });
     }
@@ -116,7 +172,10 @@ export async function POST(request: NextRequest) {
         dueThisWeek.push({
           kind: "dataRequest",
           title: dr.title,
-          projectTitle: dr.projectId ? (projectById.get(dr.projectId)?.title ?? null) : null,
+          projectTitle:
+            dr.projectId && isVisible(personVisible, dr.projectId)
+              ? (projectById.get(dr.projectId)?.title ?? null)
+              : null,
           due: dr.neededBy,
         });
     }
@@ -141,7 +200,9 @@ export async function POST(request: NextRequest) {
 
     const digest = buildDigest(
       { id: p.id, name: p.name, email: p.email },
-      { fights, dueThisWeek, projects },
+      // Pre-filtered AND title-scrubbed — the builder's own filter is a
+      // harmless re-filter on an already personal list.
+      { fights: personFights, dueThisWeek, projects },
       settings,
       now
     );
@@ -154,6 +215,20 @@ export async function POST(request: NextRequest) {
       console.error(`digest: send failed for ${p.email}:`, e);
       failures.push(p.email);
     }
+  }
+
+  // Mark the batch (idempotency guard) — written directly since this runs
+  // outside the admin-guarded settings actions.
+  try {
+    const row = await db.select().from(labSettings).where(eq(labSettings.id, 1)).get();
+    const data = { ...((row?.data as object) ?? {}), digestLastSentAt: now.toISOString() };
+    if (row) {
+      await db.update(labSettings).set({ data }).where(eq(labSettings.id, 1));
+    } else {
+      await db.insert(labSettings).values({ id: 1, data });
+    }
+  } catch (e) {
+    console.error("digest: failed to record digestLastSentAt:", e);
   }
 
   return NextResponse.json({ sent, ...(failures.length ? { failures } : {}) });

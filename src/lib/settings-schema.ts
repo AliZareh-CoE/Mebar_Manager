@@ -198,6 +198,9 @@ export const labSettingsSchema = z.object({
   // The weekly digest email — the admin kill switch; each user can also
   // opt out individually (user.digestOptOut).
   digestEnabled: z.boolean().default(true),
+  // Idempotency marker: ISO timestamp of the last digest batch. A re-fired
+  // cron inside the guard window is a no-op instead of a duplicate send.
+  digestLastSentAt: z.string().default(""),
   thresholds: thresholdSettingsSchema.default(() => thresholdSettingsSchema.parse({})),
   permissions: permissionMatrixSchema.default(() => permissionMatrixSchema.parse({})),
   workflow: workflowSchema
