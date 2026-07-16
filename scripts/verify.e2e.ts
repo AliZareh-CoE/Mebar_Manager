@@ -547,7 +547,11 @@ async function main() {
   await fbRow.locator("button:has-text('Respond…')").click();
   await page.fill("div[role=dialog] textarea[name=adminResponse]", "Good idea — queued.");
   await page.click("div[role=dialog] button:has-text('Save verdict')");
-  await page.waitForTimeout(1200);
+  // Wait for the refreshed row, not a fixed delay — the action + refresh
+  // round-trip occasionally outruns a flat timeout.
+  await page
+    .waitForSelector("text=Good idea — queued.", { timeout: 15000 })
+    .catch(() => {});
   check(
     "manager response lands on the row",
     (await page.textContent("body"))!.includes("Good idea — queued.")
@@ -846,7 +850,13 @@ async function main() {
   await page.click("text=People (");
   await page.waitForSelector("tr:has-text('Maya Chen')");
   await page.locator("tr", { hasText: "Maya Chen" }).locator("button:has-text('Make PI')").click();
-  await page.waitForTimeout(1200);
+  // Wait for the swap to render (Prof's row regrows a Make PI button once
+  // demoted) instead of a flat delay.
+  await page
+    .waitForSelector("tr:has-text('Prof. Mebar') >> button:has-text('Make PI')", {
+      timeout: 15000,
+    })
+    .catch(() => {});
   const swapped = (await page.textContent("body"))!;
   check(
     "v6: swap demotes, never ejects",
@@ -901,6 +911,47 @@ async function main() {
   check(
     "v6: restoring the threshold brings the section back",
     (await page.textContent("body"))!.includes("Underloaded researchers")
+  );
+
+  // 27e. ANTI-MANIPULATION LOCKS — scoring inputs are immutable for
+  // researchers: no lineup changes after activation, no date pushing, no
+  // self-confirmed acceptances.
+  await engPage.goto(BASE + "/board");
+  await engPage.click("text=Cryo-stage vibration isolation");
+  await engPage.waitForSelector("text=The Heilmeier questions");
+  await engPage.click("text=People (");
+  await engPage.waitForSelector("text=Maya Chen");
+  check(
+    "lock: engineer sees no Make PI on an activated project",
+    (await engPage.locator("button:has-text('Make PI')").count()) === 0
+  );
+  await engPage.click("text=Papers (");
+  await engPage.waitForSelector("text=Active vibration cancellation");
+  check(
+    "lock: engineer cannot self-confirm an acceptance",
+    (await engPage.locator("button:has-text('Accepted 🎉')").count()) === 0
+  );
+  await engPage.goto(BASE + "/");
+  const saraLockBody = (await engPage.textContent("body"))!;
+  check(
+    "lock: engineer sees Mark done but no Push date on her missed milestone",
+    saraLockBody.includes("Mark done") && !saraLockBody.includes("Push date")
+  );
+  // The admin keeps all three affordances.
+  await page.goto(BASE + "/board");
+  await page.click("text=Cryo-stage vibration isolation");
+  await page.waitForSelector("text=The Heilmeier questions");
+  await page.click("text=People (");
+  await page.waitForSelector("text=Maya Chen");
+  check(
+    "lock: admin keeps Make PI on activated projects",
+    (await page.locator("button:has-text('Make PI')").count()) > 0
+  );
+  await page.click("text=Papers (");
+  await page.waitForSelector("text=Active vibration cancellation");
+  check(
+    "lock: admin keeps the acceptance button",
+    (await page.locator("button:has-text('Accepted 🎉')").count()) === 1
   );
 
   // 28. Password change (dan) + manager reset (omid)

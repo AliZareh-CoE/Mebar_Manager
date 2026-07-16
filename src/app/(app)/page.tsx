@@ -280,6 +280,8 @@ export default async function FightListPage() {
         if (!milestone) return null;
         return (
           <div className="flex items-center gap-2">
+            {/* Due dates feed the scoring — only manager rank moves them. */}
+            {isManagerOrAbove(me!) && (
             <FormDialog
               trigger={<Button variant="outline" size="sm">Push date</Button>}
               title="Push the due date"
@@ -292,6 +294,7 @@ export default async function FightListPage() {
                 <Input id={`due-${item.entityId}`} name="dueDate" type="date" required />
               </div>
             </FormDialog>
+            )}
             <MilestoneStatusButtons milestoneId={milestone.id} status={milestone.status} />
           </div>
         );

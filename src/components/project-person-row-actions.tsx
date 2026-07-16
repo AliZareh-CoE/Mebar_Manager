@@ -24,6 +24,7 @@ export function ProjectPersonRowActions({
   externalName,
   hasEmail,
   notify,
+  rolesLocked,
 }: {
   projectId: string;
   personId: string;
@@ -32,6 +33,8 @@ export function ProjectPersonRowActions({
   externalName: string | null;
   hasEmail: boolean;
   notify: boolean;
+  /** Activated projects lock PI/first-author changes to manager rank. */
+  rolesLocked: boolean;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -63,12 +66,12 @@ export function ProjectPersonRowActions({
 
   return (
     <div className="flex items-center justify-end gap-2">
-      {role !== "PI" && (
+      {!rolesLocked && role !== "PI" && (
         <Button size="sm" variant="outline" disabled={pending} onClick={() => promote("PI")}>
           Make PI
         </Button>
       )}
-      {role !== "FIRST_AUTHOR" && (
+      {!rolesLocked && role !== "FIRST_AUTHOR" && (
         <Button
           size="sm"
           variant="outline"
@@ -99,15 +102,17 @@ export function ProjectPersonRowActions({
         {notify ? <Bell className="size-4" /> : <BellOff className="size-4 opacity-50" />}
         <span className="sr-only">Toggle notifications</span>
       </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        className="text-muted-foreground"
-        disabled={pending}
-        onClick={() => run(() => removeProjectPerson(personId), "Removed from the lineup.")}
-      >
-        Remove
-      </Button>
+      {!(rolesLocked && role !== "CONTRIBUTOR") && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-muted-foreground"
+          disabled={pending}
+          onClick={() => run(() => removeProjectPerson(personId), "Removed from the lineup.")}
+        >
+          Remove
+        </Button>
+      )}
     </div>
   );
 }

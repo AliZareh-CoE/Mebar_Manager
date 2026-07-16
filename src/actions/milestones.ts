@@ -10,6 +10,18 @@ import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 import { canAccessProject } from "@/lib/visibility";
 import { notifyProjectEvent } from "@/lib/notify";
+import { isManagerOrAbove } from "@/lib/policy";
+
+/**
+ * Due dates feed the on-time scoring bonus, so once set they are locked for
+ * researchers — only manager rank may move them (deliberately, with the
+ * pushed date on the record). Compare date parts: stored values may carry a
+ * time of day, and an untouched date field must never read as a change.
+ */
+const sameDay = (a: Date, b: Date) =>
+  a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10);
+const DATE_LOCKED =
+  "Due dates are locked once set — they feed the scoring. Ask a coordinator to move it.";
 
 function revalidateMilestone(projectId: string) {
   revalidatePath("/");
@@ -92,7 +104,8 @@ export async function pushMilestoneDueDate(
   milestoneId: string,
   formData: FormData
 ): Promise<ActionResult> {
-  await requireUser();
+  const me = await requireUser();
+  if (!isManagerOrAbove(me)) return { error: DATE_LOCKED };
 
   const parsed = parseForm(pushDueDateSchema, formData);
   if (!parsed.success) return { error: parsed.error };
@@ -103,6 +116,9 @@ export async function pushMilestoneDueDate(
     .where(eq(milestones.id, milestoneId))
     .get();
   if (!milestone) return { error: "Milestone not found." };
+  if (!(await canAccessProject(me, milestone.projectId))) {
+    return { error: "Milestone not found." };
+  }
   if (milestone.status === "DONE") return { error: "Milestone is already done." };
 
   await db
@@ -136,6 +152,9 @@ export async function editMilestone(
   const policy = await getPolicy(me);
   if (!policy.can("milestone.edit")) {
     return { error: "You don't have permission to edit milestones." };
+  }
+  if (!sameDay(parsed.data.dueDate, milestone.dueDate) && !isManagerOrAbove(me)) {
+    return { error: DATE_LOCKED };
   }
 
   await db.update(milestones).set(parsed.data).where(eq(milestones.id, milestoneId));

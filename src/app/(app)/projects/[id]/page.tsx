@@ -162,6 +162,11 @@ export default async function ProjectPage({
   const firstAuthor = project.people.find((pp) => pp.role === "FIRST_AUTHOR");
   const ROLE_LABEL = { PI: "PI", FIRST_AUTHOR: "First author", CONTRIBUTOR: "Contributor" } as const;
   const latestPaper = project.papers[0];
+  // Scoring-input locks: once the project has left the drafting phase, only
+  // manager rank may change PI/first author or confirm an acceptance.
+  const projectActivated =
+    (stateFlags?.countsForStall || stateFlags?.paused || stateFlags?.terminal) ?? true;
+  const rolesLocked = projectActivated && !isManagerOrAbove(me);
 
   return (
     <div className="flex flex-col gap-6">
@@ -962,6 +967,7 @@ export default async function ProjectPage({
                         externalName={pp.externalName}
                         hasEmail={!!(pp.email ?? pp.user?.email)}
                         notify={pp.notify}
+                        rolesLocked={rolesLocked}
                       />
                     </TableCell>
                   </TableRow>
@@ -1074,6 +1080,7 @@ export default async function ProjectPage({
                         paperId={paper.id}
                         status={paper.status}
                         venue={paper.venue}
+                        canConfirmAccept={isManagerOrAbove(me)}
                         edit={{
                           title: paper.title,
                           venue: paper.venue,

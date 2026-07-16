@@ -10,6 +10,7 @@ import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 import { canAccessProject } from "@/lib/visibility";
 import { notifyProjectEvent } from "@/lib/notify";
+import { isManagerOrAbove } from "@/lib/policy";
 import {
   canTransitionPaper,
   transitionRequirements,
@@ -102,6 +103,11 @@ export async function transitionPaper(
     return {
       error: `A ${PAPER_STATUS_LABELS[paper.status].toLowerCase()} paper can't move to ${PAPER_STATUS_LABELS[to].toLowerCase()}.`,
     };
+  }
+  // An acceptance is the pointing system's biggest prize — a coordinator
+  // confirms it, not the person who earns the points.
+  if (to === "ACCEPTED" && !isManagerOrAbove(me)) {
+    return { error: "An acceptance is confirmed by a coordinator — ask one to mark it." };
   }
   const needs = transitionRequirements(to);
   if (needs.needsVenue && !venue && !paper.venue) {

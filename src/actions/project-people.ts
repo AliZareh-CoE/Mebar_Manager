@@ -7,10 +7,29 @@ import { db } from "@/lib/db";
 import { projects, projectPeople, user } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
 import { getPolicy } from "@/lib/policy-server";
+import { isManagerOrAbove } from "@/lib/policy";
+import { getSettings } from "@/lib/settings";
+import { stateByKey } from "@/lib/workflow";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 import { canAccessProject } from "@/lib/visibility";
 import { planRoleAssignment, type PersonPick } from "@/lib/project-people";
 import type { SessionUser } from "@/lib/session";
+
+/**
+ * Once a project has left the drafting phase (its state counts for stall,
+ * is paused, or is terminal), the PI/first-author lineup is locked for
+ * researchers — the activation checkpoint verified it, and the pointing
+ * system depends on it staying honest. Manager rank may still correct it.
+ */
+async function lineupLocked(projectState: string): Promise<boolean> {
+  const { workflow } = await getSettings();
+  const flags = stateByKey(workflow, projectState)?.flags;
+  if (!flags) return true; // unknown state — fail closed
+  return flags.countsForStall || flags.paused || flags.terminal;
+}
+
+const LINEUP_LOCKED =
+  "The PI and first author are locked once the project is activated — ask a coordinator to change them.";
 
 function revalidateLineup(projectId: string) {
   revalidatePath("/");
@@ -21,7 +40,7 @@ function revalidateLineup(projectId: string) {
 async function verifyLineupAccess(
   me: SessionUser,
   projectId: string
-): Promise<{ error: string } | { ok: true }> {
+): Promise<{ error: string } | { ok: true; projectState: string }> {
   const project = await db.select().from(projects).where(eq(projects.id, projectId)).get();
   if (!project) return { error: "Project not found." };
   if (!(await canAccessProject(me, projectId))) return { error: "Project not found." };
@@ -33,7 +52,7 @@ async function verifyLineupAccess(
   ) {
     return { error: "You don't have permission to edit this project's people." };
   }
-  return { ok: true };
+  return { ok: true, projectState: project.state };
 }
 
 // Member XOR external: `userId` set means a lab member; otherwise
@@ -78,6 +97,9 @@ export async function setProjectRole(
   const me = await requireUser();
   const access = await verifyLineupAccess(me, projectId);
   if ("error" in access) return access;
+  if (!isManagerOrAbove(me) && (await lineupLocked(access.projectState))) {
+    return { error: LINEUP_LOCKED };
+  }
 
   const parsed = parseForm(setRoleSchema, formData);
   if (!parsed.success) return { error: parsed.error };
@@ -175,6 +197,14 @@ export async function removeProjectPerson(personId: string): Promise<ActionResul
   if (!row) return { error: "Not on the lineup." };
   const access = await verifyLineupAccess(me, row.projectId);
   if ("error" in access) return access;
+  // Contributors come and go; the required roles are the locked part.
+  if (
+    row.role !== "CONTRIBUTOR" &&
+    !isManagerOrAbove(me) &&
+    (await lineupLocked(access.projectState))
+  ) {
+    return { error: LINEUP_LOCKED };
+  }
 
   await db.delete(projectPeople).where(eq(projectPeople.id, personId));
   revalidateLineup(row.projectId);

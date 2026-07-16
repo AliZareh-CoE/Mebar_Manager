@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/session";
 import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 import { canAccessProject } from "@/lib/visibility";
+import { isManagerOrAbove } from "@/lib/policy";
 
 function revalidateDataRequest(projectId: string) {
   revalidatePath("/");
@@ -128,6 +129,14 @@ export async function deliverDataRequest(
   return {};
 }
 
+// Deadlines feed the on-time scoring bonus — once set, only manager rank
+// may move them. Date-part comparison: stored values may carry a time of
+// day, and an untouched date field must never read as a change.
+const sameDay = (a: Date, b: Date) =>
+  a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10);
+const DATE_LOCKED =
+  "Needed-by dates are locked once set — they feed the scoring. Ask a coordinator to move it.";
+
 export async function editDataRequest(
   requestId: string,
   formData: FormData
@@ -152,6 +161,9 @@ export async function editDataRequest(
     })
   ) {
     return { error: "You don't have permission to edit this request." };
+  }
+  if (!sameDay(parsed.data.neededBy, request.neededBy) && !isManagerOrAbove(me)) {
+    return { error: DATE_LOCKED };
   }
 
   // Only touch the assignee when the form actually sent the field —

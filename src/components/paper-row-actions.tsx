@@ -18,11 +18,14 @@ export function PaperRowActions({
   status,
   venue,
   edit,
+  canConfirmAccept,
 }: {
   paperId: string;
   status: PaperStatus;
   venue: string;
   edit: { title: string; venue: string; quartileNote: string; link: string };
+  /** Acceptance is confirmed by manager rank — the 8 points need a second pair of eyes. */
+  canConfirmAccept: boolean;
 }) {
   const submitLabel = status === "DRAFTING" ? "Submit…" : "Resubmit…";
 
@@ -59,6 +62,7 @@ export function PaperRowActions({
 
       {status === "SUBMITTED" && (
         <>
+          {canConfirmAccept && (
           <FormDialog
             trigger={<Button size="sm">Accepted 🎉</Button>}
             title="Paper accepted"
@@ -74,6 +78,7 @@ export function PaperRowActions({
               Confirm the acceptance — it goes on the record and the standings.
             </p>
           </FormDialog>
+          )}
           <FormDialog
             trigger={
               <Button size="sm" variant="outline">

@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/session";
 import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 import { canAccessProject } from "@/lib/visibility";
+import { isManagerOrAbove } from "@/lib/policy";
 
 function revalidateTask(projectId?: string | null) {
   revalidatePath("/");
@@ -118,6 +119,14 @@ export async function completeTask(
   return {};
 }
 
+// Deadlines feed the on-time scoring bonus — once set, only manager rank
+// may move them. Date-part comparison: stored values may carry a time of
+// day, and an untouched date field must never read as a change.
+const sameDay = (a: Date, b: Date) =>
+  a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10);
+const DATE_LOCKED =
+  "Deadlines are locked once set — they feed the scoring. Ask a coordinator to move it.";
+
 const editTaskSchema = z.object({
   title: z.string().trim().min(1, "What needs doing?"),
   description: z.string().trim().default(""),
@@ -141,6 +150,9 @@ export async function editTask(
   const policy = await getPolicy(me);
   if (!policy.can("task.edit", { involvedUserIds: [task.requesterId, task.assigneeId] })) {
     return { error: "You don't have permission to edit this task." };
+  }
+  if (!sameDay(parsed.data.deadline, task.deadline) && !isManagerOrAbove(me)) {
+    return { error: DATE_LOCKED };
   }
 
   // Only touch the assignee when the form actually sent the field.

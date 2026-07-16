@@ -45,6 +45,12 @@ Other opinions built in:
   manuscript from draft through submission to acceptance (rejections
   resubmit, reasons on the record); submission and acceptance score
   performance points for the project owner.
+- **The scoring can't be gamed.** Once a project is activated its PI and
+  first author are locked; milestone due dates, task deadlines, and
+  data-request dates are immutable once set; and a paper acceptance (the
+  biggest prize) is confirmed by a coordinator, never by the person earning
+  the points. Managers and the admin can still correct any of it —
+  deliberately, on the record.
 - Proposals answer the **Heilmeier Catechism** (DARPA's eight questions).
 - Resolved blockers are tagged by cause; the **Pareto chart** on the Fight List
   shows what systemically blocks the lab.
