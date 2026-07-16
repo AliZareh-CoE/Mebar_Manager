@@ -1,9 +1,13 @@
 import { redirect } from "next/navigation";
+import { desc, eq as eqOp } from "drizzle-orm";
+import { format } from "date-fns";
+import { db } from "@/lib/db";
+import { personMilestones } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { visibleProjectIds, visibleTaskIds } from "@/lib/visibility";
 import { loadLabSnapshot } from "@/lib/fight-data";
-import { computeFightList } from "@/lib/fight-engine";
+import { computeFightList, isOverdue } from "@/lib/fight-engine";
 import { activationStateKeys, engineStateFlags } from "@/lib/workflow";
 import { isLabLeadership } from "@/lib/policy";
 import { fightTypeHelpCopy, MECHANISM_HELP, type HelpContext } from "@/lib/help-copy";
@@ -45,7 +49,8 @@ export default async function AccountPage() {
       // Parity with the fight list, or engineers lose their own underload
       // item from "Your fights".
       isLabLeadership(me) ? "ALL" : me.role === "ENGINEER" ? { selfId: me.id } : "NONE",
-      isLabLeadership(me) || me.isDataAnalyst
+      isLabLeadership(me) || me.isDataAnalyst,
+      isLabLeadership(me) ? "ALL" : { selfId: me.id }
     ),
     new Date(),
     settings.thresholds,
@@ -56,6 +61,14 @@ export default async function AccountPage() {
       ),
     }
   ).filter((item) => item.responsible?.id === me.id);
+
+  // Thesis milestones: read-only for the member — leadership sets and moves
+  // them from the People page.
+  const myMilestones = await db
+    .select()
+    .from(personMilestones)
+    .where(eqOp(personMilestones.userId, me.id))
+    .orderBy(desc(personMilestones.dueDate));
 
   // The pointing system is leadership-only — researchers never see scores,
   // so theirs isn't even computed.
@@ -170,6 +183,59 @@ export default async function AccountPage() {
           <ChangePasswordForm />
         </CardContent>
       </Card>
+
+      {myMilestones.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Thesis milestones</CardTitle>
+            <CardDescription>
+              Your thesis-track milestones. Leadership sets and moves these.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            {myMilestones.map((pm) => {
+              const overdue = pm.status === "PLANNED" && isOverdue(pm.dueDate, now);
+              return (
+                <div
+                  key={pm.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm"
+                >
+                  <div className="min-w-0">
+                    <p
+                      className={
+                        pm.status === "CANCELLED" ? "line-through opacity-60" : "font-medium"
+                      }
+                    >
+                      {pm.title}
+                    </p>
+                    {pm.note && (
+                      <p className="text-xs text-muted-foreground">{pm.note}</p>
+                    )}
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={
+                      pm.status === "DONE"
+                        ? "text-emerald-500"
+                        : pm.status === "CANCELLED"
+                          ? "text-muted-foreground"
+                          : overdue
+                            ? "text-red-600 dark:text-red-400"
+                            : "text-muted-foreground"
+                    }
+                  >
+                    {pm.status === "DONE"
+                      ? "Done"
+                      : pm.status === "CANCELLED"
+                        ? "Cancelled"
+                        : `Due ${format(pm.dueDate, "MMM d, yyyy")}${overdue ? " — past due" : ""}`}
+                  </Badge>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

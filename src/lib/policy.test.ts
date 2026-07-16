@@ -179,6 +179,14 @@ describe("initiative capabilities (leadership = manager OR compute coordinator)"
     expect(can(secretary2, "initiative.file", matrix)).toBe(false);
   });
 
+  it("personMilestone.manage: manager rank only — coordination alone doesn't grant it", () => {
+    expect(can(manager, "personMilestone.manage", matrix)).toBe(true);
+    expect(can({ ...engineer, id: "u-a2", role: "ADMIN" }, "personMilestone.manage", matrix)).toBe(true);
+    expect(can(engineerCoordinator, "personMilestone.manage", matrix)).toBe(false);
+    expect(can(engineer, "personMilestone.manage", matrix)).toBe(false);
+    expect(can(secretary2, "personMilestone.manage", matrix)).toBe(false);
+  });
+
   it("editing: any manager, or involved requester/assignee", () => {
     expect(can(manager, "initiative.edit", matrix)).toBe(true);
     expect(

@@ -28,6 +28,7 @@ import {
   projectPeople,
   papers,
   sops,
+  personMilestones,
 } from "../src/lib/db/schema";
 
 async function createUserRaw(input: {
@@ -124,6 +125,7 @@ async function seedDemo() {
   db.delete(initiatives).run();
   db.delete(feedback).run();
   db.delete(sops).run();
+  db.delete(personMilestones).run();
   db.delete(papers).run();
   db.delete(projectPeople).run();
   db.delete(projects).run();
@@ -862,6 +864,27 @@ async function seedDemo() {
         respondedById: prof,
         createdAt: subDays(new Date(), 6),
         respondedAt: subDays(new Date(), 5),
+      },
+    ])
+    .run();
+
+  // Thesis milestones — omid's qualifier is overdue (fires the fight);
+  // sara's defense is future (silent; proves persona scoping).
+  db.insert(personMilestones)
+    .values([
+      {
+        userId: omid,
+        title: "Qualifier exam",
+        dueDate: subDays(new Date(), 10),
+        status: "PLANNED",
+        createdAt: subDays(new Date(), 120),
+      },
+      {
+        userId: sara,
+        title: "Proposal defense",
+        dueDate: addDays(new Date(), 45),
+        status: "PLANNED",
+        createdAt: subDays(new Date(), 15),
       },
     ])
     .run();

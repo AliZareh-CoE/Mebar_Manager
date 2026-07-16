@@ -931,6 +931,56 @@ async function main() {
     /Sara Kim has \d+\/\d+ running projects/.test((await engPage.textContent("body"))!)
   );
 
+  // v7-C7: Thesis milestones — leadership manages from People; the member
+  // sees theirs read-only; overdue ones fight, persona-scoped.
+  await page.goto(BASE + "/");
+  const pmProfBody = (await page.textContent("body"))!;
+  check("pm: overdue thesis section for leadership", pmProfBody.includes("Overdue thesis milestones"));
+  check(
+    "pm: overdue headline names the milestone",
+    /Thesis milestone "Qualifier exam" is \d+d past due/.test(pmProfBody)
+  );
+  // Admin adds one for sara via the dialog (future date — silent, but visible
+  // on her account; self-restoring via reseed).
+  await page.goto(BASE + "/admin/users");
+  const saraRow = page.locator("tr", { hasText: "Sara Kim" });
+  await saraRow.locator("button[aria-label='Milestones for Sara Kim']").click();
+  await page.waitForSelector("text=Thesis milestones — Sara Kim");
+  await page.click("button:has-text('Thesis submission')");
+  await page.waitForSelector("input[name=dueDate]");
+  await page.fill("input[name=dueDate]", "2027-09-01");
+  await page.click("button:has-text('Add milestone')");
+  await page.waitForSelector("text=Due Sep 1, 2027");
+  check("pm: admin added a milestone via the dialog", true);
+  await page.keyboard.press("Escape");
+  // Member (omid) sees his own read-only on /account and his fight on /.
+  const pmPage = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
+  await pmPage.goto(BASE + "/login");
+  await pmPage.fill("#email", "omid@lab.local");
+  await pmPage.fill("#password", "mebar-demo");
+  await pmPage.click("button[type=submit]");
+  await pmPage.waitForURL(BASE + "/");
+  const omidFights = (await pmPage.textContent("body"))!;
+  check(
+    "pm: the member sees their own overdue milestone fight",
+    /Thesis milestone "Qualifier exam" is \d+d past due/.test(omidFights)
+  );
+  await pmPage.goto(BASE + "/account");
+  const omidAccount = (await pmPage.textContent("body"))!;
+  check("pm: member sees own milestone read-only on /account", omidAccount.includes("Qualifier exam"));
+  check(
+    "pm: no manage affordance on /account",
+    (await pmPage.locator("button:has-text('Add milestone')").count()) === 0
+  );
+  await pmPage.close();
+  // Scoping: sara does NOT see omid's overdue milestone (hers is future).
+  await engPage.goto(BASE + "/");
+  const saraPmBody = (await engPage.textContent("body"))!;
+  check(
+    "pm: researcher does not see another's milestone",
+    !saraPmBody.includes("Overdue thesis milestones")
+  );
+
   // v7-C6: Handbook — everyone reads it (secretary included); admin edits it
   // under Settings → Handbook; researchers can't reach the settings tab.
   await page.goto(BASE + "/handbook");

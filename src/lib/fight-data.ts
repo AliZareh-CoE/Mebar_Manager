@@ -46,7 +46,13 @@ export async function loadLabSnapshot(
    * no project to scope by, so the caller decides: leadership and data
    * analysts see them, nobody else. Fails closed.
    */
-  includeExternalData = false
+  includeExternalData = false,
+  /**
+   * Whose person (thesis) milestones to load for OVERDUE_PERSON_MILESTONE:
+   * leadership sees everyone, a non-leader only themselves, nobody
+   * otherwise. Fails closed for existing callers.
+   */
+  personMilestoneScope: "ALL" | { selfId: string } | "NONE" = "NONE"
 ): Promise<LabSnapshot> {
   // inArray needs a non-empty list; a workflow with no activation states
   // simply never resets the clock via transitions.
@@ -64,6 +70,7 @@ export async function loadLabSnapshot(
     paperRows,
     researcherRows,
     coordinatorRow,
+    personMilestoneRows,
   ] = await Promise.all([
     db.query.projects.findMany({
       with: {
@@ -167,6 +174,16 @@ export async function loadLabSnapshot(
       .from(user)
       .where(and(eq(user.isComputeCoordinator, true), ne(user.banned, true)))
       .get(),
+    // Thesis milestones: only PLANNED rows can fire; persona-scoped.
+    personMilestoneScope === "NONE"
+      ? Promise.resolve([])
+      : db.query.personMilestones.findMany({
+          where: (pm, { and: andOp, eq: eqOp }) =>
+            personMilestoneScope === "ALL"
+              ? eqOp(pm.status, "PLANNED")
+              : andOp(eqOp(pm.status, "PLANNED"), eqOp(pm.userId, personMilestoneScope.selfId)),
+          with: { person: { columns: { id: true, name: true } } },
+        }),
   ]);
 
   const scopedProjects = visibleIds
@@ -270,6 +287,14 @@ export async function loadLabSnapshot(
     papers: paperRows,
     researchers: researcherRows,
     computeCoordinator: coordinatorRow ?? null,
+    personMilestones: personMilestoneRows.map((pm) => ({
+      id: pm.id,
+      userId: pm.userId,
+      title: pm.title,
+      dueDate: pm.dueDate,
+      status: pm.status,
+      person: pm.person,
+    })),
   };
 }
 

@@ -1283,3 +1283,56 @@ describe("SUBMISSION_TARGET_AT_RISK", () => {
     expect(computeFightList(s, NOW).filter((i) => i.type === "PAPERLESS_PROJECT")).toHaveLength(0);
   });
 });
+
+describe("OVERDUE_PERSON_MILESTONE", () => {
+  const student = { id: "u-student", name: "Student" };
+  const pm = (over: object = {}) => ({
+    id: "pm1",
+    userId: student.id,
+    title: "Qualifier exam",
+    dueDate: subDays(NOW, 4),
+    status: "PLANNED",
+    person: student,
+    ...over,
+  });
+  const overdueItems = (s: LabSnapshot, cfg?: Parameters<typeof computeFightList>[3]) =>
+    computeFightList(s, NOW, undefined, cfg).filter(
+      (i) => i.type === "OVERDUE_PERSON_MILESTONE"
+    );
+
+  it("PLANNED past due → sev 3 at the person, no project", () => {
+    const items = overdueItems(snap({ projects: [], personMilestones: [pm()] }));
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      severity: 3,
+      ageDays: 4,
+      projectId: null,
+      entityId: "pm1",
+      responsible: student,
+    });
+    expect(items[0]?.headline).toContain('Thesis milestone "Qualifier exam"');
+  });
+
+  it("due today or future → silent (> 0 boundary)", () => {
+    expect(overdueItems(snap({ projects: [], personMilestones: [pm({ dueDate: NOW })] }))).toHaveLength(0);
+    expect(
+      overdueItems(snap({ projects: [], personMilestones: [pm({ dueDate: addDays(NOW, 3) })] }))
+    ).toHaveLength(0);
+  });
+
+  it("DONE / CANCELLED never fire; empty and absent lists are silent", () => {
+    for (const status of ["DONE", "CANCELLED"]) {
+      expect(overdueItems(snap({ projects: [], personMilestones: [pm({ status })] }))).toHaveLength(0);
+    }
+    expect(overdueItems(snap({ projects: [], personMilestones: [] }))).toHaveLength(0);
+    expect(overdueItems(snap({ projects: [] }))).toHaveLength(0);
+  });
+
+  it("respects the enable toggle", () => {
+    expect(
+      overdueItems(snap({ projects: [], personMilestones: [pm()] }), {
+        enabledRules: { OVERDUE_PERSON_MILESTONE: false },
+      })
+    ).toHaveLength(0);
+  });
+});

@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
-import { asc } from "drizzle-orm";
+import { asc, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { user } from "@/lib/db/schema";
+import { user, personMilestones } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/session";
+import { isOverdue } from "@/lib/fight-engine";
+import { PersonMilestonesDialog } from "@/components/person-milestones-dialog";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -25,8 +27,18 @@ export default async function AdminUsersPage() {
   if (!me) redirect("/login");
   if (me.role !== "ADMIN") redirect("/");
 
-  const allUsers = await db.select().from(user).orderBy(asc(user.createdAt));
+  const now = new Date();
+  const [allUsers, pmRows] = await Promise.all([
+    db.select().from(user).orderBy(asc(user.createdAt)),
+    db.select().from(personMilestones).orderBy(desc(personMilestones.dueDate)),
+  ]);
   const coordinator = allUsers.find((u) => u.isComputeCoordinator && !u.banned) ?? null;
+  const pmByUser = new Map<string, typeof pmRows>();
+  for (const pm of pmRows) {
+    const arr = pmByUser.get(pm.userId) ?? [];
+    arr.push(pm);
+    pmByUser.set(pm.userId, arr);
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -107,6 +119,20 @@ export default async function AdminUsersPage() {
               </TableCell>
               <TableCell>
                 <div className="flex items-center justify-end gap-2">
+                  {!u.banned && (
+                    <PersonMilestonesDialog
+                      userId={u.id}
+                      personName={u.name}
+                      milestones={(pmByUser.get(u.id) ?? []).map((pm) => ({
+                        id: pm.id,
+                        title: pm.title,
+                        dueISO: format(pm.dueDate, "MMM d, yyyy"),
+                        dueInput: format(pm.dueDate, "yyyy-MM-dd"),
+                        status: pm.status,
+                        overdue: pm.status === "PLANNED" && isOverdue(pm.dueDate, now),
+                      }))}
+                    />
+                  )}
                   {!u.banned && u.role !== "SECRETARY" && (
                     <AnalystToggle userId={u.id} isAnalyst={Boolean(u.isDataAnalyst)} />
                   )}

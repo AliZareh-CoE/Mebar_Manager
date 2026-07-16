@@ -45,7 +45,8 @@ export default async function AppLayout({
       taskIds,
       isLabLeadership(user),
       isLabLeadership(user) ? "ALL" : user.role === "ENGINEER" ? { selfId: user.id } : "NONE",
-      isLabLeadership(user) || user.isDataAnalyst
+      isLabLeadership(user) || user.isDataAnalyst,
+      isLabLeadership(user) ? "ALL" : { selfId: user.id }
     ),
     new Date(),
     settings.thresholds,

@@ -131,6 +131,12 @@ export const DEFAULT_FIGHT_SECTIONS: Record<FightType, FightRuleConfig> = {
     blurb:
       "A draft with its submission target inside the lead window, or already past it. Submit it, or move the date deliberately.",
   },
+  OVERDUE_PERSON_MILESTONE: {
+    enabled: true,
+    title: "Overdue thesis milestones",
+    blurb:
+      "Qualifier, proposal defense, submission — past due. Close it or push the date deliberately.",
+  },
 };
 
 export const DEFAULT_SECTION_ORDER: FightType[] = [...FIGHT_TYPES];

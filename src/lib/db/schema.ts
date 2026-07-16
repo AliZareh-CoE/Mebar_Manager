@@ -340,6 +340,40 @@ export const initiatives = sqliteTable(
   ]
 );
 
+export const PERSON_MILESTONE_STATUSES = ["PLANNED", "DONE", "CANCELLED"] as const;
+export type PersonMilestoneStatus = (typeof PERSON_MILESTONE_STATUSES)[number];
+
+// Thesis-track milestones owned by a lab member (qualifier, proposal
+// defense, thesis submission, …). Person-level (no project link);
+// leadership manages them, the member sees their own read-only. dueDate
+// feeds the fight engine (OVERDUE_PERSON_MILESTONE) and is locked once set.
+export const personMilestones = sqliteTable(
+  "person_milestones",
+  {
+    id: id(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id),
+    title: text("title").notNull(),
+    dueDate: integer("due_date", { mode: "timestamp_ms" }).notNull(),
+    status: text("status", { enum: PERSON_MILESTONE_STATUSES })
+      .notNull()
+      .default("PLANNED"),
+    // reused as closure time for DONE and CANCELLED
+    closedAt: integer("closed_at", { mode: "timestamp_ms" }),
+    note: text("note"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("person_milestones_user_idx").on(t.userId)]
+);
+
+export const personMilestonesRelations = relations(personMilestones, ({ one }) => ({
+  person: one(user, {
+    fields: [personMilestones.userId],
+    references: [user.id],
+  }),
+}));
+
 export const initiativesRelations = relations(initiatives, ({ one }) => ({
   requester: one(user, {
     fields: [initiatives.requesterId],

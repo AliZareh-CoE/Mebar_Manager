@@ -62,7 +62,10 @@ export type FixedCapability =
   | "dataRequest.deliver"
   // Lab-leadership surface (initiatives = the weekly meeting's big fights).
   | "initiative.file"
-  | "initiative.edit";
+  | "initiative.edit"
+  // Thesis-track milestones: a manager-rank/advising concern (compute
+  // coordination alone does not grant it).
+  | "personMilestone.manage";
 
 /**
  * The admin, managers, and the compute coordinator — the people who run the
@@ -159,6 +162,8 @@ export function can(
       return isLabLeadership(user);
     case "initiative.edit":
       return isManagerOrAbove(user); // requester/assignee covered by involvement
+    case "personMilestone.manage":
+      return isManagerOrAbove(user);
     default:
       // Rank comparison, not equality: "ENGINEER" in the matrix means
       // "engineer or above" — secretaries (rank 0) are always below it.

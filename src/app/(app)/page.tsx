@@ -73,7 +73,8 @@ export default async function FightListPage() {
       taskIds,
       isLabLeadership(me),
       isLabLeadership(me) ? "ALL" : me.role === "ENGINEER" ? { selfId: me.id } : "NONE",
-      isLabLeadership(me) || me.isDataAnalyst
+      isLabLeadership(me) || me.isDataAnalyst,
+      isLabLeadership(me) ? "ALL" : { selfId: me.id }
     ),
     loadAllBlockerCauses(visibleIds),
     db
@@ -283,6 +284,13 @@ export default async function FightListPage() {
             Open the draft
           </Button>
         );
+      case "OVERDUE_PERSON_MILESTONE":
+        // Managed from the admin People page; members see the card only.
+        return isManagerOrAbove(me!) ? (
+          <Button variant="outline" size="sm" render={<Link href="/admin/users" />}>
+            Manage milestones
+          </Button>
+        ) : null;
       case "UNDERLOADED_RESEARCHER":
         return (
           <Button variant="outline" size="sm" render={<Link href="/projects/new" />}>

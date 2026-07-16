@@ -24,5 +24,6 @@ export const FIGHT_TYPES = [
   "PAPERLESS_PROJECT",
   "UNDERLOADED_RESEARCHER",
   "SUBMISSION_TARGET_AT_RISK",
+  "OVERDUE_PERSON_MILESTONE",
 ] as const;
 export type FightType = (typeof FIGHT_TYPES)[number];

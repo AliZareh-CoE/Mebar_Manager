@@ -154,8 +154,23 @@ export interface LabSnapshot {
    * only themselves, secretaries nobody.
    */
   researchers?: PersonRef[];
+  /**
+   * Thesis-track milestones to evaluate. Persona-scoped by the loader:
+   * leadership sees everyone's, a non-leader only their own, [] otherwise.
+   */
+  personMilestones?: PersonMilestoneRow[];
   /** The one flagged manager, if any. */
   computeCoordinator: PersonRef | null;
+}
+
+export interface PersonMilestoneRow {
+  id: string;
+  userId: string;
+  title: string;
+  dueDate: Date;
+  status: string;
+  /** The person the milestone belongs to — the responsible party. */
+  person: PersonRef;
 }
 
 export type { FightType } from "@/lib/fight-types";
@@ -708,6 +723,28 @@ export function computeFightList(
         detail:
           "Only healthy, moving projects count — blocked, stalled, paused, or unstarted ones don't. Unstick them or file a proposal.",
         responsible: r,
+      });
+    }
+  }
+
+  // Overdue person (thesis) milestones: a PLANNED milestone past its due
+  // date. Person-level — no project, so nothing freezes it. Yells at the
+  // owner. The loader has already persona-scoped snap.personMilestones.
+  for (const pm of snap.personMilestones ?? []) {
+    if (!enabled("OVERDUE_PERSON_MILESTONE")) break;
+    if (pm.status !== "PLANNED") continue;
+    const over = differenceInDays(now, pm.dueDate);
+    if (over > 0) {
+      items.push({
+        type: "OVERDUE_PERSON_MILESTONE",
+        severity: 3,
+        ageDays: over,
+        projectId: null,
+        projectTitle: null,
+        entityId: pm.id,
+        headline: `Thesis milestone "${pm.title}" is ${over}d past due`,
+        detail: "Close it, or push the date deliberately.",
+        responsible: pm.person,
       });
     }
   }

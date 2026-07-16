@@ -164,6 +164,13 @@ export const FIGHT_TYPE_HELP: Record<FightType, (ctx: HelpContext) => FightRuleH
     advice:
       "Set the target the day you start drafting and write backwards from it: methods and figures while the experiments run, so the last week is polish, not panic. Keep your journal shortlist ranked so the moment it's ready you already know where it goes.",
   }),
+  OVERDUE_PERSON_MILESTONE: () => ({
+    what: "A thesis-track milestone (qualifier, proposal defense, submission) past its due date.",
+    who: "The student it belongs to — with their advisor.",
+    clear: "Mark it done, or have leadership push the date deliberately, on the record.",
+    advice:
+      "Thesis milestones are the long game: set the qualifier, the proposal defense, and the submission dates at the start of the year and work backwards. A milestone with a believable date beats three vague intentions — and the date locks once set, so pick one you'll defend.",
+  }),
 };
 
 /** Fold a fight rule's help into the {title, body} shape InfoHint renders. */
