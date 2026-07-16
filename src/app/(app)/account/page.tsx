@@ -115,7 +115,7 @@ export default async function AccountPage() {
       {myFights.length > 0 && (
         <div className="flex flex-col gap-3">
           <div>
-            <h2 className="font-medium">Your fights ({myFights.length})</h2>
+            <h2 className="text-base font-medium">Your fights ({myFights.length})</h2>
             <p className="text-xs text-muted-foreground">
               Everything currently yelling at you, oldest and reddest first.
             </p>

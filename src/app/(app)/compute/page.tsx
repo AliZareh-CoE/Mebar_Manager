@@ -90,7 +90,7 @@ export default async function ComputePage() {
           return (
             <section key={status} className="flex flex-col gap-3">
               <div>
-                <h2 className="font-medium">
+                <h2 className="text-base font-medium">
                   {COMPUTE_STATUS_LABELS[status]}{" "}
                   <span className="text-muted-foreground">({group.length})</span>
                 </h2>

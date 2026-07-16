@@ -181,7 +181,7 @@ export default async function MeetingPage() {
       {/* SECTION 1 — Fight list for review */}
       <section className="flex flex-col gap-3">
         <div>
-          <h2 className="font-medium">Fight list for review</h2>
+          <h2 className="text-base font-medium">Fight list for review</h2>
           <p className="text-xs text-muted-foreground">
             Everything sitting still, worst first — the same list, read-only for the meeting.
           </p>
@@ -214,7 +214,7 @@ export default async function MeetingPage() {
       {/* SECTION 2 — Updates this week */}
       <section className="flex flex-col gap-3">
         <div>
-          <h2 className="font-medium">Updates this week</h2>
+          <h2 className="text-base font-medium">Updates this week</h2>
           <p className="text-xs text-muted-foreground">
             Progress posted in the last 7 days, by project.
           </p>
@@ -262,7 +262,7 @@ export default async function MeetingPage() {
       {/* SECTION 3 — Decisions to make */}
       <section className="flex flex-col gap-3">
         <div>
-          <h2 className="font-medium">Decisions to make</h2>
+          <h2 className="text-base font-medium">Decisions to make</h2>
           <p className="text-xs text-muted-foreground">
             Pending calls with their auto-proceed countdown. Decide in the room.
           </p>
@@ -301,7 +301,7 @@ export default async function MeetingPage() {
       {/* SECTION 4 — Papers that moved */}
       <section className="flex flex-col gap-3">
         <div>
-          <h2 className="font-medium">Papers that moved</h2>
+          <h2 className="text-base font-medium">Papers that moved</h2>
           <p className="text-xs text-muted-foreground">
             Papers whose status changed in the last 7 days.
           </p>
@@ -329,7 +329,7 @@ export default async function MeetingPage() {
       {/* SECTION 5 — Open initiatives */}
       <section className="flex flex-col gap-3">
         <div>
-          <h2 className="font-medium">Open initiatives</h2>
+          <h2 className="text-base font-medium">Open initiatives</h2>
           <p className="text-xs text-muted-foreground">
             The lab&apos;s live big fights, soonest deadline first.
           </p>

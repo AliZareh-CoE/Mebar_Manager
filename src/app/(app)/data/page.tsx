@@ -99,7 +99,7 @@ export default async function DataPage() {
           return (
             <section key={status} className="flex flex-col gap-3">
               <div>
-                <h2 className="font-medium">
+                <h2 className="text-base font-medium">
                   {GROUPS[status].title}{" "}
                   <span className="text-muted-foreground">({group.length})</span>
                 </h2>

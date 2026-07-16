@@ -84,6 +84,13 @@ Other opinions built in:
 - **Admin audit log** (`/admin/audit`) — every privileged change on the
   record, newest first, filterable.
 
+**v8 (UI/UX polish):** fluid typography — the whole interface scales from a
+16px base on phones to 18px on wide monitors, with body copy and meta text
+bumped a notch and line-height at 1.5; the layout widened to the 1280–1440px
+dashboard band with responsive gutters; and the header nav collapses into a
+hamburger menu on smaller screens (with the fight-count badge and an Account
+entry) instead of overflowing.
+
 ## Roles
 
 Four base roles — **Admin** (the PI), **Manager** (coordinator), **Researcher**

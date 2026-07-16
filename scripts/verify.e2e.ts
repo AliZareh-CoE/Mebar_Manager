@@ -681,8 +681,16 @@ async function main() {
     (await page.textContent("body"))!.includes("Withdrawn")
   );
 
-  // 27. Nav: Settings manager-only, Data for everyone
-  check("manager nav has Settings", (await page.textContent("header"))!.includes("Settings"));
+  // 27. Nav: Settings manager-only, Data for everyone. Settings lives in the
+  // admin's "More" menu since v8, so open it before reading.
+  await page.goto(BASE + "/");
+  await page.locator("nav button:has-text('More')").first().click();
+  await page.waitForSelector("[data-slot=dropdown-menu-content]");
+  check(
+    "manager nav has Settings",
+    ((await page.textContent("[data-slot=dropdown-menu-content]")) ?? "").includes("Settings")
+  );
+  await page.keyboard.press("Escape");
   check("engineer nav lacks Settings", !(await engPage.textContent("header"))!.includes("Settings"));
   check("engineer nav has Data", (await engPage.textContent("header"))!.includes("Data"));
 
@@ -698,9 +706,19 @@ async function main() {
   await lenaPage.waitForURL(BASE + "/");
 
   type P = typeof page;
+  // A persona's nav set = the inline links plus whatever its "More" menu
+  // offers (leadership/admin surfaces ride there since v8's priority nav).
   async function navSet(p: P): Promise<string> {
     await p.goto(BASE + "/");
-    return (await p.locator("nav").first().textContent()) ?? "";
+    let text = (await p.locator("nav").first().textContent()) ?? "";
+    const more = p.locator("nav button:has-text('More')");
+    if ((await more.count()) > 0 && (await more.first().isVisible())) {
+      await more.first().click();
+      await p.waitForSelector("[data-slot=dropdown-menu-content]");
+      text += (await p.textContent("[data-slot=dropdown-menu-content]")) ?? "";
+      await p.keyboard.press("Escape");
+    }
+    return text;
   }
   async function routeLandsOn(p: P, route: string): Promise<string> {
     await p.goto(BASE + route);
@@ -1470,6 +1488,45 @@ async function main() {
   await engPage.goto(BASE + "/admin/audit");
   await engPage.waitForURL((u) => !u.pathname.startsWith("/admin/audit"));
   check("audit: researcher redirected away", !engPage.url().includes("/admin/audit"));
+
+  // 30. v8: responsive nav. On a phone the inline link row hides and a
+  // hamburger menu takes over (with the fight badge and an Account item);
+  // on desktop the researcher's short link set stays inline.
+  const mobilePage = await (
+    await browser.newContext({ viewport: { width: 390, height: 844 } })
+  ).newPage();
+  await mobilePage.goto(BASE + "/login");
+  await mobilePage.fill("#email", "prof@lab.local");
+  await mobilePage.fill("#password", "mebar-demo");
+  await mobilePage.click("button[type=submit]");
+  await mobilePage.waitForURL(BASE + "/");
+  check(
+    "mobile: hamburger visible",
+    await mobilePage.locator("button[aria-label='Open navigation']").isVisible()
+  );
+  check(
+    "mobile: inline Board link hidden",
+    !(await mobilePage.locator("header nav a:has-text('Board')").isVisible())
+  );
+  const triggerText =
+    (await mobilePage.locator("button[aria-label='Open navigation']").textContent()) ?? "";
+  check("mobile: fight badge on the trigger", /\d/.test(triggerText));
+  await mobilePage.locator("button[aria-label='Open navigation']").click();
+  await mobilePage.waitForSelector("[data-slot=dropdown-menu-content]");
+  const menuText =
+    (await mobilePage.textContent("[data-slot=dropdown-menu-content]")) ?? "";
+  check("mobile: menu lists admin links", menuText.includes("Settings"));
+  check("mobile: menu has an Account item", menuText.includes("Account"));
+  await mobilePage
+    .locator("[data-slot=dropdown-menu-content] a:has-text('Board')")
+    .click();
+  await mobilePage.waitForURL(BASE + "/board");
+  check("mobile: menu item navigates", true);
+  await mobilePage.screenshot({ path: SHOTS + "/09-mobile-board.png", fullPage: false });
+  check(
+    "desktop: researcher inline nav visible at 1440",
+    await engPage.locator("header nav a:has-text('Guide')").isVisible()
+  );
 
   await browser.close();
   console.log(results.join("\n"));

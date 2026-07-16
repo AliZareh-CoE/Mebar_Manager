@@ -369,7 +369,7 @@ export default async function FightListPage() {
           return (
             <section key={type} className="flex flex-col gap-3">
               <div>
-                <h2 className="font-medium">
+                <h2 className="text-base font-medium">
                   {section.title}{" "}
                   <span className="text-muted-foreground">({sectionItems.length})</span>
                 </h2>

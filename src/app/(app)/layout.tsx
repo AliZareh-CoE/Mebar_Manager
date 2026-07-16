@@ -61,7 +61,7 @@ export default async function AppLayout({
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-6 px-4">
+        <div className="mx-auto flex h-14 w-full max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
           <Link
             href="/"
             className="flex items-center gap-1.5 font-semibold tracking-tight"
@@ -77,7 +77,7 @@ export default async function AppLayout({
           <div className="ml-auto flex items-center gap-3">
             <Link
               href="/account"
-              className="hidden text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline sm:inline"
+              className="hidden max-w-[16ch] truncate text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline sm:inline"
             >
               {user.name}
             </Link>
@@ -87,7 +87,7 @@ export default async function AppLayout({
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">{children}</main>
     </div>
   );
 }
