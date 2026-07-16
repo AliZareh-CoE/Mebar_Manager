@@ -198,7 +198,13 @@ export default async function GuidePage() {
             optional: <span className="font-medium text-foreground">a project
             can only be marked Done once its paper is accepted</span> — the
             only other exit is Kill, with a reason. Acceptance is the finish
-            line — nothing else closes a project.
+            line — nothing else closes a project.{" "}
+            <span className="font-medium text-foreground">
+              Set a target submission date on your draft
+            </span>{" "}
+            and the Fight List starts warning you inside the lead window — with
+            your ranked journal shortlist ready so the moment it&apos;s done you
+            know where it goes.
           </p>
         </CardContent>
       </Card>

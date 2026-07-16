@@ -125,6 +125,12 @@ export const DEFAULT_FIGHT_SECTIONS: Record<FightType, FightRuleConfig> = {
     blurb:
       "Every researcher keeps the minimum of running projects — blocked, stalled, or unstarted don't count; analysts, secretaries, and leadership are exempt. Unstick something or file a proposal.",
   },
+  SUBMISSION_TARGET_AT_RISK: {
+    enabled: true,
+    title: "Submission targets at risk",
+    blurb:
+      "A draft with its submission target inside the lead window, or already past it. Submit it, or move the date deliberately.",
+  },
 };
 
 export const DEFAULT_SECTION_ORDER: FightType[] = [...FIGHT_TYPES];

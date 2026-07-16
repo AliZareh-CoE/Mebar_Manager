@@ -460,6 +460,13 @@ export const papers = sqliteTable(
     closedAt: integer("closed_at", { mode: "timestamp_ms" }),
     closureNote: text("closure_note"),
     link: text("link").notNull().default(""),
+    // Venue submission target + ranked journal shortlist (≤3). The target
+    // drives the SUBMISSION_TARGET_AT_RISK fight while the paper is DRAFTING.
+    targetSubmissionAt: integer("target_submission_at", { mode: "timestamp_ms" }),
+    venueShortlist: text("venue_shortlist", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default([]),
     createdById: text("created_by_id").references(() => user.id),
     createdAt: createdAt(),
   },

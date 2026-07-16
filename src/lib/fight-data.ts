@@ -130,8 +130,17 @@ export async function loadLabSnapshot(
       .select({ projectId: projectPeople.projectId, role: projectPeople.role })
       .from(projectPeople)
       .where(inArray(projectPeople.role, ["PI", "FIRST_AUTHOR"])),
-    // Any paper row (any status) suppresses the paperless rule.
-    db.select({ projectId: papers.projectId }).from(papers),
+    // Any paper row (any status) suppresses the paperless rule; DRAFTING rows
+    // with a target date also drive SUBMISSION_TARGET_AT_RISK.
+    db
+      .select({
+        id: papers.id,
+        projectId: papers.projectId,
+        status: papers.status,
+        targetSubmissionAt: papers.targetSubmissionAt,
+        title: papers.title,
+      })
+      .from(papers),
     // The 5-project rule is for researchers proper: data analysts,
     // secretaries, and leadership are exempt (role filter + analyst flag).
     underloadScope === "NONE"

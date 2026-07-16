@@ -1,5 +1,5 @@
 import { differenceInDays, differenceInHours, differenceInMinutes, addHours } from "date-fns";
-import type { BlockerStatus, MilestoneStatus } from "@/lib/db/schema";
+import type { BlockerStatus, MilestoneStatus, PaperStatus } from "@/lib/db/schema";
 import type { FightType } from "@/lib/fight-types";
 import { engineStateFlags } from "@/lib/workflow";
 import { DEFAULT_WORKFLOW } from "@/lib/settings-defaults";
@@ -12,6 +12,7 @@ import {
   COMPUTE_RESULTS_URGENT_DAYS,
   PAPER_GRACE_DAYS,
   MIN_ACTIVE_PROJECTS,
+  SUBMISSION_LEAD_DAYS,
 } from "@/lib/thresholds";
 
 /**
@@ -135,8 +136,18 @@ export interface LabSnapshot {
   openInitiatives?: InitiativeRow[];
   /** PI / FIRST_AUTHOR lineup rows — existence is all the rules need. */
   projectPeople?: { projectId: string; role: "PI" | "FIRST_AUTHOR" }[];
-  /** Paper rows (any status) — the paperless rule needs existence only. */
-  papers?: { projectId: string }[];
+  /**
+   * Paper rows. The paperless rule needs `projectId` existence only; the
+   * submission-at-risk rule additionally reads status/target/id/title, all
+   * optional so `[{ projectId }]` snapshots and old callers still typecheck.
+   */
+  papers?: {
+    projectId: string;
+    id?: string;
+    status?: PaperStatus;
+    targetSubmissionAt?: Date | null;
+    title?: string;
+  }[];
   /**
    * ENGINEER-role, unbanned people to evaluate for the underload rule —
    * persona-scoped by the loader: leadership sees everyone, an engineer
@@ -162,6 +173,7 @@ export interface FightThresholds {
   computeResultsUrgentDays: number;
   paperGraceDays: number;
   minActiveProjects: number;
+  submissionLeadDays: number;
 }
 
 export const DEFAULT_THRESHOLDS: FightThresholds = {
@@ -173,6 +185,7 @@ export const DEFAULT_THRESHOLDS: FightThresholds = {
   computeResultsUrgentDays: COMPUTE_RESULTS_URGENT_DAYS,
   paperGraceDays: PAPER_GRACE_DAYS,
   minActiveProjects: MIN_ACTIVE_PROJECTS,
+  submissionLeadDays: SUBMISSION_LEAD_DAYS,
 };
 
 export interface FightItem {
@@ -585,6 +598,49 @@ export function computeFightList(
         detail: "File one on the Papers tab — even a draft counts.",
         responsible: p.owner,
       });
+    }
+  }
+
+  // Submission targets at risk: a DRAFTING paper with a target submission
+  // date coming up inside the lead window (amber), or already past (red).
+  // Yells at the project owner. 0 lead days disables the rule entirely.
+  if (snap.papers && t.submissionLeadDays > 0 && enabled("SUBMISSION_TARGET_AT_RISK")) {
+    for (const pp of snap.papers) {
+      if (pp.status !== "DRAFTING" || !pp.targetSubmissionAt) continue;
+      const project = projectById.get(pp.projectId);
+      if (!project || flagsOf(project.state).frozen) continue;
+      const overdueDays = differenceInDays(now, pp.targetSubmissionAt);
+      if (overdueDays > 0) {
+        items.push({
+          type: "SUBMISSION_TARGET_AT_RISK",
+          severity: 3,
+          ageDays: overdueDays,
+          projectId: project.id,
+          projectTitle: project.title,
+          entityId: pp.id ?? project.id,
+          headline: `Submission target passed ${overdueDays}d ago — still a draft`,
+          detail: pp.title ?? undefined,
+          responsible: project.owner,
+        });
+        continue;
+      }
+      const daysLeft = differenceInDays(pp.targetSubmissionAt, now);
+      if (daysLeft <= t.submissionLeadDays) {
+        items.push({
+          type: "SUBMISSION_TARGET_AT_RISK",
+          severity: 2,
+          ageDays: 0,
+          projectId: project.id,
+          projectTitle: project.title,
+          entityId: pp.id ?? project.id,
+          headline:
+            daysLeft === 0
+              ? "Submission target is today — still a draft"
+              : `Submission target in ${daysLeft}d — still a draft`,
+          detail: pp.title ?? undefined,
+          responsible: project.owner,
+        });
+      }
     }
   }
 

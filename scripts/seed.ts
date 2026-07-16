@@ -537,8 +537,42 @@ async function seedDemo() {
         title: "Narrow-dispersion CdSe quantum dot synthesis",
         quartileNote: "Q1 — target",
         status: "DRAFTING",
+        // Far outside the submission lead window → no at-risk fight.
+        targetSubmissionAt: addDays(new Date(), 75),
+        venueShortlist: ["Nano Letters", "ACS Nano", "Chemistry of Materials"],
         createdById: dan,
         createdAt: subDays(new Date(), 40),
+      },
+      // A second P1 paper, DRAFTING with its target inside the lead window →
+      // SUBMISSION_TARGET_AT_RISK fires at sara. Older createdAt keeps the
+      // SUBMITTED row as papers[0] (header chip + two e2e locks depend on it).
+      {
+        projectId: p1.id,
+        title: "Sub-hertz drift compensation for cryogenic stages",
+        quartileNote: "Q1 — target",
+        status: "DRAFTING",
+        targetSubmissionAt: addDays(new Date(), 9),
+        venueShortlist: [
+          "Review of Scientific Instruments",
+          "Measurement Science and Technology",
+          "IEEE T-IM",
+        ],
+        createdById: sara,
+        createdAt: subDays(new Date(), 35),
+      },
+      // A REJECTED P2 paper whose venue is shortlist[0] — the Resubmit dialog
+      // pre-fills shortlist[1] (drives the e2e prefill check).
+      {
+        projectId: p2.id,
+        title: "Closed-loop SLM phase stabilization under thermal drift",
+        venue: "Optica",
+        venueShortlist: ["Optica", "Optics Letters", "Applied Optics"],
+        quartileNote: "Q1",
+        status: "REJECTED",
+        closureNote: "Reviewers wanted a wider thermal sweep; resubmitting to the next venue.",
+        closedAt: subDays(new Date(), 6),
+        createdById: omid,
+        createdAt: subDays(new Date(), 80),
       },
     ])
     .run();

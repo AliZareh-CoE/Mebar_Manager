@@ -49,15 +49,41 @@ const filePaperSchema = z.object({
   venue: z.string().trim().default(""),
   quartileNote: z.string().trim().default(""),
   link: z.string().trim().default(""),
+  // Empty string clears the target; a value coerces to a Date.
+  targetSubmissionAt: z
+    .union([z.literal(""), z.coerce.date()])
+    .default("")
+    .transform((v) => (v === "" ? null : v)),
+  venueShortlist: z
+    .array(z.string().trim())
+    .transform((xs) => xs.filter(Boolean).slice(0, 3))
+    .default([]),
 });
+
+// parseForm keeps only the last value per key (Object.fromEntries), so the
+// repeated venueShortlist inputs are collected with getAll.
+function paperFormData(formData: FormData) {
+  return {
+    ...Object.fromEntries(formData.entries()),
+    venueShortlist: formData.getAll("venueShortlist").map(String),
+  };
+}
+
+// The target date is a commitment: setting it the first time is filing it
+// (allowed); moving or clearing an existing one is manager-rank territory —
+// the same anti-manipulation spirit as data-request needed-by dates.
+const sameDay = (a: Date, b: Date) =>
+  a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10);
+const TARGET_LOCKED =
+  "Submission target dates are locked once set. Ask a coordinator to move it.";
 
 export async function filePaper(projectId: string, formData: FormData): Promise<ActionResult> {
   const me = await requireUser();
   const access = await verifyPaperAccess(me, projectId);
   if ("error" in access) return access;
 
-  const parsed = parseForm(filePaperSchema, formData);
-  if (!parsed.success) return { error: parsed.error };
+  const parsed = filePaperSchema.safeParse(paperFormData(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   await db.insert(papers).values({ ...parsed.data, projectId, createdById: me.id });
   revalidatePaper(projectId);
@@ -71,8 +97,17 @@ export async function editPaper(paperId: string, formData: FormData): Promise<Ac
   const access = await verifyPaperAccess(me, paper.projectId, paper.createdById);
   if ("error" in access) return access;
 
-  const parsed = parseForm(filePaperSchema, formData);
-  if (!parsed.success) return { error: parsed.error };
+  const parsed = filePaperSchema.safeParse(paperFormData(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const prev = paper.targetSubmissionAt;
+  const next = parsed.data.targetSubmissionAt;
+  const targetChanged =
+    (prev === null) !== (next === null) ||
+    (prev !== null && next !== null && !sameDay(prev, next));
+  if (prev !== null && targetChanged && !isManagerOrAbove(me)) {
+    return { error: TARGET_LOCKED };
+  }
 
   await db.update(papers).set(parsed.data).where(eq(papers.id, paperId));
   revalidatePaper(paper.projectId);

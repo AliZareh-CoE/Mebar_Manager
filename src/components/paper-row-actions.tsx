@@ -17,17 +17,29 @@ export function PaperRowActions({
   paperId,
   status,
   venue,
+  venueShortlist,
   edit,
   canConfirmAccept,
 }: {
   paperId: string;
   status: PaperStatus;
   venue: string;
-  edit: { title: string; venue: string; quartileNote: string; link: string };
-  /** Acceptance is confirmed by manager rank — the 8 points need a second pair of eyes. */
+  venueShortlist: string[];
+  edit: {
+    title: string;
+    venue: string;
+    quartileNote: string;
+    link: string;
+    targetSubmissionAt: Date | null;
+  };
+  /** Acceptance is confirmed by manager rank — it needs a second pair of eyes. */
   canConfirmAccept: boolean;
 }) {
   const submitLabel = status === "DRAFTING" ? "Submit…" : "Resubmit…";
+  // The first shortlist venue not already used as the current venue — the
+  // natural next target when resubmitting a rejected/withdrawn paper.
+  const nextVenue = venueShortlist.find((v) => v && v !== venue) ?? "";
+  const venuePrefill = venue && status === "DRAFTING" ? venue : nextVenue || venue;
 
   return (
     <div className="flex items-center justify-end gap-2">
@@ -52,7 +64,7 @@ export function PaperRowActions({
             <Input
               id={`venue-${paperId}`}
               name="venue"
-              defaultValue={venue}
+              defaultValue={venuePrefill}
               placeholder="IEEE TII (Q1)"
               required
             />
@@ -153,6 +165,25 @@ export function PaperRowActions({
           <div className="flex flex-col gap-2">
             <Label htmlFor={`el-${paperId}`}>Link / DOI</Label>
             <Input id={`el-${paperId}`} name="link" defaultValue={edit.link} />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`etgt-${paperId}`}>Target submission date</Label>
+            <Input
+              id={`etgt-${paperId}`}
+              name="targetSubmissionAt"
+              type="date"
+              defaultValue={
+                edit.targetSubmissionAt
+                  ? new Date(edit.targetSubmissionAt).toISOString().slice(0, 10)
+                  : ""
+              }
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>Journal shortlist (ranked)</Label>
+            <Input name="venueShortlist" defaultValue={venueShortlist[0] ?? ""} placeholder="Target 1 — best fit" />
+            <Input name="venueShortlist" defaultValue={venueShortlist[1] ?? ""} placeholder="Target 2 — strong alternative" />
+            <Input name="venueShortlist" defaultValue={venueShortlist[2] ?? ""} placeholder="Target 3 — reliable fallback" />
           </div>
         </FormDialog>
       )}

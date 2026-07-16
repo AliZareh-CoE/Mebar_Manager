@@ -819,6 +819,64 @@ async function main() {
   // and leadership, filtered by role) — lena must never appear.
   check("v6: data analyst exempt from underload", !/Lena Fischer has \d+\/\d+/.test(profFights));
 
+  // v7: paper submission targets. P1's seeded DRAFTING paper has its target
+  // inside the lead window → the at-risk section renders for leadership.
+  check("v7: submission-at-risk fight section renders", profFights.includes("Submission targets at risk"));
+  check("v7: at-risk headline names the countdown", /Submission target in \d+d — still a draft/.test(profFights));
+
+  // v7: paper target + shortlist round-trip on P1's Papers tab (read-only).
+  await page.goto(BASE + "/board");
+  await page.click("text=Cryo-stage vibration isolation");
+  await page.click("text=Papers (");
+  await page.waitForSelector("text=Sub-hertz drift compensation");
+  const papersTab = (await page.textContent("body"))!;
+  check("v7: paper row shows the target date at risk", papersTab.includes("— at risk"));
+  check("v7: paper row shows the shortlist", papersTab.includes("Shortlist: Review of Scientific Instruments"));
+  const draftRow = page.locator("tr", { hasText: "Sub-hertz drift compensation" });
+  await draftRow.locator("button:has-text('Edit')").click();
+  await page.waitForSelector("input[name=targetSubmissionAt]");
+  check(
+    "v7: edit dialog carries the target date",
+    (await page.locator("input[name=targetSubmissionAt]").inputValue()) !== ""
+  );
+  check(
+    "v7: edit dialog carries the shortlist",
+    (await page.locator("input[name=venueShortlist]").first().inputValue()).includes(
+      "Review of Scientific Instruments"
+    )
+  );
+  await page.keyboard.press("Escape");
+
+  // v7: the target date is locked for researchers — sara's edit is rejected.
+  await engPage.goto(BASE + "/board");
+  await engPage.click("text=Cryo-stage vibration isolation");
+  await engPage.click("text=Papers (");
+  await engPage.waitForSelector("text=Sub-hertz drift compensation");
+  const saraDraftRow = engPage.locator("tr", { hasText: "Sub-hertz drift compensation" });
+  await saraDraftRow.locator("button:has-text('Edit')").click();
+  await engPage.waitForSelector("input[name=targetSubmissionAt]");
+  await engPage.fill("input[name=targetSubmissionAt]", "2027-06-01");
+  await engPage.click("button:has-text('Save')");
+  await engPage.waitForSelector("text=Submission target dates are locked");
+  check("v7: researcher cannot move the submission target", true);
+  await engPage.keyboard.press("Escape");
+
+  // v7: resubmit pre-fills the next unused shortlist venue (P2's REJECTED
+  // paper venue is shortlist[0] "Optica" → prefill "Optics Letters").
+  await page.goto(BASE + "/board");
+  await page.click("text=Femtosecond pulse shaper");
+  await page.click("text=Papers (");
+  await page.waitForSelector("text=Closed-loop SLM phase stabilization");
+  const rejRow = page.locator("tr", { hasText: "Closed-loop SLM phase stabilization" });
+  await rejRow.locator("button:has-text('Resubmit')").click();
+  await page.waitForSelector("input[name=venue]");
+  check(
+    "v7: resubmit pre-fills the next unused shortlist venue",
+    (await page.locator("input[name=venue]").inputValue()) === "Optics Letters"
+  );
+  await page.keyboard.press("Escape");
+  await page.goto(BASE + "/");
+
   await engPage.goto(BASE + "/");
   const saraFights = (await engPage.textContent("body"))!;
   check("v6: engineer sees own underload item", /Sara Kim has \d+\/\d+ running projects/.test(saraFights));

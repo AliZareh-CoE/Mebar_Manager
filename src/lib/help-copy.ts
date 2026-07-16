@@ -157,6 +157,13 @@ export const FIGHT_TYPE_HELP: Record<FightType, (ctx: HelpContext) => FightRuleH
     clear: "Unstick what's blocked or stalled, or file a proposal and get it activated — the count updates the moment a project is running again.",
     advice: `Running ${t.minActiveProjects} projects is a portfolio, not a juggling act: stagger their maturity — a couple in early experiments, a couple mid-campaign, one in writing (a project being written up is still running) — so they queue behind each other's dead time (reviews, deliveries, compute windows) instead of competing for the same afternoon. Give each project its own time block and never multitask inside one. And keep proposals in scoping ON TOP of the ${t.minActiveProjects} — they don't count until activated, so file the next one BEFORE you're under the bar. A blocked or stalled project silently drops out of your count too, so unsticking one is as good as starting one.`,
   }),
+  SUBMISSION_TARGET_AT_RISK: ({ thresholds: t }) => ({
+    what: `A draft whose target submission date is within ${t.submissionLeadDays} days — or already past it. The date you set to submit is nearly here and it's still a draft.`,
+    who: "The project owner.",
+    clear: "Submit it (that clears the fight and starts the review clock), or ask a coordinator to move the target date deliberately.",
+    advice:
+      "Set the target the day you start drafting and write backwards from it: methods and figures while the experiments run, so the last week is polish, not panic. Keep your journal shortlist ranked so the moment it's ready you already know where it goes.",
+  }),
 };
 
 /** Fold a fight rule's help into the {title, body} shape InfoHint renders. */
@@ -245,6 +252,7 @@ export const MECHANISM_HELP: Record<MechanismId, (ctx: HelpContext) => HelpCopy>
         ? `Submitting earns the owner ${p.weights.paperSubmitted} points; an acceptance earns ${p.weights.paperAccepted}, once a coordinator confirms it — the biggest prize needs a second pair of eyes. Rejections resubmit on the same row, reasons on the record.`
         : "An acceptance counts once a coordinator confirms it — the biggest milestone needs a second pair of eyes. Rejections resubmit on the same row, reasons on the record.",
       "Win: pick 3 target journals before writing (best fit → alternative → reliable fallback), write to Target 1's format, and draft methods while the experiments run.",
+      "Set a target submission date on the draft and keep your ranked venue shortlist filled: the date turns the row red as it approaches so nothing quietly slips, and resubmitting a rejected paper pre-fills the next journal on your list.",
     ],
   }),
   paretoCause: () => ({

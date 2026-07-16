@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { asc, desc, ne } from "drizzle-orm";
-import { format, formatDistanceStrict, addHours } from "date-fns";
+import { format, formatDistanceStrict, addHours, differenceInDays } from "date-fns";
 import { isOverdue, projectAgeDays } from "@/lib/fight-engine";
 import {
   activationStateKeys,
@@ -164,6 +164,14 @@ export default async function ProjectPage({
   const firstAuthor = project.people.find((pp) => pp.role === "FIRST_AUTHOR");
   const ROLE_LABEL = { PI: "PI", FIRST_AUTHOR: "First author", CONTRIBUTOR: "Contributor" } as const;
   const latestPaper = project.papers[0];
+  // A DRAFTING paper whose target submission date is inside the lead window
+  // (or past) renders red — the same condition the fight engine uses.
+  const leadDays = settings.thresholds.submissionLeadDays;
+  const paperAtRisk = (p: (typeof project.papers)[number]) =>
+    p.status === "DRAFTING" &&
+    !!p.targetSubmissionAt &&
+    leadDays > 0 &&
+    differenceInDays(p.targetSubmissionAt, new Date()) <= leadDays;
   // Scoring-input locks: once the project has left the drafting phase, only
   // manager rank may change PI/first author or confirm an acceptance.
   const projectActivated =
@@ -1031,6 +1039,19 @@ export default async function ProjectPage({
               <Label htmlFor="paper-link">Link / DOI (optional)</Label>
               <Input id="paper-link" name="link" />
             </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="paper-target">Target submission date (optional)</Label>
+              <Input id="paper-target" name="targetSubmissionAt" type="date" />
+              <p className="text-xs text-muted-foreground">
+                {`The Fight List warns you as this date approaches (within ${leadDays} days) if it's still a draft.`}
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>Journal shortlist (ranked, optional)</Label>
+              <Input name="venueShortlist" placeholder="Target 1 — best fit" />
+              <Input name="venueShortlist" placeholder="Target 2 — strong alternative" />
+              <Input name="venueShortlist" placeholder="Target 3 — reliable fallback" />
+            </div>
           </FormDialog>
 
           {project.papers.length === 0 ? (
@@ -1071,6 +1092,23 @@ export default async function ProjectPage({
                             ↳ {paper.closureNote}
                           </div>
                         )}
+                      {paper.targetSubmissionAt && (
+                        <div
+                          className={
+                            paperAtRisk(paper)
+                              ? "mt-0.5 text-xs font-medium text-red-600 dark:text-red-400"
+                              : "mt-0.5 text-xs text-muted-foreground"
+                          }
+                        >
+                          {`Target: ${format(paper.targetSubmissionAt, "MMM d, yyyy")}`}
+                          {paperAtRisk(paper) ? " — at risk" : ""}
+                        </div>
+                      )}
+                      {paper.venueShortlist.length > 0 && (
+                        <div className="mt-0.5 text-xs text-muted-foreground">
+                          {`Shortlist: ${paper.venueShortlist.join(" → ")}`}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {[paper.venue, paper.quartileNote].filter(Boolean).join(" · ") || "—"}
@@ -1108,12 +1146,14 @@ export default async function ProjectPage({
                         paperId={paper.id}
                         status={paper.status}
                         venue={paper.venue}
+                        venueShortlist={paper.venueShortlist}
                         canConfirmAccept={isManagerOrAbove(me)}
                         edit={{
                           title: paper.title,
                           venue: paper.venue,
                           quartileNote: paper.quartileNote,
                           link: paper.link,
+                          targetSubmissionAt: paper.targetSubmissionAt,
                         }}
                       />
                     </TableCell>

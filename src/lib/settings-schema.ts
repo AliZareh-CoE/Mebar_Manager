@@ -29,6 +29,7 @@ import {
   AGE_AGING_DAYS,
   PAPER_GRACE_DAYS,
   MIN_ACTIVE_PROJECTS,
+  SUBMISSION_LEAD_DAYS,
 } from "@/lib/thresholds";
 
 /**
@@ -63,6 +64,7 @@ export const thresholdSettingsSchema = z.object({
   ageAgingDays: z.coerce.number().int().min(0).max(365).default(AGE_AGING_DAYS),
   paperGraceDays: z.coerce.number().int().min(0).max(365).default(PAPER_GRACE_DAYS),
   minActiveProjects: z.coerce.number().int().min(0).max(50).default(MIN_ACTIVE_PROJECTS),
+  submissionLeadDays: z.coerce.number().int().min(0).max(365).default(SUBMISSION_LEAD_DAYS),
 });
 export type ThresholdSettings = z.infer<typeof thresholdSettingsSchema>;
 

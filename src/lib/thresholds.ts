@@ -31,3 +31,6 @@ export const PAPER_GRACE_DAYS = 30;
 
 /** Every researcher runs at least this many running (healthy, non-stalled) projects. 0 disables. */
 export const MIN_ACTIVE_PROJECTS = 5;
+
+/** A DRAFTING paper whose target submission date is this close (or past) is at risk. 0 disables. */
+export const SUBMISSION_LEAD_DAYS = 14;

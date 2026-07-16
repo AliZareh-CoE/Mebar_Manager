@@ -53,6 +53,9 @@ describe("help copy", () => {
     expect(FIGHT_TYPE_HELP.STALLED_PROJECT(c).what).toContain("42");
     expect(FIGHT_TYPE_HELP.PENDING_DECISION(c).what).toContain("99");
     expect(FIGHT_TYPE_HELP.UNDERLOADED_RESEARCHER(c).what).toContain("13");
+    expect(
+      FIGHT_TYPE_HELP.SUBMISSION_TARGET_AT_RISK(ctx({ submissionLeadDays: 21 })).what
+    ).toContain("21");
     expect(MECHANISM_HELP.autoProceed(c).body.toString()).toContain("99");
     expect(MECHANISM_HELP.agePill(c).body.toString()).toContain("42");
   });

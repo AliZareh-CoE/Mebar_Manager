@@ -725,6 +725,7 @@ describe("custom thresholds", () => {
     computeResultsUrgentDays: 1,
     paperGraceDays: 30,
     minActiveProjects: 5,
+    submissionLeadDays: 14,
   };
 
   it("stallDays 30 un-stalls a 21-day-silent project", () => {
@@ -1189,5 +1190,96 @@ describe("UNDERLOADED_RESEARCHER", () => {
 
   it("old snapshots without researchers never fire", () => {
     expect(computeFightList(snap(), NOW)).toEqual([]);
+  });
+});
+
+describe("SUBMISSION_TARGET_AT_RISK", () => {
+  const draftPaper = (over: object = {}) => ({
+    projectId: "p1",
+    id: "pp1",
+    status: "DRAFTING" as const,
+    targetSubmissionAt: addDays(NOW, 5),
+    title: "Draft one",
+    ...over,
+  });
+  const atRisk = (s: LabSnapshot, t?: typeof DEFAULT_THRESHOLDS, cfg?: Parameters<typeof computeFightList>[3]) =>
+    computeFightList(s, NOW, t, cfg).filter((i) => i.type === "SUBMISSION_TARGET_AT_RISK");
+
+  it("inside the lead window → sev 2 at the owner with project title", () => {
+    const items = atRisk(snap({ papers: [draftPaper()] }));
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      severity: 2,
+      ageDays: 0,
+      projectId: "p1",
+      projectTitle: "Test project",
+      entityId: "pp1",
+      responsible: alice,
+    });
+  });
+
+  it("boundary: exactly at the lead fires, one day beyond is silent", () => {
+    expect(atRisk(snap({ papers: [draftPaper({ targetSubmissionAt: addDays(NOW, 14) })] }))).toHaveLength(1);
+    expect(atRisk(snap({ papers: [draftPaper({ targetSubmissionAt: addDays(NOW, 15) })] }))).toHaveLength(0);
+  });
+
+  it("day-of the target is amber and says today", () => {
+    const items = atRisk(snap({ papers: [draftPaper({ targetSubmissionAt: NOW })] }));
+    expect(items[0]?.severity).toBe(2);
+    expect(items[0]?.headline).toContain("today");
+  });
+
+  it("past the target → sev 3 with overdue ageDays", () => {
+    const items = atRisk(snap({ papers: [draftPaper({ targetSubmissionAt: subDays(NOW, 3) })] }));
+    expect(items[0]).toMatchObject({ severity: 3, ageDays: 3 });
+  });
+
+  it("non-DRAFTING never fires, even past the target", () => {
+    for (const status of ["SUBMITTED", "ACCEPTED", "REJECTED", "WITHDRAWN"] as const) {
+      expect(
+        atRisk(snap({ papers: [draftPaper({ status, targetSubmissionAt: subDays(NOW, 3) })] }))
+      ).toHaveLength(0);
+    }
+  });
+
+  it("no target date → silent; projectId-only rows (old snapshots) → silent", () => {
+    expect(atRisk(snap({ papers: [draftPaper({ targetSubmissionAt: null })] }))).toHaveLength(0);
+    expect(atRisk(snap({ papers: [{ projectId: "p1" }] }))).toHaveLength(0);
+  });
+
+  it("submissionLeadDays 0 disables the whole rule, past-due included", () => {
+    const s = snap({ papers: [draftPaper({ targetSubmissionAt: subDays(NOW, 5) })] });
+    expect(atRisk(s, { ...DEFAULT_THRESHOLDS, submissionLeadDays: 0 })).toHaveLength(0);
+  });
+
+  it("custom lead threshold respected", () => {
+    const t = { ...DEFAULT_THRESHOLDS, submissionLeadDays: 3 };
+    expect(atRisk(snap({ papers: [draftPaper({ targetSubmissionAt: addDays(NOW, 5) })] }), t)).toHaveLength(0);
+    expect(atRisk(snap({ papers: [draftPaper({ targetSubmissionAt: addDays(NOW, 2) })] }), t)).toHaveLength(1);
+  });
+
+  it("frozen project freezes it; missing project drops it", () => {
+    const paused = snap({
+      projects: [project({ state: "PAUSED", pauseReason: "x", reviveDate: addDays(NOW, 5) })],
+      papers: [draftPaper({ targetSubmissionAt: subDays(NOW, 3) })],
+    });
+    expect(atRisk(paused)).toHaveLength(0);
+    expect(atRisk(snap({ papers: [draftPaper({ projectId: "ghost" })] }))).toHaveLength(0);
+  });
+
+  it("enabledRules toggle silences it", () => {
+    expect(
+      atRisk(snap({ papers: [draftPaper()] }), undefined, {
+        enabledRules: { SUBMISSION_TARGET_AT_RISK: false },
+      })
+    ).toHaveLength(0);
+  });
+
+  it("regression: an at-risk draft still suppresses PAPERLESS_PROJECT", () => {
+    const s = snap({
+      projects: [project({ createdAt: subDays(NOW, 90) })],
+      papers: [draftPaper()],
+    });
+    expect(computeFightList(s, NOW).filter((i) => i.type === "PAPERLESS_PROJECT")).toHaveLength(0);
   });
 });

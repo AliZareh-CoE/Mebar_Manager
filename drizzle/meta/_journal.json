@@ -22,6 +22,13 @@
       "when": 1784173448973,
       "tag": "0002_v6_external_data_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1784212840024,
+      "tag": "0003_v7_paper_targets",
+      "breakpoints": true
     }
   ]
 }
