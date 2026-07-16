@@ -49,6 +49,7 @@ export const GUARDED_ROUTES = [
   "/data",
   "/compute",
   "/tasks",
+  "/meeting",
   "/initiatives",
   "/performance",
   "/admin/users",
@@ -66,6 +67,8 @@ export function routeAllowed(user: AccessUser, route: GuardedRoute): boolean {
       return user.role !== "SECRETARY";
     case "/tasks":
       return true;
+    // Meeting mode is the leadership agenda — exactly the initiatives gate.
+    case "/meeting":
     case "/initiatives":
       return canSeeInitiatives(user);
     case "/performance":

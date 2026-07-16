@@ -32,6 +32,7 @@ export function NavLinks({
           { href: "/guide", label: "Guide" },
           ...(isLeadership
             ? [
+                { href: "/meeting", label: "Meeting" },
                 { href: "/initiatives", label: "Initiatives" },
                 { href: "/performance", label: "Performance" },
               ]

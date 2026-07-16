@@ -96,39 +96,39 @@ describe("route access grid", () => {
   const expected: Record<Persona, Record<GuardedRoute, boolean>> = {
     adminCoordinator: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
-      "/initiatives": true, "/performance": true,
+      "/meeting": true, "/initiatives": true, "/performance": true,
       "/admin/users": true, "/admin/feedback": true, "/admin/settings": true,
     },
     admin: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
-      "/initiatives": true, "/performance": true,
+      "/meeting": true, "/initiatives": true, "/performance": true,
       "/admin/users": true, "/admin/feedback": true, "/admin/settings": true,
     },
     // Managers run the lab's work — the dangerous stuff is the admin's alone.
     manager: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
-      "/initiatives": true, "/performance": true,
+      "/meeting": true, "/initiatives": true, "/performance": true,
       "/admin/users": false, "/admin/feedback": false, "/admin/settings": false,
     },
     managerCoordinator: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
-      "/initiatives": true, "/performance": true,
+      "/meeting": true, "/initiatives": true, "/performance": true,
       "/admin/users": false, "/admin/feedback": false, "/admin/settings": false,
     },
     engineer: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
-      "/initiatives": false, "/performance": false,
+      "/meeting": false, "/initiatives": false, "/performance": false,
       "/admin/users": false, "/admin/feedback": false, "/admin/settings": false,
     },
     engineerCoordinator: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
-      "/initiatives": true, "/performance": true,
+      "/meeting": true, "/initiatives": true, "/performance": true,
       // Coordinator sees the lab, but admin pages stay admin-only.
       "/admin/users": false, "/admin/feedback": false, "/admin/settings": false,
     },
     secretary: {
       "/board": false, "/data": false, "/compute": false, "/tasks": true,
-      "/initiatives": false, "/performance": false,
+      "/meeting": false, "/initiatives": false, "/performance": false,
       "/admin/users": false, "/admin/feedback": false, "/admin/settings": false,
     },
   };

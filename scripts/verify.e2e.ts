@@ -759,6 +759,7 @@ async function main() {
     ["/data", "/data", "/data", "/tasks"],
     ["/compute", "/compute", "/compute", "/tasks"],
     ["/tasks", "/tasks", "/tasks", "/tasks"],
+    ["/meeting", "/meeting", "/", "/"],
     ["/initiatives", "/initiatives", "/", "/"],
     ["/performance", "/performance", "/", "/"],
     ["/admin/users", "/admin/users", "/", "/"],
@@ -928,6 +929,26 @@ async function main() {
     "v6: own underload item on account page",
     /Sara Kim has \d+\/\d+ running projects/.test((await engPage.textContent("body"))!)
   );
+
+  // v7-C4: Meeting mode — leadership-only agenda, five stable sections.
+  await page.goto(BASE + "/meeting");
+  check("meeting: leader loads /meeting", new URL(page.url()).pathname === "/meeting");
+  const meetingBody = (await page.textContent("body"))!;
+  for (const heading of [
+    "Fight list for review",
+    "Updates this week",
+    "Decisions to make",
+    "Papers that moved",
+    "Open initiatives",
+  ]) {
+    check(`meeting: section "${heading}"`, meetingBody.includes(heading));
+  }
+  check("meeting: leader nav has Meeting", (await navSet(page)).includes("Meeting"));
+  await engPage.goto(BASE + "/meeting");
+  await engPage.waitForURL(BASE + "/");
+  check("meeting: researcher redirects home", engPage.url() === BASE + "/");
+  check("meeting: researcher nav lacks Meeting", !(await navSet(engPage)).includes("Meeting"));
+  await engPage.goto(BASE + "/account");
 
   // v7: weekly digest — self-service opt-out toggle round-trips and restores.
   await engPage.waitForSelector("input[data-slot=digest-toggle]");
