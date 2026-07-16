@@ -7,8 +7,10 @@ import { user, type DataRequestStatus } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { visibleProjectIds, isVisible } from "@/lib/visibility";
+import { isLabLeadership } from "@/lib/policy";
 import { isOverdue } from "@/lib/fight-engine";
 import { Badge } from "@/components/ui/badge";
+import { ExternalDataRequestDialog } from "@/components/external-data-request-dialog";
 import {
   Table,
   TableBody,
@@ -52,29 +54,38 @@ export default async function DataPage() {
       .where(and(eq(user.isDataAnalyst, true), ne(user.banned, true))),
   ]);
 
-  const requests = allRequests.filter((r) => isVisible(visibleIds, r.projectId));
+  // Project requests scope to visible projects; external requests (no
+  // project) are a coordinator/analyst concern only.
+  const canSeeExternal = isLabLeadership(me) || me.isDataAnalyst;
+  const requests = allRequests.filter((r) =>
+    r.projectId ? isVisible(visibleIds, r.projectId) : canSeeExternal
+  );
   const now = new Date();
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Data</h1>
-        <p className="text-sm text-muted-foreground">
-          {analysts.length > 0 ? (
-            <>
-              Every data request, delivered by{" "}
-              <span className="text-foreground/80">
-                {analysts.map((a) => a.name).join(", ")}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Data</h1>
+          <p className="text-sm text-muted-foreground">
+            {analysts.length > 0 ? (
+              <>
+                Every data request, delivered by{" "}
+                <span className="text-foreground/80">
+                  {analysts.map((a) => a.name).join(", ")}
+                </span>
+                . Requests from outside Mebar are logged by coordinators.
+                Unowned requests escalate after {settings.thresholds.unownedGraceDays} days.
+              </>
+            ) : (
+              <span className="text-amber-600 dark:text-amber-400">
+                No data analysts yet — a coordinator can grant the analyst add-on
+                on the People page.
               </span>
-              . Unowned requests escalate after {settings.thresholds.unownedGraceDays} days.
-            </>
-          ) : (
-            <span className="text-amber-600 dark:text-amber-400">
-              No data analysts yet — a coordinator can grant the analyst add-on
-              on the People page.
-            </span>
-          )}
-        </p>
+            )}
+          </p>
+        </div>
+        {isLabLeadership(me) && <ExternalDataRequestDialog analysts={analysts} />}
       </div>
 
       {requests.length === 0 ? (
@@ -121,12 +132,22 @@ export default async function DataPage() {
                         </p>
                       </TableCell>
                       <TableCell>
-                        <Link
-                          href={`/projects/${dr.project.id}`}
-                          className="text-sm underline-offset-4 hover:underline"
-                        >
-                          {dr.project.title}
-                        </Link>
+                        {dr.project ? (
+                          <Link
+                            href={`/projects/${dr.project.id}`}
+                            className="text-sm underline-offset-4 hover:underline"
+                          >
+                            {dr.project.title}
+                          </Link>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-violet-600 dark:text-violet-400"
+                            title={dr.externalContact ?? undefined}
+                          >
+                            External · {dr.externalRequester}
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell
                         className={

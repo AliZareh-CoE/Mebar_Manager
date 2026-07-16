@@ -78,6 +78,8 @@ function dataRequest(over: Partial<DataRequestRow> = {}): DataRequestRow {
   return {
     id: "dr1",
     projectId: "p1",
+    externalRequester: null,
+    requester: alice,
     title: "Wafer defect image archive, labeled, 2019-2024",
     neededBy: addDays(NOW, 7),
     createdAt: subDays(NOW, 1),
@@ -443,6 +445,63 @@ describe("data requests", () => {
       );
       expect(items).toEqual([]);
     }
+  });
+});
+
+describe("external data requests (no project)", () => {
+  const coordinator = { id: "u-coord", name: "Coordinator" };
+  const bob = { id: "u-bob-ext", name: "Bob" };
+  const external = (over: Partial<DataRequestRow> = {}) =>
+    dataRequest({
+      id: "ext1",
+      projectId: null,
+      externalRequester: "Prof. Ada Byrne",
+      requester: coordinator,
+      assigneeId: null,
+      assignee: null,
+      ...over,
+    });
+
+  it("overdue external request fights, aimed at the assigned analyst", () => {
+    const items = computeFightList(
+      snap({
+        // No projects at all — external requests don't need one.
+        projects: [],
+        openDataRequests: [external({ assigneeId: bob.id, assignee: bob, neededBy: subDays(NOW, 2) })],
+      }),
+      NOW
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      type: "OVERDUE_DATA_REQUEST",
+      projectId: null,
+      responsible: bob,
+    });
+    expect(items[0]?.headline).toContain("External data request");
+    expect(items[0]?.detail).toContain("Prof. Ada Byrne");
+  });
+
+  it("unowned external request falls back to the logging coordinator", () => {
+    const items = computeFightList(
+      snap({ projects: [], openDataRequests: [external({ createdAt: subDays(NOW, 3) })] }),
+      NOW
+    );
+    expect(items[0]).toMatchObject({
+      type: "UNOWNED_DATA_REQUEST",
+      projectId: null,
+      responsible: coordinator,
+    });
+  });
+
+  it("external requests never freeze — a healthy assigned one still comes due", () => {
+    const items = computeFightList(
+      snap({
+        projects: [],
+        openDataRequests: [external({ assigneeId: bob.id, assignee: bob, neededBy: addDays(NOW, 3) })],
+      }),
+      NOW
+    );
+    expect(items).toEqual([]); // not overdue yet, assigned → silent
   });
 });
 

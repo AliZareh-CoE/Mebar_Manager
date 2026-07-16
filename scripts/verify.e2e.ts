@@ -283,6 +283,36 @@ async function main() {
   check("/data names the analyst", dataBody!.includes("Lena Fischer"));
   check("/data shows groups", dataBody!.includes("Open") && dataBody!.includes("Delivered"));
 
+  // 21b. External data requests — coordinators log outside asks and route
+  // them to a data analyst. Seeded: one unassigned (Ada Byrne), one assigned
+  // (Analog Devices → Lena).
+  check("/data shows external requests to the coordinator", dataBody!.includes("External ·"));
+  check("/data shows the external requester name", dataBody!.includes("Prof. Ada Byrne"));
+  check(
+    "/data has the coordinator's Log-external button",
+    (await page.locator("button:has-text('Log external request')").count()) > 0
+  );
+  // Log a fresh external request through the dialog.
+  await page.click("button:has-text('Log external request')");
+  await page.waitForSelector("input[name=externalRequester]");
+  await page.fill("input[name=externalRequester]", "MIT Media Lab (external)");
+  await page.fill("input[name=externalContact]", "req@media.example");
+  await page.fill("input[name=title]", "Gesture capture corpus, anonymized");
+  await page.fill("textarea[name=description]", "Any shareable subset, per-session folders.");
+  await page.fill("input[name=neededBy]", "2027-02-01");
+  await page.click("button:has-text('Log it')");
+  await page.waitForSelector("text=MIT Media Lab (external)");
+  check("coordinator logged a new external request", true);
+  // Route the unassigned external (Ada Byrne) to Lena via the row's assign select.
+  const adaRow = page.locator("tr", { hasText: "Prof. Ada Byrne" });
+  await adaRow.locator("button:has-text('Assign analyst')").click();
+  await page.click("[role=option]:has-text('Lena Fischer')");
+  await page.waitForTimeout(1200);
+  check(
+    "coordinator assigned the external request to an analyst",
+    (await page.locator("tr", { hasText: "Prof. Ada Byrne" }).textContent())!.includes("Lena Fischer")
+  );
+
   // 22. Settings: raising the unowned grace hides the unowned-blocker fight
   await page.goto(BASE + "/admin/settings/fights");
   const thresholdForm = page.locator("form", { has: page.locator("input[name=unownedGraceDays]") });
@@ -703,6 +733,24 @@ async function main() {
   check(
     "matrix: analyst nav = engineer nav (add-on grants no surfaces)",
     lenaNav.includes("Data") && !lenaNav.includes("Performance") && !lenaNav.includes("Settings")
+  );
+
+  // External data requests are a coordinator/analyst concern: the analyst
+  // sees them on /data, a plain researcher does not, and only leadership
+  // gets the Log-external button.
+  await lenaPage.goto(BASE + "/data");
+  const lenaData = (await lenaPage.textContent("body"))!;
+  check("matrix: analyst sees external requests on /data", lenaData.includes("External ·"));
+  check(
+    "matrix: analyst has no Log-external button (coordinator-only)",
+    (await lenaPage.locator("button:has-text('Log external request')").count()) === 0
+  );
+  await engPage.goto(BASE + "/data");
+  const saraData = (await engPage.textContent("body"))!;
+  check("matrix: plain researcher does NOT see external requests", !saraData.includes("External ·"));
+  check(
+    "matrix: plain researcher has no Log-external button",
+    (await engPage.locator("button:has-text('Log external request')").count()) === 0
   );
 
   // Route sweep: [route, prof, sara, taylor] — expected landing pathname.

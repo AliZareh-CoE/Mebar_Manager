@@ -1,5 +1,5 @@
 import "server-only";
-import { eq, or } from "drizzle-orm";
+import { and, eq, isNotNull, or, sql } from "drizzle-orm";
 import { union } from "drizzle-orm/sqlite-core";
 import { db } from "@/lib/db";
 import {
@@ -48,9 +48,16 @@ export async function visibleProjectIds(
       ),
     db.select({ id: blockers.projectId }).from(blockers).where(eq(blockers.ownerId, user.id)),
     db
-      .select({ id: dataRequests.projectId })
+      // Coerce + filter nulls: external data requests carry no project, so
+      // they never contribute a project id to a researcher's visible set.
+      .select({ id: sql<string>`${dataRequests.projectId}` })
       .from(dataRequests)
-      .where(or(eq(dataRequests.assigneeId, user.id), eq(dataRequests.requesterId, user.id))),
+      .where(
+        and(
+          isNotNull(dataRequests.projectId),
+          or(eq(dataRequests.assigneeId, user.id), eq(dataRequests.requesterId, user.id))
+        )
+      ),
     db
       .select({ id: computeRequests.projectId })
       .from(computeRequests)

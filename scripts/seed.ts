@@ -612,6 +612,34 @@ async function seedDemo() {
         createdAt: subDays(new Date(), 30),
         deliveredAt: subDays(new Date(), 22),
       },
+      // External requests: no project, logged by the coordinator (prof).
+      // One unassigned (escalates as unowned), one routed to an analyst.
+      {
+        projectId: null,
+        externalRequester: "Prof. Ada Byrne (Optics, partner lab)",
+        externalContact: "ada.byrne@partner.example",
+        title: "Interferometer calibration sweeps, 2023–2025",
+        description: "CSV per run, labeled by temperature setpoint; whatever is shareable.",
+        neededBy: addDays(new Date(), 9),
+        requesterId: prof,
+        assigneeId: null,
+        status: "OPEN",
+        // Fresh (within grace) so it shows on /data awaiting routing without
+        // firing an unowned fight yet — the coordinator assigns it there.
+        createdAt: subDays(new Date(), 1),
+      },
+      {
+        projectId: null,
+        externalRequester: "Analog Devices (industry collaborator)",
+        externalContact: "collab@analog.example",
+        title: "Anonymized sensor drift logs from the shared testbed",
+        description: "Parquet, one file per device, drift vs. time; strip serials.",
+        neededBy: addDays(new Date(), 14),
+        requesterId: prof,
+        assigneeId: lena,
+        status: "OPEN",
+        createdAt: subDays(new Date(), 2),
+      },
     ])
     .run();
 

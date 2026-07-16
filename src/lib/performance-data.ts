@@ -165,7 +165,9 @@ export async function loadPerformanceInput(
       activationStateKeys(workflow),
       Object.fromEntries(settings.serverTypes.map((s) => [s.key, s.label])),
       null,
-      true
+      true,
+      "NONE",
+      true // external data requests count against their assigned analyst too
     ),
   ]);
 

@@ -72,7 +72,8 @@ export default async function FightListPage() {
       Object.fromEntries(settings.serverTypes.map((s) => [s.key, s.label])),
       taskIds,
       isLabLeadership(me),
-      isLabLeadership(me) ? "ALL" : me.role === "ENGINEER" ? { selfId: me.id } : "NONE"
+      isLabLeadership(me) ? "ALL" : me.role === "ENGINEER" ? { selfId: me.id } : "NONE",
+      isLabLeadership(me) || me.isDataAnalyst
     ),
     loadAllBlockerCauses(visibleIds),
     db

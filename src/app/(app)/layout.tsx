@@ -43,7 +43,9 @@ export default async function AppLayout({
       activationStateKeys(workflow),
       Object.fromEntries(settings.serverTypes.map((s) => [s.key, s.label])),
       taskIds,
-      isLabLeadership(user)
+      isLabLeadership(user),
+      isLabLeadership(user) ? "ALL" : user.role === "ENGINEER" ? { selfId: user.id } : "NONE",
+      isLabLeadership(user) || user.isDataAnalyst
     ),
     new Date(),
     settings.thresholds,

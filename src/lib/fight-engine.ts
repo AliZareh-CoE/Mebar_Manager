@@ -69,7 +69,13 @@ export interface MilestoneRow {
 
 export interface DataRequestRow {
   id: string;
-  projectId: string;
+  /** Null for EXTERNAL requests — asks from outside Mebar, no project. */
+  projectId: string | null;
+  /** Who outside Mebar asked (external requests only). */
+  externalRequester: string | null;
+  /** The requester of record: a project member, or the coordinator who
+   * logged an external one — the fallback responsible when unassigned. */
+  requester: PersonRef | null;
   title: string;
   neededBy: Date;
   createdAt: Date;
@@ -337,8 +343,15 @@ export function computeFightList(
   // grace period. "All rules apply to them."
   for (const dr of snap.openDataRequests) {
     if (dr.status === "DELIVERED" || dr.status === "CANCELLED") continue;
-    const project = projectById.get(dr.projectId);
-    if (!project || flagsOf(project.state).frozen) continue;
+    // Project requests scope + freeze with their project; external requests
+    // (no project) are always live and fall back to their logging coordinator.
+    const isExternal = dr.projectId === null;
+    const project = dr.projectId ? projectById.get(dr.projectId) : null;
+    if (!isExternal && (!project || flagsOf(project.state).frozen)) continue;
+    const fallbackResponsible = isExternal ? dr.requester : project!.advisor;
+    const projectTitle = isExternal ? null : project!.title;
+    const kind = isExternal ? "external data request" : "data request";
+    const detail = isExternal ? `${dr.title} — for ${dr.externalRequester}` : dr.title;
 
     const overdueDays = differenceInDays(now, dr.neededBy);
     if (overdueDays > 0 && enabled("OVERDUE_DATA_REQUEST")) {
@@ -347,11 +360,11 @@ export function computeFightList(
         severity: 3,
         ageDays: overdueDays,
         projectId: dr.projectId,
-        projectTitle: project.title,
+        projectTitle,
         entityId: dr.id,
-        headline: `Data request ${overdueDays}d past its needed-by date`,
-        detail: dr.title,
-        responsible: dr.assignee ?? project.advisor,
+        headline: `${isExternal ? "External data" : "Data"} request ${overdueDays}d past its needed-by date`,
+        detail,
+        responsible: dr.assignee ?? fallbackResponsible,
       });
       continue; // overdue beats unowned — one fight per request
     }
@@ -364,11 +377,11 @@ export function computeFightList(
           severity: 2,
           ageDays: unownedDays - t.unownedGraceDays,
           projectId: dr.projectId,
-          projectTitle: project.title,
+          projectTitle,
           entityId: dr.id,
-          headline: `No analyst owns this data request (${unownedDays}d old)`,
-          detail: dr.title,
-          responsible: project.advisor,
+          headline: `No analyst owns this ${kind} (${unownedDays}d old)`,
+          detail,
+          responsible: fallbackResponsible,
         });
       }
     }

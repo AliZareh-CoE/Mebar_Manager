@@ -199,9 +199,13 @@ export const dataRequests = sqliteTable(
   "data_requests",
   {
     id: id(),
-    projectId: text("project_id")
-      .notNull()
-      .references(() => projects.id),
+    // Null for EXTERNAL requests — data asks from outside Mebar that a
+    // coordinator logs and assigns. Project requests always carry a project.
+    projectId: text("project_id").references(() => projects.id),
+    // Set only on external requests: who outside Mebar asked, and how to
+    // reach them. The record's requesterId is the coordinator who logged it.
+    externalRequester: text("external_requester"),
+    externalContact: text("external_contact"),
     // what data is needed
     title: text("title").notNull(),
     description: text("description").notNull(),

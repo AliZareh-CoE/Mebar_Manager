@@ -63,8 +63,8 @@ export const FIGHT_TYPE_HELP: Record<FightType, (ctx: HelpContext) => FightRuleH
       "Timebox being stuck: write down what you tried and what you need — writing it solves half of them on the spot, and the other half becomes escalatable in one paste.",
   }),
   OVERDUE_DATA_REQUEST: () => ({
-    what: "An open data request past its needed-by date.",
-    who: "The assigned analyst (the advisor if unassigned).",
+    what: "An open data request past its needed-by date — from a project, or from outside Mebar.",
+    who: "The assigned analyst (the advisor, or for external asks the coordinator who logged it, if unassigned).",
     clear: "Deliver it with a note, or renegotiate the date with leadership.",
     advice:
       "Analysts: deliver partials early — a sample file on day one catches format problems before they cost the full deadline.",
@@ -92,10 +92,10 @@ export const FIGHT_TYPE_HELP: Record<FightType, (ctx: HelpContext) => FightRuleH
       : "Ownership isn't blame, it's permission to act. The person who takes an unowned blocker is the one who gets to close it.",
   }),
   UNOWNED_DATA_REQUEST: ({ thresholds: t }) => ({
-    what: `A data request with no analyst for ${t.unownedGraceDays} days.`,
-    who: "The project's advisor.",
+    what: `A data request with no analyst for ${t.unownedGraceDays} days — including external asks a coordinator logged but hasn't routed yet.`,
+    who: "The project's advisor (the logging coordinator, for external requests).",
     clear: "Assign an analyst, or an analyst claims it themselves.",
-    advice: "Analysts: claiming early beats being assigned late — you pick the work while it's still plannable.",
+    advice: "Coordinators: route external asks to an analyst the day they land. Analysts: claiming early beats being assigned late — you pick the work while it's still plannable.",
   }),
   UNOWNED_TASK: ({ thresholds: t }) => ({
     what: `A task no secretary has claimed for ${t.unownedGraceDays} days.`,

@@ -103,6 +103,11 @@ lab's *live* configured numbers, so it can never go stale.
 - **Data analyst** (add-on, any researcher): researchers file **data requests**
   on their projects; the assigned analyst (or a self-claiming one) is
   responsible for delivering. Data requests obey all anti-stall rules.
+  Requests can also come from **outside Mebar** — a coordinator logs the
+  external ask (who wants it, how to reach them) on `/data` and routes it to
+  an analyst. External requests have no project; unrouted ones escalate as
+  unowned against the logging coordinator, and once assigned they fight and
+  score exactly like project requests. Only leadership sees or logs them.
 - **Compute coordinator** (exactly one manager): the only person who decides
   **compute requests**. A request must state the server type + hours, a
   justification with a utilization plan (sweeps, ablations, schedule,

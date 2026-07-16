@@ -43,7 +43,8 @@ export default async function AccountPage() {
       isLabLeadership(me),
       // Parity with the fight list, or engineers lose their own underload
       // item from "Your fights".
-      isLabLeadership(me) ? "ALL" : me.role === "ENGINEER" ? { selfId: me.id } : "NONE"
+      isLabLeadership(me) ? "ALL" : me.role === "ENGINEER" ? { selfId: me.id } : "NONE",
+      isLabLeadership(me) || me.isDataAnalyst
     ),
     new Date(),
     settings.thresholds,

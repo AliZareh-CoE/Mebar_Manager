@@ -15,6 +15,13 @@
       "when": 1784149905741,
       "tag": "0001_v6_people_papers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784173448973,
+      "tag": "0002_v6_external_data_requests",
+      "breakpoints": true
     }
   ]
 }

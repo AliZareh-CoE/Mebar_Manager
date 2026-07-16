@@ -40,7 +40,13 @@ export async function loadLabSnapshot(
    * sees every researcher, an engineer only themselves, secretaries (and
    * the performance loader) none. Fails closed.
    */
-  underloadScope: "ALL" | { selfId: string } | "NONE" = "NONE"
+  underloadScope: "ALL" | { selfId: string } | "NONE" = "NONE",
+  /**
+   * Include EXTERNAL data requests (no project) in the snapshot. They have
+   * no project to scope by, so the caller decides: leadership and data
+   * analysts see them, nobody else. Fails closed.
+   */
+  includeExternalData = false
 ): Promise<LabSnapshot> {
   // inArray needs a non-empty list; a workflow with no activation states
   // simply never resets the clock via transitions.
@@ -93,7 +99,10 @@ export async function loadLabSnapshot(
       .where(inArray(milestones.status, ["PLANNED", "IN_PROGRESS"])),
     db.query.dataRequests.findMany({
       where: notInArray(dataRequests.status, ["DELIVERED", "CANCELLED"]),
-      with: { assignee: { columns: { id: true, name: true } } },
+      with: {
+        assignee: { columns: { id: true, name: true } },
+        requester: { columns: { id: true, name: true } },
+      },
     }),
     db.query.computeRequests.findMany({
       where: inArray(computeRequests.status, ["PENDING", "APPROVED"]),
@@ -195,16 +204,22 @@ export async function loadLabSnapshot(
       dueDate: m.dueDate,
       status: m.status,
     })),
-    openDataRequests: dataRequestRows.map((dr) => ({
-      id: dr.id,
-      projectId: dr.projectId,
-      title: dr.title,
-      neededBy: dr.neededBy,
-      createdAt: dr.createdAt,
-      status: dr.status,
-      assigneeId: dr.assigneeId,
-      assignee: dr.assignee,
-    })),
+    openDataRequests: dataRequestRows
+      // External requests (no project) aren't project-scoped — only surface
+      // them to callers allowed to see them (leadership, data analysts).
+      .filter((dr) => dr.projectId !== null || includeExternalData)
+      .map((dr) => ({
+        id: dr.id,
+        projectId: dr.projectId,
+        externalRequester: dr.externalRequester,
+        requester: dr.requester,
+        title: dr.title,
+        neededBy: dr.neededBy,
+        createdAt: dr.createdAt,
+        status: dr.status,
+        assigneeId: dr.assigneeId,
+        assignee: dr.assignee,
+      })),
     activeComputeRequests: computeRequestRows.map((cr) => ({
       id: cr.id,
       projectId: cr.projectId,

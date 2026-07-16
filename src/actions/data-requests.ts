@@ -9,12 +9,12 @@ import { requireUser } from "@/lib/session";
 import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 import { canAccessProject } from "@/lib/visibility";
-import { isManagerOrAbove } from "@/lib/policy";
+import { isManagerOrAbove, isLabLeadership } from "@/lib/policy";
 
-function revalidateDataRequest(projectId: string) {
+function revalidateDataRequest(projectId: string | null) {
   revalidatePath("/");
   revalidatePath("/data");
-  revalidatePath(`/projects/${projectId}`);
+  if (projectId) revalidatePath(`/projects/${projectId}`);
 }
 
 async function verifyAnalyst(userId: string): Promise<string | null> {
@@ -60,6 +60,58 @@ export async function fileDataRequest(
   });
 
   revalidateDataRequest(projectId);
+  return {};
+}
+
+const externalDataRequestSchema = z.object({
+  externalRequester: z
+    .string()
+    .trim()
+    .min(1, "Who asked? Name the person or organization outside Mebar."),
+  externalContact: z.string().trim().optional(),
+  title: z.string().trim().min(1, "What data do they need?"),
+  description: z
+    .string()
+    .trim()
+    .min(1, "Describe format, source, and granularity — save the analyst a round-trip"),
+  neededBy: z.coerce.date({ error: "A needed-by date is required — data requests without dates rot" }),
+  assigneeId: z.string().optional(),
+});
+
+/**
+ * Log a data request that came from OUTSIDE Mebar. Coordinators receive
+ * these and route them to a data analyst. No project, no member requester —
+ * the coordinator who files it is the requester of record.
+ */
+export async function createExternalDataRequest(
+  formData: FormData
+): Promise<ActionResult> {
+  const me = await requireUser();
+  if (!isLabLeadership(me)) {
+    return { error: "Only coordinators can log external data requests." };
+  }
+
+  const parsed = parseForm(externalDataRequestSchema, formData);
+  if (!parsed.success) return { error: parsed.error };
+
+  const assigneeId = parsed.data.assigneeId || null;
+  if (assigneeId) {
+    const problem = await verifyAnalyst(assigneeId);
+    if (problem) return { error: problem };
+  }
+
+  await db.insert(dataRequests).values({
+    projectId: null,
+    externalRequester: parsed.data.externalRequester,
+    externalContact: parsed.data.externalContact || null,
+    title: parsed.data.title,
+    description: parsed.data.description,
+    neededBy: parsed.data.neededBy,
+    requesterId: me.id,
+    assigneeId,
+  });
+
+  revalidateDataRequest(null);
   return {};
 }
 
