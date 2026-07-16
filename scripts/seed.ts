@@ -27,6 +27,7 @@ import {
   feedback,
   projectPeople,
   papers,
+  sops,
 } from "../src/lib/db/schema";
 
 async function createUserRaw(input: {
@@ -122,6 +123,7 @@ async function seedDemo() {
   db.delete(tasks).run();
   db.delete(initiatives).run();
   db.delete(feedback).run();
+  db.delete(sops).run();
   db.delete(papers).run();
   db.delete(projectPeople).run();
   db.delete(projects).run();
@@ -854,6 +856,41 @@ async function seedDemo() {
         respondedById: prof,
         createdAt: subDays(new Date(), 6),
         respondedAt: subDays(new Date(), 5),
+      },
+    ])
+    .run();
+
+  // Protocols — the lab's how-to library.
+  db.insert(sops)
+    .values([
+      {
+        title: "Cryostat cooldown",
+        body: "Full cooldown from room temperature to base. Budget ~6 hours; never leave the compressor unattended for the first hour.",
+        checklist: [
+          "Confirm the vacuum is below 1e-4 mbar on the cold-cathode gauge",
+          "Purge the transfer line with dry nitrogen for two minutes",
+          "Start the compressor and log the start time in the run book",
+          "Watch the first-stage temperature fall below 50 K before leaving",
+          "Once at base, top up the helium level and set the level meter to sample mode",
+          "Sign the run book and note any anomalies",
+        ],
+        createdById: prof,
+        createdAt: subDays(new Date(), 40),
+        updatedAt: subDays(new Date(), 12),
+      },
+      {
+        title: "New dataset intake",
+        body: "Register any dataset that arrives from a collaborator before anyone analyzes it, so provenance and licensing are on the record.",
+        checklist: [
+          "Record the source, contact, and date received in the data log",
+          "Verify the checksum against the sender's manifest",
+          "Copy the raw files to the read-only archive volume",
+          "Note the license / usage restrictions on the dataset card",
+          "Open a data request if downstream processing is needed",
+        ],
+        createdById: noa,
+        createdAt: subDays(new Date(), 22),
+        updatedAt: subDays(new Date(), 22),
       },
     ])
     .run();

@@ -29,6 +29,7 @@ export function NavLinks({
           { href: "/data", label: "Data" },
           { href: "/compute", label: "Compute" },
           { href: "/tasks", label: "Tasks" },
+          { href: "/sops", label: "Protocols" },
           { href: "/guide", label: "Guide" },
           ...(isLeadership
             ? [

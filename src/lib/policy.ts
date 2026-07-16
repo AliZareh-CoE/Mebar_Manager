@@ -50,6 +50,7 @@ export const CONFIGURABLE_CAPABILITIES = [
   "task.cancel",
   "projectPeople.edit",
   "paper.edit",
+  "sop.edit",
 ] as const;
 export type ConfigurableCapability = (typeof CONFIGURABLE_CAPABILITIES)[number];
 
@@ -94,6 +95,7 @@ export const CAPABILITY_LABELS: Record<ConfigurableCapability, string> = {
   "task.cancel": "Cancel tasks (requester/assignee always can)",
   "projectPeople.edit": "Edit a project's people lineup (owner/advisor always can)",
   "paper.edit": "File and update papers (owner/advisor always can)",
+  "sop.edit": "Write and edit protocols (SOPs)",
 };
 
 export type MatrixRole = (typeof MATRIX_ROLES)[number];
@@ -116,6 +118,7 @@ export const DEFAULT_MATRIX: Record<ConfigurableCapability, MatrixRole> = {
   "task.cancel": "ENGINEER",
   "projectPeople.edit": "ENGINEER",
   "paper.edit": "ENGINEER",
+  "sop.edit": "MANAGER",
 };
 
 export const permissionMatrixSchema = z.object(

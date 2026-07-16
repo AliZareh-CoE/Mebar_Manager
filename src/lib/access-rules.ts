@@ -49,6 +49,7 @@ export const GUARDED_ROUTES = [
   "/data",
   "/compute",
   "/tasks",
+  "/sops",
   "/meeting",
   "/initiatives",
   "/performance",
@@ -64,6 +65,8 @@ export function routeAllowed(user: AccessUser, route: GuardedRoute): boolean {
     case "/board":
     case "/data":
     case "/compute":
+    // The protocol library is a read surface for everyone doing lab work.
+    case "/sops":
       return user.role !== "SECRETARY";
     case "/tasks":
       return true;

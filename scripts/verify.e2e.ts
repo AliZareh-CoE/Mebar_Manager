@@ -759,6 +759,7 @@ async function main() {
     ["/data", "/data", "/data", "/tasks"],
     ["/compute", "/compute", "/compute", "/tasks"],
     ["/tasks", "/tasks", "/tasks", "/tasks"],
+    ["/sops", "/sops", "/sops", "/tasks"],
     ["/meeting", "/meeting", "/", "/"],
     ["/initiatives", "/initiatives", "/", "/"],
     ["/performance", "/performance", "/", "/"],
@@ -928,6 +929,53 @@ async function main() {
   check(
     "v6: own underload item on account page",
     /Sara Kim has \d+\/\d+ running projects/.test((await engPage.textContent("body"))!)
+  );
+
+  // v7-C5: Protocols (SOPs) — leadership writes, researchers read + copy,
+  // secretary is walled off. Self-restoring: the test SOP gets archived.
+  await page.goto(BASE + "/sops");
+  const sopBody = (await page.textContent("body"))!;
+  check("sops: page renders for leadership", sopBody.includes("Protocols"));
+  check("sops: seeded protocol shows", sopBody.includes("Cryostat cooldown"));
+  await page.click("button:has-text('New protocol')");
+  await page.waitForSelector("input[name=title]");
+  await page.fill("input[name=title]", "E2E test protocol — laser alignment");
+  await page.fill(
+    "textarea[name=checklist]",
+    "Warm up the diode\nCheck the beam height\nLock the mounts"
+  );
+  await page.click("button:has-text('Create')");
+  await page.waitForSelector("text=E2E test protocol");
+  check("sops: leadership created a protocol", true);
+  await page.click("button:has-text('E2E test protocol — laser alignment')");
+  await page.waitForSelector("button:has-text('Copy checklist')");
+  check(
+    "sops: expanded protocol shows the checklist",
+    (await page.textContent("body"))!.includes("Check the beam height")
+  );
+  await page.click("button[aria-label='Archive E2E test protocol — laser alignment']");
+  await page.waitForSelector("text=Archived");
+  check("sops: test protocol archived (self-restore)", true);
+  await engPage.goto(BASE + "/sops");
+  const engSopBody = (await engPage.textContent("body"))!;
+  check("sops: researcher sees protocol content", engSopBody.includes("Cryostat cooldown"));
+  check(
+    "sops: researcher has no New-protocol button",
+    (await engPage.locator("button:has-text('New protocol')").count()) === 0
+  );
+  check(
+    "sops: researcher has no Edit affordance",
+    (await engPage.locator("button:has-text('Edit')").count()) === 0
+  );
+  await engPage.click("button:has-text('Cryostat cooldown')");
+  await engPage.waitForSelector("button:has-text('Copy checklist')");
+  check("sops: researcher can expand and copy", true);
+  await secPage.goto(BASE + "/sops");
+  await secPage.waitForURL(BASE + "/tasks");
+  check("sops: secretary redirects to tasks", secPage.url() === BASE + "/tasks");
+  check(
+    "sops: secretary nav lacks Protocols",
+    !((await secPage.locator("nav").first().textContent()) ?? "").includes("Protocols")
   );
 
   // v7-C4: Meeting mode — leadership-only agenda, five stable sections.

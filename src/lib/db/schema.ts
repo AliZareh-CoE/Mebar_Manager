@@ -388,6 +388,39 @@ export const feedbackRelations = relations(feedback, ({ one }) => ({
   }),
 }));
 
+// Standard operating procedures / protocols — the lab's how-to library
+// (cryostat cooldown, dataset intake, …). Read by everyone except the
+// secretary; edited by holders of sop.edit. Never hard-deleted — archived
+// SOPs stay for the record. `checklist` is an ordered list of step strings.
+export const sops = sqliteTable(
+  "sops",
+  {
+    id: id(),
+    title: text("title").notNull(),
+    body: text("body").notNull().default(""),
+    checklist: text("checklist", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    createdById: text("created_by_id")
+      .notNull()
+      .references(() => user.id),
+    archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    createdAt: createdAt(),
+  },
+  (t) => [index("sops_archived_idx").on(t.archived)]
+);
+
+export const sopsRelations = relations(sops, ({ one }) => ({
+  createdBy: one(user, {
+    fields: [sops.createdById],
+    references: [user.id],
+  }),
+}));
+
 export const PROJECT_PEOPLE_ROLES = ["PI", "FIRST_AUTHOR", "CONTRIBUTOR"] as const;
 export type ProjectPersonRole = (typeof PROJECT_PEOPLE_ROLES)[number];
 
@@ -617,5 +650,6 @@ export type Decision = typeof decisions.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type Initiative = typeof initiatives.$inferSelect;
 export type Feedback = typeof feedback.$inferSelect;
+export type Sop = typeof sops.$inferSelect;
 export type ProjectPerson = typeof projectPeople.$inferSelect;
 export type Paper = typeof papers.$inferSelect;
