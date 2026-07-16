@@ -24,6 +24,9 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-}
+      # Guards the weekly-digest trigger endpoint (/api/digest). Generate:
+      #   openssl rand -base64 32
+      CRON_SECRET: ${CRON_SECRET:-}
     volumes:
       - mebar-data:/app/data
     expose:

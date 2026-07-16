@@ -21,6 +21,8 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|ico)$).*)",
+    // api/digest is excluded from the cookie check — it carries its own
+    // CRON_SECRET bearer guard (fails closed when the env is unset).
+    "/((?!api/auth|api/digest|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|ico)$).*)",
   ],
 };

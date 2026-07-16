@@ -258,6 +258,23 @@ chmod +x backup.sh && crontab -e   # add: 15 3 * * * /opt/mebar-manager/deploy/b
   BETTER_AUTH_SECRET=... npm start` behind any reverse proxy; the app is a
   single Node process + one SQLite file.
 
+### Weekly digest email
+
+Every Monday morning each member can get a personal email: their fights, what's
+due in the coming week, and their projects' freshness. Gates — SMTP must be
+configured, Settings → General → Weekly digest must be on, and `CRON_SECRET`
+must be set in `deploy/.env` (the trigger endpoint fails closed without it);
+each person can also opt out on their own Account page. Schedule it next to
+the backup cron:
+
+    # Weekly digest — Monday 08:00
+    0 8 * * 1 docker compose -f /opt/mebar-manager/deploy/docker-compose.yml exec -T app \
+      node -e "fetch('http://localhost:3000/api/digest',{method:'POST',headers:{authorization:'Bearer '+process.env.CRON_SECRET}}).then(r=>r.text()).then(console.log)" \
+      >> /var/log/mebar-digest.log 2>&1
+
+The endpoint no-ops safely (and reports why) when a gate is off, so scheduling
+it unconditionally is fine. Manual trigger: the same `node -e` line, any time.
+
 ### Off-site backups
 
 The nightly dump lives on the same VPS as the database — fine for fat-finger

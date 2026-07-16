@@ -93,6 +93,15 @@ export async function updateVisibility(formData: FormData): Promise<ActionResult
   return patchSettings(parsed.data);
 }
 
+export async function updateDigest(formData: FormData): Promise<ActionResult> {
+  await requireAdmin();
+  const parsed = z
+    .object({ digestEnabled: z.enum(["true", "false"]) })
+    .safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) return { error: "Invalid digest setting." };
+  return patchSettings({ digestEnabled: parsed.data.digestEnabled === "true" });
+}
+
 export async function updateWorkflow(formData: FormData): Promise<ActionResult> {
   await requireAdmin();
   let raw: unknown;

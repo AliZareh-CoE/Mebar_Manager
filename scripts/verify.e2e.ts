@@ -929,6 +929,47 @@ async function main() {
     /Sara Kim has \d+\/\d+ running projects/.test((await engPage.textContent("body"))!)
   );
 
+  // v7: weekly digest — self-service opt-out toggle round-trips and restores.
+  await engPage.waitForSelector("input[data-slot=digest-toggle]");
+  const digestWasChecked = await engPage.isChecked("input[data-slot=digest-toggle]");
+  await engPage.click("input[data-slot=digest-toggle]");
+  await engPage.waitForTimeout(800);
+  await engPage.reload();
+  await engPage.waitForSelector("input[data-slot=digest-toggle]");
+  check(
+    "v7: digest opt-out persists",
+    (await engPage.isChecked("input[data-slot=digest-toggle]")) === !digestWasChecked
+  );
+  await engPage.click("input[data-slot=digest-toggle]");
+  await engPage.waitForTimeout(800);
+  await engPage.reload();
+  await engPage.waitForSelector("input[data-slot=digest-toggle]");
+  check(
+    "v7: digest toggle restored",
+    (await engPage.isChecked("input[data-slot=digest-toggle]")) === digestWasChecked
+  );
+
+  // v7: the admin kill switch renders in General settings.
+  await page.goto(BASE + "/admin/settings");
+  check(
+    "v7: General settings shows the weekly-digest switch",
+    (await page.textContent("body"))!.includes("Weekly digest")
+  );
+  await page.goto(BASE + "/");
+
+  // v7: the digest trigger endpoint fails closed without the bearer token…
+  const noAuth = await fetch(BASE + "/api/digest", { method: "POST" });
+  check("v7: /api/digest rejects unauthenticated calls", noAuth.status === 401);
+  // …and with the right token it runs its gates (no SMTP in CI → sent 0).
+  if (process.env.CRON_SECRET) {
+    const authed = await fetch(BASE + "/api/digest", {
+      method: "POST",
+      headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
+    });
+    const body = (await authed.json()) as { sent: number; skipped?: string };
+    check("v7: /api/digest accepts the cron token and reports its gates", authed.status === 200 && body.sent === 0);
+  }
+
   // Engineer owner sees no activation button at all (leadership-only).
   const danV6 = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
   await danV6.goto(BASE + "/login");

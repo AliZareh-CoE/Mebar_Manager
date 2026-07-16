@@ -1,0 +1,1 @@
+ALTER TABLE `user` ADD `digest_opt_out` integer DEFAULT false NOT NULL;

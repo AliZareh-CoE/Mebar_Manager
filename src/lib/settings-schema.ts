@@ -195,6 +195,9 @@ export const labSettingsSchema = z.object({
     .default("A board that gets angry when things sit still."),
   defaultTheme: z.enum(["dark", "light"]).default("dark"),
   visibilityMode: z.enum(["RESTRICTED", "OPEN"]).default("RESTRICTED"),
+  // The weekly digest email — the admin kill switch; each user can also
+  // opt out individually (user.digestOptOut).
+  digestEnabled: z.boolean().default(true),
   thresholds: thresholdSettingsSchema.default(() => thresholdSettingsSchema.parse({})),
   permissions: permissionMatrixSchema.default(() => permissionMatrixSchema.parse({})),
   workflow: workflowSchema

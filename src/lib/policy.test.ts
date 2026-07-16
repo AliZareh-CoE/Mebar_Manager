@@ -17,6 +17,7 @@ const engineer: SessionUser = {
   email: "e@lab",
   role: "ENGINEER",
   isDataAnalyst: false,
+  digestOptOut: false,
   isComputeCoordinator: false,
 };
 const manager: SessionUser = { ...engineer, id: "u-mgr", role: "MANAGER" };

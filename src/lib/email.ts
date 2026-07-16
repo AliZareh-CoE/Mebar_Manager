@@ -52,3 +52,12 @@ export async function sendWatcherEmail(
     text,
   });
 }
+
+/** One person's weekly digest — individual send (never bcc). */
+export async function sendDigestEmail(
+  to: string,
+  subject: string,
+  text: string
+): Promise<void> {
+  await getTransporter().sendMail({ from: process.env.SMTP_FROM, to, subject, text });
+}

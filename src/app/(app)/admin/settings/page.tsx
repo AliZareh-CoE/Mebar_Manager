@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
-import { updateLabIdentity, updateVisibility } from "@/actions/settings";
+import { updateLabIdentity, updateVisibility, updateDigest } from "@/actions/settings";
 import { SettingsForm } from "@/components/forms/settings-form";
 import { EnumSelect } from "@/components/forms/labeled-selects";
 import {
@@ -23,6 +23,10 @@ const THEME_OPTIONS = [
 const VISIBILITY_OPTIONS = [
   { value: "RESTRICTED", label: "Restricted — researchers see only their projects" },
   { value: "OPEN", label: "Open — everyone sees everything" },
+];
+const DIGEST_OPTIONS = [
+  { value: "true", label: "On — send the weekly digest Monday morning" },
+  { value: "false", label: "Off — pause all digests" },
 ];
 
 export default async function AdminSettingsGeneralPage() {
@@ -78,6 +82,30 @@ export default async function AdminSettingsGeneralPage() {
                 name="visibilityMode"
                 options={VISIBILITY_OPTIONS}
                 defaultValue={settings.visibilityMode}
+                className="w-full sm:w-96"
+              />
+            </div>
+          </SettingsForm>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Weekly digest</CardTitle>
+          <CardDescription>
+            The Monday email is sent only when this is on and SMTP is
+            configured. Each person can still opt out on their own Account
+            page.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SettingsForm action={updateDigest}>
+            <div className="flex flex-col gap-2">
+              <Label>Digest</Label>
+              <EnumSelect
+                name="digestEnabled"
+                options={DIGEST_OPTIONS}
+                defaultValue={String(settings.digestEnabled)}
                 className="w-full sm:w-96"
               />
             </div>

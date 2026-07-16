@@ -13,6 +13,7 @@ export type SessionUser = {
   role: Role;
   isDataAnalyst: boolean;
   isComputeCoordinator: boolean;
+  digestOptOut: boolean;
 };
 
 export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
@@ -26,6 +27,7 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
     .select({
       isDataAnalyst: user.isDataAnalyst,
       isComputeCoordinator: user.isComputeCoordinator,
+      digestOptOut: user.digestOptOut,
     })
     .from(user)
     .where(eq(user.id, session.user.id))
@@ -38,6 +40,7 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
     role: (session.user.role as Role) ?? "ENGINEER",
     isDataAnalyst: row?.isDataAnalyst ?? false,
     isComputeCoordinator: row?.isComputeCoordinator ?? false,
+    digestOptOut: row?.digestOptOut ?? false,
   };
 });
 

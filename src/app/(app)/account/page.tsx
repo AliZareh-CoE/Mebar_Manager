@@ -12,6 +12,7 @@ import { loadPerformanceInput } from "@/lib/performance-data";
 import { computeScores } from "@/lib/performance";
 import { MetricBreakdown } from "@/components/metric-breakdown";
 import { ChangeNameForm, ChangePasswordForm } from "@/components/forms/account-forms";
+import { DigestOptOutToggle } from "@/components/forms/digest-opt-out-toggle";
 import { FightItemCard } from "@/components/fight-item-card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -167,6 +168,20 @@ export default async function AccountPage() {
         </CardHeader>
         <CardContent>
           <ChangePasswordForm />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Weekly digest</CardTitle>
+          <CardDescription>
+            A Monday email listing your fights, what&apos;s due this week, and
+            your projects&apos; freshness. Nothing here is shared with anyone
+            else.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DigestOptOutToggle initialOptOut={me.digestOptOut} />
         </CardContent>
       </Card>
     </div>

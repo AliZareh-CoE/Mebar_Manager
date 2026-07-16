@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
-import { requireAdmin } from "@/lib/session";
+import { requireAdmin, requireUser } from "@/lib/session";
 import type { ActionResult } from "@/lib/action-utils";
 
 /** Grant or revoke the data-analyst add-on. Manager-only. */
@@ -52,5 +52,14 @@ export async function setComputeCoordinator(userId: string): Promise<ActionResul
   revalidatePath("/admin/users");
   revalidatePath("/");
   revalidatePath("/compute");
+  return {};
+}
+
+/** Self-service: any signed-in user opts THEIR OWN account in/out of the
+ * weekly digest. Never touches another user's row. */
+export async function setDigestOptOut(optOut: boolean): Promise<ActionResult> {
+  const me = await requireUser();
+  await db.update(user).set({ digestOptOut: optOut }).where(eq(user.id, me.id));
+  revalidatePath("/account");
   return {};
 }
