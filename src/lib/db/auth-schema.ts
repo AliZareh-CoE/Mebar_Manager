@@ -34,6 +34,9 @@ export const user = sqliteTable("user", {
   digestOptOut: integer("digest_opt_out", { mode: "boolean" })
     .notNull()
     .default(false),
+  // Null until the user finishes onboarding at /welcome. Drives the Fight
+  // List banner and the People "Onboarding pending" badge.
+  onboardedAt: integer("onboarded_at", { mode: "timestamp_ms" }),
 });
 
 export const session = sqliteTable(

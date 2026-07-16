@@ -49,6 +49,7 @@ export const GUARDED_ROUTES = [
   "/data",
   "/compute",
   "/tasks",
+  "/handbook",
   "/sops",
   "/meeting",
   "/initiatives",
@@ -69,6 +70,8 @@ export function routeAllowed(user: AccessUser, route: GuardedRoute): boolean {
     case "/sops":
       return user.role !== "SECRETARY";
     case "/tasks":
+    // The handbook is the whole lab's front door — every role reads it.
+    case "/handbook":
       return true;
     // Meeting mode is the leadership agenda — exactly the initiatives gate.
     case "/meeting":

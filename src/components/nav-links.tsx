@@ -22,6 +22,7 @@ export function NavLinks({
           { href: "/", label: "Fight List", badge: fightCount },
           { href: "/tasks", label: "Tasks" },
           { href: "/guide", label: "Guide" },
+          { href: "/handbook", label: "Handbook" },
         ]
       : [
           { href: "/", label: "Fight List", badge: fightCount },
@@ -31,6 +32,7 @@ export function NavLinks({
           { href: "/tasks", label: "Tasks" },
           { href: "/sops", label: "Protocols" },
           { href: "/guide", label: "Guide" },
+          { href: "/handbook", label: "Handbook" },
           ...(isLeadership
             ? [
                 { href: "/meeting", label: "Meeting" },

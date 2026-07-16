@@ -18,6 +18,7 @@ const engineer: SessionUser = {
   role: "ENGINEER",
   isDataAnalyst: false,
   digestOptOut: false,
+  onboardedAt: null,
   isComputeCoordinator: false,
 };
 const manager: SessionUser = { ...engineer, id: "u-mgr", role: "MANAGER" };

@@ -110,6 +110,30 @@ describe("fight rule config", () => {
     }
   });
 
+  it("handbook slice: defaults, passthrough, empty allowed, corrupt degrades", async () => {
+    const { DEFAULT_HANDBOOK } = await import("./settings-defaults");
+    const { handbookSectionSchema } = await import("./settings-schema");
+    // Default when absent.
+    expect(labSettingsSchema.parse({}).handbook).toEqual(DEFAULT_HANDBOOK);
+    // Valid passthrough.
+    expect(
+      labSettingsSchema.parse({ handbook: [{ title: "X", body: "y" }] }).handbook
+    ).toEqual([{ title: "X", body: "y" }]);
+    // Empty is allowed — a lab may clear it (default only fires on undefined).
+    expect(labSettingsSchema.parse({ handbook: [] }).handbook).toEqual([]);
+    // Corrupt degrades to stock without breaking the whole parse.
+    const corrupt = labSettingsSchema.parse({ handbook: "not an array" });
+    expect(corrupt.handbook).toEqual(DEFAULT_HANDBOOK);
+    // Title required; length caps enforced.
+    expect(handbookSectionSchema.safeParse({ title: "", body: "x" }).success).toBe(false);
+    expect(
+      handbookSectionSchema.safeParse({ title: "t".repeat(81), body: "x" }).success
+    ).toBe(false);
+    expect(
+      handbookSectionSchema.safeParse({ title: "t", body: "b".repeat(4001) }).success
+    ).toBe(false);
+  });
+
   it("tagline defaults and trims", () => {
     expect(labSettingsSchema.parse({}).tagline).toBe(
       "A board that gets angry when things sit still."

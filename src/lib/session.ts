@@ -14,6 +14,7 @@ export type SessionUser = {
   isDataAnalyst: boolean;
   isComputeCoordinator: boolean;
   digestOptOut: boolean;
+  onboardedAt: Date | null;
 };
 
 export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
@@ -28,6 +29,7 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
       isDataAnalyst: user.isDataAnalyst,
       isComputeCoordinator: user.isComputeCoordinator,
       digestOptOut: user.digestOptOut,
+      onboardedAt: user.onboardedAt,
     })
     .from(user)
     .where(eq(user.id, session.user.id))
@@ -41,6 +43,7 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
     isDataAnalyst: row?.isDataAnalyst ?? false,
     isComputeCoordinator: row?.isComputeCoordinator ?? false,
     digestOptOut: row?.digestOptOut ?? false,
+    onboardedAt: row?.onboardedAt ?? null,
   };
 });
 

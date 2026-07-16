@@ -120,6 +120,7 @@ export async function POST(request: NextRequest) {
       isDataAnalyst: p.isDataAnalyst,
       isComputeCoordinator: p.isComputeCoordinator,
       digestOptOut: p.digestOptOut,
+      onboardedAt: null, // irrelevant to visibility scoping
     };
     const personVisible = await visibleProjectIds(personView, settings);
     const scrubTitle = <T extends { projectId: string | null; projectTitle?: string | null }>(

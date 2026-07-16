@@ -96,6 +96,11 @@ export default async function AdminUsersPage() {
                 ) : (
                   <Badge variant="outline">Active</Badge>
                 )}
+                {!u.onboardedAt && (
+                  <Badge variant="outline" className="ml-1 text-amber-600 dark:text-amber-400">
+                    Onboarding pending
+                  </Badge>
+                )}
               </TableCell>
               <TableCell className="text-muted-foreground">
                 {format(u.createdAt, "MMM d, yyyy")}

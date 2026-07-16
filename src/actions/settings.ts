@@ -13,6 +13,7 @@ import {
 import {
   causeTagListSchema,
   fightRuleSchema,
+  handbookSchema,
   performanceSettingsSchema,
   practiceListSchema,
   proposalQuestionListSchema,
@@ -91,6 +92,13 @@ export async function updateVisibility(formData: FormData): Promise<ActionResult
     .safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) return { error: "Invalid visibility mode." };
   return patchSettings(parsed.data);
+}
+
+export async function updateHandbook(formData: FormData): Promise<ActionResult> {
+  await requireAdmin();
+  const parsed = handbookSchema.safeParse(parseJsonField(formData, "items"));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  return patchSettings({ handbook: parsed.data });
 }
 
 export async function updateDigest(formData: FormData): Promise<ActionResult> {

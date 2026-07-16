@@ -318,6 +318,22 @@ export default async function FightListPage() {
 
   return (
     <div className="flex flex-col gap-8">
+      {me.onboardedAt === null && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-4">
+          <div>
+            <p className="font-medium text-amber-700 dark:text-amber-300">
+              New here? Get set up.
+            </p>
+            <p className="text-sm text-amber-700/80 dark:text-amber-300/80">
+              Read the handbook and the guide, set your password, and
+              acknowledge — three minutes.
+            </p>
+          </div>
+          <Button size="sm" render={<Link href="/welcome" />}>
+            Start onboarding
+          </Button>
+        </div>
+      )}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Fight List</h1>
         <p className="text-sm text-muted-foreground">

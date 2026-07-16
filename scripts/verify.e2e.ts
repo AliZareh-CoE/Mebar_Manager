@@ -931,6 +931,62 @@ async function main() {
     /Sara Kim has \d+\/\d+ running projects/.test((await engPage.textContent("body"))!)
   );
 
+  // v7-C6: Handbook — everyone reads it (secretary included); admin edits it
+  // under Settings → Handbook; researchers can't reach the settings tab.
+  await page.goto(BASE + "/handbook");
+  const hbBody = (await page.textContent("body"))!;
+  check("handbook: renders for admin", hbBody.includes("handbook"));
+  check("handbook: stock section renders", hbBody.includes("Meeting rhythm"));
+  await secPage.goto(BASE + "/handbook");
+  check(
+    "handbook: secretary can read it",
+    (await secPage.textContent("body"))!.includes("Meeting rhythm")
+  );
+  check(
+    "handbook: secretary nav has Handbook",
+    ((await secPage.locator("nav").first().textContent()) ?? "").includes("Handbook")
+  );
+  await engPage.goto(BASE + "/admin/settings/handbook");
+  await engPage.waitForURL(BASE + "/");
+  check("handbook: researcher can't reach the settings tab", engPage.url() === BASE + "/");
+  await page.goto(BASE + "/admin/settings/handbook");
+  check(
+    "handbook: admin settings tab renders the editor",
+    (await page.locator("button:has-text('Add section')").count()) === 1
+  );
+
+  // v7-C6: Onboarding — dan (the only un-onboarded seed user) sees the
+  // banner, acknowledges via /welcome, and it clears. Self-restoring: the
+  // reseed un-stamps dan again.
+  const onbPage = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
+  await onbPage.goto(BASE + "/login");
+  await onbPage.fill("#email", "dan@lab.local");
+  await onbPage.fill("#password", "mebar-demo");
+  await onbPage.click("button[type=submit]");
+  await onbPage.waitForURL(BASE + "/");
+  await onbPage.waitForSelector("text=Start onboarding");
+  check("onboarding: dan sees the welcome banner", true);
+  // Admin sees the pending badge before dan acknowledges.
+  await page.goto(BASE + "/admin/users");
+  check(
+    "onboarding: admin sees the pending badge",
+    (await page.textContent("body"))!.includes("Onboarding pending")
+  );
+  await onbPage.click("text=Start onboarding");
+  await onbPage.waitForURL("**/welcome");
+  await onbPage.check("input[data-slot=welcome-confirm]");
+  await onbPage.click("button:has-text('Acknowledge & finish')");
+  await onbPage.waitForURL(BASE + "/");
+  await onbPage.waitForSelector("text=Start onboarding", { state: "detached" });
+  check("onboarding: banner clears after acknowledge", true);
+  await page.goto(BASE + "/admin/users");
+  check(
+    "onboarding: pending badge clears after acknowledge",
+    !(await page.textContent("body"))!.includes("Onboarding pending")
+  );
+  await onbPage.close();
+  await page.goto(BASE + "/");
+
   // v7-C5: Protocols (SOPs) — leadership writes, researchers read + copy,
   // secretary is walled off. Self-restoring: the test SOP gets archived.
   await page.goto(BASE + "/sops");

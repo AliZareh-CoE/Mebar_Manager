@@ -135,6 +135,36 @@ export const DEFAULT_FIGHT_SECTIONS: Record<FightType, FightRuleConfig> = {
 
 export const DEFAULT_SECTION_ORDER: FightType[] = [...FIGHT_TYPES];
 
+/** One handbook section: a heading and free-form (multi-paragraph) body. */
+export interface HandbookSection {
+  title: string;
+  body: string;
+}
+
+export const DEFAULT_HANDBOOK: HandbookSection[] = [
+  {
+    title: "Meeting rhythm",
+    body:
+      "We meet once a week. Post your project update BEFORE the meeting — the meeting is for the " +
+      "science, not the status. Every active project is expected to move (or say why it can't) each " +
+      "week; a silent project ends up on the Fight List.",
+  },
+  {
+    title: "Where the data lives",
+    body:
+      "Raw data, checkpoints, and results live on the lab server under your project folder — never " +
+      "only on a laptop. Retrieve everything off shared compute the moment a run finishes: the window " +
+      "closes and the space is reclaimed. Papers and their drafts are tracked per project in the app.",
+  },
+  {
+    title: "How to ask for help",
+    body:
+      "Ask early, loudly, in writing. Raise a blocker the moment you're stuck and Escalate it when " +
+      "waiting has taught you nothing — escalating early is respected here, never punished. For a " +
+      "decision you need from leadership, file it so the clock is visible to everyone.",
+  },
+];
+
 // The Heilmeier Catechism — DARPA's gauntlet. Keys are projects columns.
 export const DEFAULT_PROPOSAL_QUESTIONS: ProposalQuestion[] = [
   { key: "objective", label: "What are we trying to do? (no jargon)", builtin: true, archived: false },

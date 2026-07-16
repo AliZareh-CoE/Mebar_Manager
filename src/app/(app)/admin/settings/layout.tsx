@@ -10,6 +10,7 @@ const TABS = [
   { href: "/admin/settings/fights", label: "Fight rules" },
   { href: "/admin/settings/performance", label: "Performance" },
   { href: "/admin/settings/permissions", label: "Permissions" },
+  { href: "/admin/settings/handbook", label: "Handbook" },
 ];
 
 export default async function AdminSettingsLayout({

@@ -6,7 +6,7 @@
  * Demo timestamps are relative to *now* so every fight rule lights up no
  * matter when you run it.
  */
-import { eq } from "drizzle-orm";
+import { eq, ne } from "drizzle-orm";
 import { subDays, addDays, subHours } from "date-fns";
 import { hashPassword } from "better-auth/crypto";
 import { db } from "../src/lib/db";
@@ -189,6 +189,12 @@ async function seedDemo() {
       .run();
     tx.update(user).set({ isComputeCoordinator: true }).where(eq(user.id, prof)).run();
   });
+
+  // Onboarding: everyone is already onboarded EXCEPT dan, so a fresh reseed
+  // always leaves exactly one user with the welcome banner for the e2e flow
+  // to acknowledge. Explicitly un-stamping dan makes reseeds self-restoring.
+  db.update(user).set({ onboardedAt: new Date() }).where(ne(user.id, dan)).run();
+  db.update(user).set({ onboardedAt: null }).where(eq(user.id, dan)).run();
 
   const heilmeier = {
     objective: "Reduce vibration noise on the cryo stage below 5 nm RMS.",

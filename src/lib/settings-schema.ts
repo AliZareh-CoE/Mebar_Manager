@@ -9,6 +9,7 @@ import {
   DEFAULT_PROPOSAL_QUESTIONS,
   DEFAULT_FIGHT_SECTIONS,
   DEFAULT_SECTION_ORDER,
+  DEFAULT_HANDBOOK,
   type FightRuleConfig,
 } from "@/lib/settings-defaults";
 import { HEILMEIER_COLUMNS } from "@/lib/proposal";
@@ -142,6 +143,14 @@ export const proposalQuestionListSchema = z
     }
   });
 
+export const handbookSectionSchema = z.object({
+  title: z.string().trim().min(1, "Every section needs a title.").max(80),
+  body: z.string().trim().max(4000),
+});
+
+/** Ordered list of handbook sections; empty is allowed (a lab may clear it). */
+export const handbookSchema = z.array(handbookSectionSchema).max(40);
+
 export const fightRuleSchema = z.object({
   enabled: z.boolean().default(true),
   title: z.string().trim().min(1).max(60),
@@ -201,6 +210,10 @@ export const labSettingsSchema = z.object({
   // Idempotency marker: ISO timestamp of the last digest batch. A re-fired
   // cron inside the guard window is a no-op instead of a duplicate send.
   digestLastSentAt: z.string().default(""),
+  // The lab handbook — admin-edited sections everyone can read at /handbook.
+  handbook: handbookSchema
+    .catch(() => structuredClone(DEFAULT_HANDBOOK))
+    .default(() => structuredClone(DEFAULT_HANDBOOK)),
   thresholds: thresholdSettingsSchema.default(() => thresholdSettingsSchema.parse({})),
   permissions: permissionMatrixSchema.default(() => permissionMatrixSchema.parse({})),
   workflow: workflowSchema
