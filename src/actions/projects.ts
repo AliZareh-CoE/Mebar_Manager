@@ -22,6 +22,7 @@ import { collectProposalAnswers } from "@/lib/proposal";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 import { canAccessProject } from "@/lib/visibility";
 import { notifyProjectEvent } from "@/lib/notify";
+import { logAudit } from "@/lib/audit";
 
 function revalidateProject(id: string) {
   revalidatePath("/");
@@ -215,6 +216,14 @@ export async function fireProjectEvent(
   }
 
   revalidateProject(projectId);
+  void logAudit(
+    user.id,
+    "project.transition",
+    "project",
+    projectId,
+    `${project.state} → ${result.next}`,
+    { fromState: project.state, toState: result.next, reason: reason ?? pauseReason ?? null }
+  );
   // Watchers get big events only; fire-and-forget after the commit.
   const targetLabel = stateByKey(workflow, result.next)?.label ?? result.next;
   void notifyProjectEvent(projectId, {

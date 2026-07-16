@@ -13,6 +13,7 @@ import { stateByKey } from "@/lib/workflow";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 import { canAccessProject } from "@/lib/visibility";
 import { planRoleAssignment, type PersonPick } from "@/lib/project-people";
+import { logAudit } from "@/lib/audit";
 import type { SessionUser } from "@/lib/session";
 
 /**
@@ -140,6 +141,14 @@ export async function setProjectRole(
   });
 
   revalidateLineup(projectId);
+  void logAudit(
+    me.id,
+    "projectPeople.role",
+    "project",
+    projectId,
+    `Set ${role} on lineup`,
+    { role, userId: parsed.data.userId || null, externalName: parsed.data.externalName || null }
+  );
   return {};
 }
 

@@ -11,6 +11,7 @@ import { parseForm, type ActionResult } from "@/lib/action-utils";
 import { canAccessProject } from "@/lib/visibility";
 import { notifyProjectEvent } from "@/lib/notify";
 import { isManagerOrAbove } from "@/lib/policy";
+import { logAudit } from "@/lib/audit";
 
 /**
  * Due dates feed the on-time scoring bonus, so once set they are locked for
@@ -127,6 +128,8 @@ export async function pushMilestoneDueDate(
     .where(eq(milestones.id, milestoneId));
 
   revalidateMilestone(milestone.projectId);
+  void logAudit(me.id, "milestone.dateMove", "milestone", milestoneId,
+    `Pushed due date on "${milestone.title}"`, { from: milestone.dueDate, to: parsed.data.dueDate });
   return {};
 }
 
@@ -159,6 +162,11 @@ export async function editMilestone(
 
   await db.update(milestones).set(parsed.data).where(eq(milestones.id, milestoneId));
   revalidateMilestone(milestone.projectId);
+  if (!sameDay(parsed.data.dueDate, milestone.dueDate)) {
+    void logAudit(me.id, "milestone.dateMove", "milestone", milestoneId,
+      `Moved due date on "${milestone.title}"`,
+      { from: milestone.dueDate, to: parsed.data.dueDate });
+  }
   return {};
 }
 

@@ -97,39 +97,39 @@ describe("route access grid", () => {
     adminCoordinator: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
       "/handbook": true, "/sops": true, "/meeting": true, "/initiatives": true, "/performance": true,
-      "/admin/users": true, "/admin/feedback": true, "/admin/settings": true,
+      "/admin/users": true, "/admin/feedback": true, "/admin/settings": true, "/admin/audit": true,
     },
     admin: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
       "/handbook": true, "/sops": true, "/meeting": true, "/initiatives": true, "/performance": true,
-      "/admin/users": true, "/admin/feedback": true, "/admin/settings": true,
+      "/admin/users": true, "/admin/feedback": true, "/admin/settings": true, "/admin/audit": true,
     },
     // Managers run the lab's work — the dangerous stuff is the admin's alone.
     manager: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
       "/handbook": true, "/sops": true, "/meeting": true, "/initiatives": true, "/performance": true,
-      "/admin/users": false, "/admin/feedback": false, "/admin/settings": false,
+      "/admin/users": false, "/admin/feedback": false, "/admin/settings": false, "/admin/audit": false,
     },
     managerCoordinator: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
       "/handbook": true, "/sops": true, "/meeting": true, "/initiatives": true, "/performance": true,
-      "/admin/users": false, "/admin/feedback": false, "/admin/settings": false,
+      "/admin/users": false, "/admin/feedback": false, "/admin/settings": false, "/admin/audit": false,
     },
     engineer: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
       "/handbook": true, "/sops": true, "/meeting": false, "/initiatives": false, "/performance": false,
-      "/admin/users": false, "/admin/feedback": false, "/admin/settings": false,
+      "/admin/users": false, "/admin/feedback": false, "/admin/settings": false, "/admin/audit": false,
     },
     engineerCoordinator: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
       "/handbook": true, "/sops": true, "/meeting": true, "/initiatives": true, "/performance": true,
       // Coordinator sees the lab, but admin pages stay admin-only.
-      "/admin/users": false, "/admin/feedback": false, "/admin/settings": false,
+      "/admin/users": false, "/admin/feedback": false, "/admin/settings": false, "/admin/audit": false,
     },
     secretary: {
       "/board": false, "/data": false, "/compute": false, "/tasks": true,
       "/handbook": true, "/sops": false, "/meeting": false, "/initiatives": false, "/performance": false,
-      "/admin/users": false, "/admin/feedback": false, "/admin/settings": false,
+      "/admin/users": false, "/admin/feedback": false, "/admin/settings": false, "/admin/audit": false,
     },
   };
 

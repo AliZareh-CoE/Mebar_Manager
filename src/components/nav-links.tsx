@@ -46,6 +46,7 @@ export function NavLinks({
                 { href: "/admin/users", label: "People" },
                 { href: "/admin/feedback", label: "Feedback" },
                 { href: "/admin/settings", label: "Settings" },
+                { href: "/admin/audit", label: "Audit" },
               ]
             : []),
         ];

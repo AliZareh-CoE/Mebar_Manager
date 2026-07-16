@@ -25,6 +25,8 @@ import { PERFORMANCE_METRICS } from "@/lib/performance-metrics";
 import { permissionMatrixSchema, CONFIGURABLE_CAPABILITIES } from "@/lib/policy";
 import { workflowSchema } from "@/lib/workflow";
 import type { ActionResult } from "@/lib/action-utils";
+import type { SessionUser } from "@/lib/session";
+import { logAudit } from "@/lib/audit";
 
 async function patchSettings(patch: Record<string, unknown>): Promise<ActionResult> {
   const current = await getSettings();
@@ -47,8 +49,21 @@ async function patchSettings(patch: Record<string, unknown>): Promise<ActionResu
   return {};
 }
 
+/** Patch + audit: one `settings.<slice>` row per successful save. */
+async function patchAndLog(
+  me: SessionUser,
+  slice: string,
+  patch: Record<string, unknown>
+): Promise<ActionResult> {
+  const res = await patchSettings(patch);
+  if (!res.error) {
+    void logAudit(me.id, `settings.${slice}`, "settings", slice, `Saved ${slice} settings`);
+  }
+  return res;
+}
+
 export async function updateLabIdentity(formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const me = await requireAdmin();
   const schema = z.object({
     labName: z.string().trim().min(1, "The lab needs a name").max(40),
     tagline: z.string().trim().max(120).default(""),
@@ -56,11 +71,11 @@ export async function updateLabIdentity(formData: FormData): Promise<ActionResul
   });
   const parsed = schema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  return patchSettings(parsed.data);
+  return patchAndLog(me, "identity", parsed.data);
 }
 
 export async function updateFightRules(formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const me = await requireAdmin();
   // One ordered array carries both the per-rule config and the section order.
   const itemSchema = fightRuleSchema.extend({ type: z.enum(FIGHT_TYPES) });
   const parsed = z
@@ -72,46 +87,46 @@ export async function updateFightRules(formData: FormData): Promise<ActionResult
     parsed.data.map(({ type, ...rule }) => [type, rule])
   );
   const fightSectionOrder = parsed.data.map((i) => i.type);
-  return patchSettings({ fightRules, fightSectionOrder });
+  return patchAndLog(me, "fights", { fightRules, fightSectionOrder });
 }
 
 export async function updateThresholds(formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const me = await requireAdmin();
   const parsed = thresholdSettingsSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     return { error: `${issue.path.join(".")}: ${issue.message}` };
   }
-  return patchSettings({ thresholds: parsed.data });
+  return patchAndLog(me, "thresholds", { thresholds: parsed.data });
 }
 
 export async function updateVisibility(formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const me = await requireAdmin();
   const parsed = z
     .object({ visibilityMode: z.enum(["RESTRICTED", "OPEN"]) })
     .safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) return { error: "Invalid visibility mode." };
-  return patchSettings(parsed.data);
+  return patchAndLog(me, "visibility", parsed.data);
 }
 
 export async function updateHandbook(formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const me = await requireAdmin();
   const parsed = handbookSchema.safeParse(parseJsonField(formData, "items"));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  return patchSettings({ handbook: parsed.data });
+  return patchAndLog(me, "handbook", { handbook: parsed.data });
 }
 
 export async function updateDigest(formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const me = await requireAdmin();
   const parsed = z
     .object({ digestEnabled: z.enum(["true", "false"]) })
     .safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) return { error: "Invalid digest setting." };
-  return patchSettings({ digestEnabled: parsed.data.digestEnabled === "true" });
+  return patchAndLog(me, "digest", { digestEnabled: parsed.data.digestEnabled === "true" });
 }
 
 export async function updateWorkflow(formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const me = await requireAdmin();
   let raw: unknown;
   try {
     raw = JSON.parse(String(formData.get("workflow") ?? ""));
@@ -120,7 +135,7 @@ export async function updateWorkflow(formData: FormData): Promise<ActionResult> 
   }
   const parsed = workflowSchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  return patchSettings({ workflow: parsed.data });
+  return patchAndLog(me, "workflow", { workflow: parsed.data });
 }
 
 function parseJsonField(formData: FormData, field: string): unknown {
@@ -132,21 +147,21 @@ function parseJsonField(formData: FormData, field: string): unknown {
 }
 
 export async function updateCauseTags(formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const me = await requireAdmin();
   const parsed = causeTagListSchema.safeParse(parseJsonField(formData, "items"));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  return patchSettings({ causeTags: parsed.data });
+  return patchAndLog(me, "causeTags", { causeTags: parsed.data });
 }
 
 export async function updatePractices(formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const me = await requireAdmin();
   const parsed = practiceListSchema.safeParse(parseJsonField(formData, "items"));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  return patchSettings({ practices: parsed.data });
+  return patchAndLog(me, "practices", { practices: parsed.data });
 }
 
 export async function updateServerTypes(formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const me = await requireAdmin();
   const parsed = serverTypeListSchema.safeParse(parseJsonField(formData, "items"));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   // Cross-slice check: mandatory practices must reference existing practices.
@@ -158,11 +173,11 @@ export async function updateServerTypes(formData: FormData): Promise<ActionResul
       return { error: `"${st.label}" requires unknown practice "${ghost}".` };
     }
   }
-  return patchSettings({ serverTypes: parsed.data });
+  return patchAndLog(me, "serverTypes", { serverTypes: parsed.data });
 }
 
 export async function updateProposalQuestions(formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const me = await requireAdmin();
   const raw = parseJsonField(formData, "items");
   // The editor doesn't carry the builtin flag — re-derive it from the key so
   // a crafted payload can't flip a built-in to custom (or vice versa).
@@ -176,11 +191,11 @@ export async function updateProposalQuestions(formData: FormData): Promise<Actio
     : raw;
   const parsed = proposalQuestionListSchema.safeParse(withBuiltin);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  return patchSettings({ proposalQuestions: parsed.data });
+  return patchAndLog(me, "proposalQuestions", { proposalQuestions: parsed.data });
 }
 
 export async function updatePerformanceSettings(formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const me = await requireAdmin();
   const parsed = performanceSettingsSchema.safeParse({
     windowDays: formData.get("windowDays"),
     updatesCapPerProjectPerWeek: formData.get("updatesCapPerProjectPerWeek"),
@@ -190,15 +205,15 @@ export async function updatePerformanceSettings(formData: FormData): Promise<Act
     const issue = parsed.error.issues[0];
     return { error: `${issue.path.join(".")}: ${issue.message}` };
   }
-  return patchSettings({ performance: parsed.data });
+  return patchAndLog(me, "performance", { performance: parsed.data });
 }
 
 export async function updatePermissions(formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const me = await requireAdmin();
   const raw = Object.fromEntries(
     CONFIGURABLE_CAPABILITIES.map((c) => [c, formData.get(c)])
   );
   const parsed = permissionMatrixSchema.safeParse(raw);
   if (!parsed.success) return { error: "Invalid permission matrix." };
-  return patchSettings({ permissions: parsed.data });
+  return patchAndLog(me, "permissions", { permissions: parsed.data });
 }

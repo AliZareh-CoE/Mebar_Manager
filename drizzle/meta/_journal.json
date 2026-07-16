@@ -57,6 +57,13 @@
       "when": 1784220655437,
       "tag": "0007_v7_person_milestones",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1784221761906,
+      "tag": "0008_v7_audit_events",
+      "breakpoints": true
     }
   ]
 }

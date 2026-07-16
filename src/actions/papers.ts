@@ -10,6 +10,7 @@ import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 import { canAccessProject } from "@/lib/visibility";
 import { notifyProjectEvent } from "@/lib/notify";
+import { logAudit } from "@/lib/audit";
 import { isManagerOrAbove } from "@/lib/policy";
 import {
   canTransitionPaper,
@@ -157,6 +158,11 @@ export async function transitionPaper(
     .set(transitionColumns(to, new Date(), { venue, closureNote }))
     .where(eq(papers.id, paperId));
   revalidatePaper(paper.projectId);
+  if (to === "ACCEPTED") {
+    void logAudit(me.id, "paper.accepted", "paper", paperId,
+      `Confirmed acceptance${venue || paper.venue ? ` at ${venue || paper.venue}` : ""}`,
+      { projectId: paper.projectId });
+  }
   void notifyProjectEvent(paper.projectId, {
     title: `Paper ${PAPER_STATUS_LABELS[to].toLowerCase()}`,
     lines: [

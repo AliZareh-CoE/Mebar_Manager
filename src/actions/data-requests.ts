@@ -10,6 +10,7 @@ import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 import { canAccessProject } from "@/lib/visibility";
 import { isManagerOrAbove, isLabLeadership } from "@/lib/policy";
+import { logAudit } from "@/lib/audit";
 
 function revalidateDataRequest(projectId: string | null) {
   revalidatePath("/");
@@ -112,6 +113,9 @@ export async function createExternalDataRequest(
   });
 
   revalidateDataRequest(null);
+  void logAudit(me.id, "dataRequest.external", "dataRequest", null,
+    `Logged external request from ${parsed.data.externalRequester}`,
+    { externalRequester: parsed.data.externalRequester });
   return {};
 }
 
@@ -238,6 +242,11 @@ export async function editDataRequest(
     .where(eq(dataRequests.id, requestId));
 
   revalidateDataRequest(request.projectId);
+  if (!sameDay(parsed.data.neededBy, request.neededBy)) {
+    void logAudit(me.id, "dataRequest.dateMove", "dataRequest", requestId,
+      `Moved needed-by on "${parsed.data.title}"`,
+      { from: request.neededBy, to: parsed.data.neededBy });
+  }
   return {};
 }
 

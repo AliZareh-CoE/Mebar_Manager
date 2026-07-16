@@ -10,6 +10,7 @@ import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
 import { canAccessProject } from "@/lib/visibility";
 import { isManagerOrAbove } from "@/lib/policy";
+import { logAudit } from "@/lib/audit";
 
 function revalidateTask(projectId?: string | null) {
   revalidatePath("/");
@@ -174,6 +175,10 @@ export async function editTask(
     .where(eq(tasks.id, taskId));
 
   revalidateTask(task.projectId);
+  if (!sameDay(parsed.data.deadline, task.deadline)) {
+    void logAudit(me.id, "task.dateMove", "task", taskId,
+      `Moved deadline on "${task.title}"`, { from: task.deadline, to: parsed.data.deadline });
+  }
   return {};
 }
 

@@ -29,6 +29,7 @@ import {
   papers,
   sops,
   personMilestones,
+  auditEvents,
 } from "../src/lib/db/schema";
 
 async function createUserRaw(input: {
@@ -124,6 +125,7 @@ async function seedDemo() {
   db.delete(tasks).run();
   db.delete(initiatives).run();
   db.delete(feedback).run();
+  db.delete(auditEvents).run();
   db.delete(sops).run();
   db.delete(personMilestones).run();
   db.delete(papers).run();
@@ -864,6 +866,46 @@ async function seedDemo() {
         respondedById: prof,
         createdAt: subDays(new Date(), 6),
         respondedAt: subDays(new Date(), 5),
+      },
+    ])
+    .run();
+
+  // Audit trail — a few illustrative rows so /admin/audit isn't empty on a
+  // fresh demo lab. Real rows accumulate from privileged actions.
+  db.insert(auditEvents)
+    .values([
+      {
+        actorId: prof,
+        action: "settings.thresholds",
+        entity: "settings",
+        entityId: "thresholds",
+        summary: "Saved thresholds settings",
+        at: subDays(new Date(), 9),
+      },
+      {
+        actorId: prof,
+        action: "project.transition",
+        entity: "project",
+        entityId: p1.id,
+        summary: "PROPOSAL → ACTIVE",
+        meta: { fromState: "PROPOSAL", toState: "ACTIVE" },
+        at: subDays(new Date(), 7),
+      },
+      {
+        actorId: noa,
+        action: "milestone.dateMove",
+        entity: "milestone",
+        entityId: null,
+        summary: 'Moved due date on "Controller latency benchmark"',
+        at: subDays(new Date(), 3),
+      },
+      {
+        actorId: prof,
+        action: "paper.accepted",
+        entity: "paper",
+        entityId: null,
+        summary: "Confirmed acceptance at Nature Photonics",
+        at: subDays(new Date(), 1),
       },
     ])
     .run();

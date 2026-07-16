@@ -455,6 +455,34 @@ export const sopsRelations = relations(sops, ({ one }) => ({
   }),
 }));
 
+// Append-only admin audit trail — one row per high-signal privileged action
+// (transitions, role/date overrides by leadership, settings saves, paper
+// acceptances). Never updated, never deleted; the /admin/audit page reads it
+// newest-first. actorId is nullable so system-originated rows can exist.
+export const auditEvents = sqliteTable(
+  "audit_events",
+  {
+    id: id(),
+    at: integer("at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    actorId: text("actor_id").references(() => user.id),
+    action: text("action").notNull(),
+    entity: text("entity").notNull(),
+    entityId: text("entity_id"),
+    summary: text("summary").notNull(),
+    meta: text("meta", { mode: "json" }).$type<Record<string, unknown>>(),
+  },
+  (t) => [index("audit_events_at_idx").on(t.at)]
+);
+
+export const auditEventsRelations = relations(auditEvents, ({ one }) => ({
+  actor: one(user, {
+    fields: [auditEvents.actorId],
+    references: [user.id],
+  }),
+}));
+
 export const PROJECT_PEOPLE_ROLES = ["PI", "FIRST_AUTHOR", "CONTRIBUTOR"] as const;
 export type ProjectPersonRole = (typeof PROJECT_PEOPLE_ROLES)[number];
 
@@ -687,3 +715,4 @@ export type Feedback = typeof feedback.$inferSelect;
 export type Sop = typeof sops.$inferSelect;
 export type ProjectPerson = typeof projectPeople.$inferSelect;
 export type Paper = typeof papers.$inferSelect;
+export type AuditEvent = typeof auditEvents.$inferSelect;

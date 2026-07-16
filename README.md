@@ -31,6 +31,8 @@ The rules (thresholds in `src/lib/thresholds.ts`):
 | Missing PI / first author | active project without a named PI and first author | owner |
 | Paperless project | active project **30 days** old with no paper on record | owner |
 | Underloaded researcher | owner/advisor of fewer than **5** running projects (blocked, stalled, paused, or unstarted ones don't count; analysts, secretaries, and leadership are exempt) | the researcher |
+| Submission target at risk | drafting paper within **14 days** of its target submission date (red once past it) | owner |
+| Overdue thesis milestone | planned person milestone (qualifier, defense, …) past its due date | the person |
 
 Other opinions built in:
 
@@ -56,6 +58,31 @@ Other opinions built in:
   shows what systemically blocks the lab.
 - Project lifecycle: `PROPOSAL → SCOPING → ACTIVE ⇄ BLOCKED → PAUSED → DONE/KILLED`,
   enforced by a state machine with full transition history.
+
+## What's new in v7
+
+- **Off-site backups** — the nightly dump optionally pushes to a second
+  location (rclone / rsync / scp, auto-detected), plus a scripted restore
+  drill (`deploy/restore.sh`).
+- **Paper venue targets** — papers carry a target submission date and a
+  three-venue journal shortlist; a drafting paper inside the lead window
+  raises a *Submission target at risk* fight, and Resubmit pre-fills the next
+  shortlist venue.
+- **Weekly digest email** — a personal Monday email per member (their fights,
+  what's due this week, project freshness), with an admin kill switch and a
+  per-person opt-out.
+- **Meeting mode** (`/meeting`) — the lab meeting agenda auto-built from the
+  record: fights for review, this week's updates, decisions to make, papers
+  that moved, open initiatives. Print-friendly.
+- **Protocol library** (`/sops`) — the lab's how-to SOPs with copyable
+  step checklists.
+- **Lab handbook + onboarding** (`/handbook`, `/welcome`) — admin-edited
+  handbook sections every role can read, and a first-login welcome checklist
+  that stamps each member as onboarded.
+- **Thesis milestones** — per-person qualifier/defense/submission dates,
+  managed by leadership, with an *Overdue thesis milestone* fight.
+- **Admin audit log** (`/admin/audit`) — every privileged change on the
+  record, newest first, filterable.
 
 ## Roles
 
@@ -217,6 +244,14 @@ rendering:
 - **No hard deletes**: everything closes with a status and a reason —
   blockers/milestones/decisions/data requests cancel, compute requests
   withdraw, projects are killed. History stays on the record.
+- **Audit log**: `/admin/audit` (admin-only) records every high-signal
+  privileged action — project transitions, PI/first-author lineup changes,
+  leadership date moves on milestones/tasks/data requests, paper acceptance
+  confirmations, every settings slice save, and analyst/coordinator grants.
+  Newest first, most recent 500, with a `?action=` prefix filter (chips on
+  the page). One honest limitation: account creation, role changes, bans,
+  and password resets run through the auth provider's admin API, not the
+  app's server actions, so they are **not** in the audit log.
 
 Auth accounts are created by the admin at **People** — there is no self-signup.
 Deactivating a person revokes their sessions. See `.env.example` for
@@ -341,3 +376,15 @@ created before the migration system (via `db:push`) are adopted automatically:
 the runner records the baseline as already applied and continues from there.
 `db:push` remains for local iteration on a schema you haven't generated yet —
 use it only on a database you're willing to delete.
+
+Committed migrations so far:
+
+- `0000` baseline (v5 schema)
+- `0001` project_people + papers
+- `0002` external data requests (nullable projectId, requester fields)
+- `0003` paper targets (targetSubmissionAt, venueShortlist)
+- `0004` user.digestOptOut
+- `0005` sops
+- `0006` user.onboardedAt
+- `0007` person_milestones
+- `0008` audit_events (append-only)

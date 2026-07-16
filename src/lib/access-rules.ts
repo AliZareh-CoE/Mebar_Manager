@@ -57,6 +57,7 @@ export const GUARDED_ROUTES = [
   "/admin/users",
   "/admin/feedback",
   "/admin/settings",
+  "/admin/audit",
 ] as const;
 export type GuardedRoute = (typeof GUARDED_ROUTES)[number];
 
@@ -84,6 +85,7 @@ export function routeAllowed(user: AccessUser, route: GuardedRoute): boolean {
     case "/admin/users":
     case "/admin/feedback":
     case "/admin/settings":
+    case "/admin/audit":
       return user.role === "ADMIN";
   }
 }

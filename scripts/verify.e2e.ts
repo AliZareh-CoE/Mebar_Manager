@@ -1449,6 +1449,28 @@ async function main() {
   await omidPage.waitForURL(BASE + "/");
   check("temp password signs omid in", true);
 
+  // 29. v7: admin audit log. Earlier steps already wrote settings.* rows
+  // (fight-rule saves) and project.transition rows, but re-save the Lab
+  // identity form unchanged so the block stands on its own. Append-only +
+  // reseed-cleared, so every check is existence-based and survives reruns.
+  await page.goto(BASE + "/admin/settings");
+  await page.locator("button:has-text('Save')").first().click();
+  await page.waitForSelector("text=Settings saved.");
+  await page.goto(BASE + "/admin/audit");
+  await page.waitForSelector("text=Audit log");
+  const auditBody = (await page.textContent("body"))!;
+  check("audit: settings save recorded", auditBody.includes("settings."));
+  check("audit: project transition recorded", auditBody.includes("project.transition"));
+  await page.goto(BASE + "/admin/audit?action=settings");
+  await page.waitForSelector("text=Audit log");
+  const auditFiltered = (await page.textContent("body"))!;
+  check("audit: filter keeps settings rows", auditFiltered.includes("settings."));
+  check("audit: filter drops transition rows", !auditFiltered.includes("project.transition"));
+  await page.screenshot({ path: SHOTS + "/07-admin-audit.png", fullPage: true });
+  await engPage.goto(BASE + "/admin/audit");
+  await engPage.waitForURL((u) => !u.pathname.startsWith("/admin/audit"));
+  check("audit: researcher redirected away", !engPage.url().includes("/admin/audit"));
+
   await browser.close();
   console.log(results.join("\n"));
   if (results.some((r) => r.startsWith("FAIL"))) process.exit(1);

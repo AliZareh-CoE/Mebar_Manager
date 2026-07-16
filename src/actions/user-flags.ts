@@ -6,13 +6,14 @@ import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
 import { requireAdmin, requireUser } from "@/lib/session";
 import type { ActionResult } from "@/lib/action-utils";
+import { logAudit } from "@/lib/audit";
 
 /** Grant or revoke the data-analyst add-on. Manager-only. */
 export async function setDataAnalyst(
   userId: string,
   isAnalyst: boolean
 ): Promise<ActionResult> {
-  await requireAdmin();
+  const me = await requireAdmin();
 
   const target = await db.select().from(user).where(eq(user.id, userId)).get();
   if (!target) return { error: "User not found." };
@@ -21,6 +22,8 @@ export async function setDataAnalyst(
   await db.update(user).set({ isDataAnalyst: isAnalyst }).where(eq(user.id, userId));
   revalidatePath("/admin/users");
   revalidatePath("/");
+  void logAudit(me.id, "user.analystFlag", "user", userId,
+    `${isAnalyst ? "Granted" : "Revoked"} data-analyst for ${target.name}`, { isAnalyst });
   return {};
 }
 
@@ -29,7 +32,7 @@ export async function setDataAnalyst(
  * setting it clears the previous holder in the same transaction.
  */
 export async function setComputeCoordinator(userId: string): Promise<ActionResult> {
-  await requireAdmin();
+  const me = await requireAdmin();
 
   const target = await db.select().from(user).where(eq(user.id, userId)).get();
   if (!target) return { error: "User not found." };
@@ -52,6 +55,8 @@ export async function setComputeCoordinator(userId: string): Promise<ActionResul
   revalidatePath("/admin/users");
   revalidatePath("/");
   revalidatePath("/compute");
+  void logAudit(me.id, "user.coordinator", "user", userId,
+    `Made ${target.name} the compute coordinator`);
   return {};
 }
 
