@@ -28,7 +28,6 @@ import {
   COMPUTE_RESULTS_URGENT_DAYS,
   AGE_FRESH_DAYS,
   AGE_AGING_DAYS,
-  PAPER_GRACE_DAYS,
   MIN_ACTIVE_PROJECTS,
   SUBMISSION_LEAD_DAYS,
 } from "@/lib/thresholds";
@@ -63,7 +62,6 @@ export const thresholdSettingsSchema = z.object({
     .default(COMPUTE_RESULTS_URGENT_DAYS),
   ageFreshDays: z.coerce.number().int().min(0).max(365).default(AGE_FRESH_DAYS),
   ageAgingDays: z.coerce.number().int().min(0).max(365).default(AGE_AGING_DAYS),
-  paperGraceDays: z.coerce.number().int().min(0).max(365).default(PAPER_GRACE_DAYS),
   minActiveProjects: z.coerce.number().int().min(0).max(50).default(MIN_ACTIVE_PROJECTS),
   submissionLeadDays: z.coerce.number().int().min(0).max(365).default(SUBMISSION_LEAD_DAYS),
 });
@@ -170,10 +168,17 @@ export const fightRulesSchema = z
       ) as Record<FightType, FightRuleConfig>
   );
 
+// Permissive strings → known types: an order saved when a since-removed
+// rule existed self-heals instead of nuking the whole slice to defaults.
 export const fightSectionOrderSchema = z
-  .array(z.enum(FIGHT_TYPES))
+  .array(z.string())
   .transform((order) => [
-    ...new Set<FightType>([...order, ...DEFAULT_SECTION_ORDER]),
+    ...new Set<FightType>([
+      ...order.filter((t): t is FightType =>
+        (FIGHT_TYPES as readonly string[]).includes(t)
+      ),
+      ...DEFAULT_SECTION_ORDER,
+    ]),
   ]);
 
 /** Permissive record → exhaustive map: new metrics self-heal to defaults. */

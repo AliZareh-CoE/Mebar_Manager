@@ -64,7 +64,6 @@ describe("help copy", () => {
     const c = ctx({}, { paperAccepted: 77, paperSubmitted: 33 }, true);
     expect(MECHANISM_HELP.papers(c).body.toString()).toContain("77");
     expect(MECHANISM_HELP.papers(c).body.toString()).toContain("33");
-    expect(FIGHT_TYPE_HELP.PAPERLESS_PROJECT(c).advice).toContain("33");
   });
 
   it("the pointing system is invisible to researchers — fail-closed by default", () => {

@@ -146,7 +146,7 @@ export default async function AccountPage() {
                   performance: settings.performance,
                   viewerSeesScores: true, // card renders only for leadership
                 } satisfies HelpContext)}
-                href="/guide#scoring"
+                href="/performance"
               />
             </CardTitle>
             <CardDescription>

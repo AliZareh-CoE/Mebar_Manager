@@ -25,7 +25,6 @@ const THRESHOLD_FIELDS = [
   ["computeResultsUrgentDays", "Compute results urgent (days)", "Overdue results summaries turn red after this many extra days."],
   ["ageFreshDays", "Age pill: fresh up to (days)", "Board age pill stays green up to here."],
   ["ageAgingDays", "Age pill: aging up to (days)", "…amber up to here, red beyond."],
-  ["paperGraceDays", "Paper grace (days)", "An active project may exist this long before 'no paper on record' is a fight. 0 = immediately."],
   ["minActiveProjects", "Min running projects per researcher", "Every researcher runs at least this many healthy, moving projects (owner or advisor) — blocked, stalled, paused, or unstarted ones don't count, and data analysts, secretaries, and leadership are exempt. 0 disables the rule."],
   ["submissionLeadDays", "Submission lead (days)", "A draft with a target submission date this close (or past) becomes a Fight List item. 0 disables it."],
 ] as const;

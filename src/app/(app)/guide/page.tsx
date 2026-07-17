@@ -1,15 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
-import { isLabLeadership } from "@/lib/policy";
 import { FIGHT_TYPE_HELP, MECHANISM_HELP, type HelpContext } from "@/lib/help-copy";
-import {
-  PERFORMANCE_METRICS,
-  PERFORMANCE_CATEGORIES,
-  CATEGORY_LABELS,
-  METRIC_CATEGORY,
-  METRIC_LABELS,
-} from "@/lib/performance-metrics";
 import { StateBadge } from "@/components/state-badge";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -41,13 +33,12 @@ export default async function GuidePage() {
   const me = await getCurrentUser();
   if (!me) redirect("/login");
   const settings = await getSettings();
-  // The pointing system is leadership-only: researchers get the rules and
-  // the coaching, never the weights.
-  const seesScores = isLabLeadership(me);
+  // The pointing system stays out of the guide entirely — it's a shared
+  // document. Leadership reads scoring on /performance and in Settings.
   const ctx: HelpContext = {
     thresholds: settings.thresholds,
     performance: settings.performance,
-    viewerSeesScores: seesScores,
+    viewerSeesScores: false,
   };
   const t = settings.thresholds;
   const mech = (id: keyof typeof MECHANISM_HELP) => {
@@ -63,9 +54,7 @@ export default async function GuidePage() {
           How {settings.labName} runs
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          No hidden rules. Every number on this page is the lab&apos;s live
-          configuration — when the admin changes a threshold in Settings, this
-          page changes with it. Each rule comes with how to win, not just how
+          The rules of the lab — and for each one, how to win, not just how
           to stop losing.
         </p>
       </div>
@@ -235,71 +224,6 @@ export default async function GuidePage() {
         </CardContent>
       </Card>
 
-      {/* Scoring — leadership only; researchers never see the pointing system. */}
-      {seesScores && (
-      <Card id="scoring">
-        <CardHeader>
-          <CardTitle>Scoring</CardTitle>
-          <CardDescription>{mech("perfTotal").paragraphs.join(" ")}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
-            <p>
-              <span className="font-medium text-foreground">Delivery. </span>
-              {mech("perfDelivery").paragraphs.join(" ")}
-            </p>
-            <p>
-              <span className="font-medium text-foreground">Discipline. </span>
-              {mech("perfDiscipline").paragraphs.join(" ")}
-            </p>
-            <p>
-              <span className="font-medium text-foreground">Initiative-taking. </span>
-              {mech("perfInitiative").paragraphs.join(" ")}
-            </p>
-          </div>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Category</TableHead>
-                  <TableHead>What counts</TableHead>
-                  <TableHead className="text-right">Points each</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {PERFORMANCE_CATEGORIES.flatMap((cat) =>
-                  PERFORMANCE_METRICS.filter((m) => METRIC_CATEGORY[m] === cat).map(
-                    (m, i) => (
-                      <TableRow key={m}>
-                        <TableCell className="whitespace-nowrap font-medium">
-                          {i === 0 ? CATEGORY_LABELS[cat] : ""}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {METRIC_LABELS[m]}
-                        </TableCell>
-                        <TableCell
-                          className={`text-right tabular-nums ${settings.performance.weights[m] < 0 ? "text-red-500" : ""}`}
-                        >
-                          {settings.performance.weights[m] > 0 ? "+" : ""}
-                          {settings.performance.weights[m]}
-                        </TableCell>
-                      </TableRow>
-                    )
-                  )
-                )}
-              </TableBody>
-            </Table>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">The anti-gaming locks: </span>
-            {mech("dateLock").paragraphs.join(" ")} PI and first author freeze
-            once a project activates, and a paper acceptance is confirmed by a
-            coordinator — never by the person earning the points.
-          </p>
-        </CardContent>
-      </Card>
-      )}
-
       {/* Age pill */}
       <Card id="age">
         <CardHeader>
@@ -364,9 +288,8 @@ export default async function GuidePage() {
           <p>
             <span className="font-medium text-foreground">Let the meeting work for you. </span>
             {`The weekly update is five minutes that keeps your projects off the
-            Fight List and resets the stall clock${seesScores ? " — and earns points" : ""}. Post it
-            before the meeting, and the meeting becomes about the science
-            instead of the status.`}
+            Fight List and resets the stall clock. Post it before the meeting,
+            and the meeting becomes about the science instead of the status.`}
           </p>
           <p className="border-t pt-3 text-xs">
             Further reading:{" "}

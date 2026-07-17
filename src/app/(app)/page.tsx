@@ -270,13 +270,6 @@ export default async function FightListPage() {
             Open People tab
           </Button>
         );
-      case "PAPERLESS_PROJECT":
-        if (!item.projectId) return null;
-        return (
-          <Button variant="outline" size="sm" render={<Link href={`/projects/${item.projectId}`} />}>
-            File a paper
-          </Button>
-        );
       case "SUBMISSION_TARGET_AT_RISK":
         if (!item.projectId) return null;
         return (

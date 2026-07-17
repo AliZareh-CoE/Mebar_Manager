@@ -145,12 +145,6 @@ export const FIGHT_TYPE_HELP: Record<FightType, (ctx: HelpContext) => FightRuleH
     advice:
       "Settle authorship at the START — it's a 2-minute conversation at activation and a feud after submission. The lineup locks once active precisely so nobody relitigates it later.",
   }),
-  PAPERLESS_PROJECT: ({ thresholds: t, performance: p, viewerSeesScores }) => ({
-    what: `The early warning: a project only finishes when its paper is ACCEPTED (Done is blocked without one), and this project has been active ${t.paperGraceDays}+ days with not even a draft filed.`,
-    who: "The project owner.",
-    clear: "File the paper on the Papers tab — a draft clears this and starts the real fight.",
-    advice: `Pick your top 3 target journals BEFORE writing (best fit → strong alternative → reliable fallback) and write to Target 1's format from day one. Draft the methods section while the experiments run.${viewerSeesScores ? ` Filing the draft early also banks the ${p.weights.paperSubmitted}-point submission the moment it's ready.` : " Filing the draft early means it's ready to submit the moment the results land."}`,
-  }),
   UNDERLOADED_RESEARCHER: ({ thresholds: t }) => ({
     what: `A researcher who is owner or advisor of fewer than ${t.minActiveProjects} running projects. Only healthy, moving projects count — blocked, stalled, paused, or not-yet-started ones don't. Applies to researchers only: data analysts, secretaries, and leadership are exempt.`,
     who: "The researcher.",
@@ -251,10 +245,10 @@ export const MECHANISM_HELP: Record<MechanismId, (ctx: HelpContext) => HelpCopy>
         : "Missed one? Close it late (better late than abandoned) or ask a coordinator to push it. Set dates you believe in the first place.",
     ],
   }),
-  papers: ({ thresholds: t, performance: p, viewerSeesScores }) => ({
+  papers: ({ performance: p, viewerSeesScores }) => ({
     title: "The paper track",
     body: [
-      `A project only finishes when its paper is ACCEPTED — “Mark done” is blocked without one, and “no paper” after ${t.paperGraceDays} active days is already a fight. A draft counts for the fight; only acceptance finishes the project.`,
+      "A project only finishes when its paper is ACCEPTED — “Mark done” is blocked without one. Only acceptance finishes the project.",
       viewerSeesScores
         ? `Submitting earns the owner ${p.weights.paperSubmitted} points; an acceptance earns ${p.weights.paperAccepted}, once a coordinator confirms it — the biggest prize needs a second pair of eyes. Rejections resubmit on the same row, reasons on the record.`
         : "An acceptance counts once a coordinator confirms it — the biggest milestone needs a second pair of eyes. Rejections resubmit on the same row, reasons on the record.",

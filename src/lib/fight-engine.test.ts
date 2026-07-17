@@ -723,7 +723,6 @@ describe("custom thresholds", () => {
     decisionUrgentHours: 24,
     computePendingUrgentHours: 48,
     computeResultsUrgentDays: 1,
-    paperGraceDays: 30,
     minActiveProjects: 5,
     submissionLeadDays: 14,
   };
@@ -1045,61 +1044,6 @@ describe("MISSING_PROJECT_PEOPLE", () => {
   });
 });
 
-describe("PAPERLESS_PROJECT", () => {
-  const old = () => project({ createdAt: subDays(NOW, 55) });
-
-  it("fires past the grace with severity 1 at the owner", () => {
-    const items = computeFightList(snap({ projects: [old()], papers: [] }), NOW);
-    const paperless = items.filter((i) => i.type === "PAPERLESS_PROJECT");
-    expect(paperless).toHaveLength(1);
-    expect(paperless[0]).toMatchObject({
-      severity: 1,
-      projectId: "p1",
-      ageDays: 25, // 55 days old − 30 grace
-      responsible: alice,
-    });
-  });
-
-  it("any paper row suppresses it — even a rejected one", () => {
-    const s = snap({ projects: [old()], papers: [{ projectId: "p1" }] });
-    expect(computeFightList(s, NOW).filter((i) => i.type === "PAPERLESS_PROJECT")).toEqual([]);
-  });
-
-  it("grace boundary: day 30 is fine, day 31 fires", () => {
-    const at = (days: number) =>
-      computeFightList(
-        snap({ projects: [project({ createdAt: subDays(NOW, days) })], papers: [] }),
-        NOW
-      ).filter((i) => i.type === "PAPERLESS_PROJECT");
-    expect(at(30)).toHaveLength(0);
-    expect(at(31)).toHaveLength(1);
-  });
-
-  it("grace 0 fires immediately on active projects", () => {
-    const items = computeFightList(
-      snap({ projects: [project({ createdAt: subDays(NOW, 1) })], papers: [] }),
-      NOW,
-      { ...DEFAULT_THRESHOLDS, paperGraceDays: 0 }
-    );
-    expect(items.filter((i) => i.type === "PAPERLESS_PROJECT")).toHaveLength(1);
-  });
-
-  it("non-counting states and old snapshots are exempt", () => {
-    const paused = snap({ projects: [old(), project({ id: "p2", title: "x", state: "PROPOSAL", createdAt: subDays(NOW, 90) })], papers: [] });
-    const fired = computeFightList(paused, NOW).filter((i) => i.type === "PAPERLESS_PROJECT");
-    expect(fired.map((i) => i.projectId)).toEqual(["p1"]); // PROPOSAL exempt
-    expect(computeFightList(snap({ projects: [old()] }), NOW)).toEqual([]); // no papers field
-  });
-
-  it("honors the enabledRules toggle", () => {
-    expect(
-      computeFightList(snap({ projects: [old()], papers: [] }), NOW, undefined, {
-        enabledRules: { PAPERLESS_PROJECT: false },
-      })
-    ).toEqual([]);
-  });
-});
-
 describe("UNDERLOADED_RESEARCHER", () => {
   const bob = { id: "u-bob", name: "Bob" };
   const active = (id: string, owner = alice, advisor = prof) =>
@@ -1275,13 +1219,6 @@ describe("SUBMISSION_TARGET_AT_RISK", () => {
     ).toHaveLength(0);
   });
 
-  it("regression: an at-risk draft still suppresses PAPERLESS_PROJECT", () => {
-    const s = snap({
-      projects: [project({ createdAt: subDays(NOW, 90) })],
-      papers: [draftPaper()],
-    });
-    expect(computeFightList(s, NOW).filter((i) => i.type === "PAPERLESS_PROJECT")).toHaveLength(0);
-  });
 });
 
 describe("OVERDUE_PERSON_MILESTONE", () => {

@@ -518,8 +518,7 @@ async function seedDemo() {
     .run();
 
   // Papers: P1 submitted (waiting on reviewers), P2 accepted (scores for
-  // omid: submit + accept), P4 drafting. P3 has NO paper and is 55 days
-  // old → PAPERLESS_PROJECT lights on the Fight List.
+  // omid: submit + accept), P4 drafting. P3 has no paper yet.
   db.insert(papers)
     .values([
       {

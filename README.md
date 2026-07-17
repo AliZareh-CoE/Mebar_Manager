@@ -29,7 +29,6 @@ The rules (thresholds in `src/lib/thresholds.ts`):
 | Pending compute request | every pending request; **never auto-proceeds**; red after 48h | compute coordinator |
 | Compute results owed | approved request past its usage window without a results summary | requester |
 | Missing PI / first author | active project without a named PI and first author | owner |
-| Paperless project | active project **30 days** old with no paper on record | owner |
 | Underloaded researcher | owner/advisor of fewer than **5** running projects (blocked, stalled, paused, or unstarted ones don't count; analysts, secretaries, and leadership are exempt) | the researcher |
 | Submission target at risk | drafting paper within **14 days** of its target submission date (red once past it) | owner |
 | Overdue thesis milestone | planned person milestone (qualifier, defense, …) past its due date | the person |

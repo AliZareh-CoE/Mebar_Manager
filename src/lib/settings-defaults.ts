@@ -114,11 +114,6 @@ export const DEFAULT_FIGHT_SECTIONS: Record<FightType, FightRuleConfig> = {
     blurb:
       "Active projects must name a PI and a first author. Activation is blocked without them.",
   },
-  PAPERLESS_PROJECT: {
-    enabled: true,
-    title: "Projects without a paper",
-    blurb: "Every project must lead to a Q1 paper. File one — even a draft counts.",
-  },
   UNDERLOADED_RESEARCHER: {
     enabled: true,
     title: "Underloaded researchers",

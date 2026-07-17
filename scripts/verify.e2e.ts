@@ -831,7 +831,7 @@ async function main() {
   await page.goto(BASE + "/");
   const profFights = (await page.textContent("body"))!;
   check("v6: missing-people fight section renders", profFights.includes("Missing PI / first author"));
-  check("v6: paperless fight section renders", profFights.includes("Projects without a paper"));
+  check("v6: paperless rule removed from fight list", !profFights.includes("Projects without a paper"));
   check("v6: underload fight section renders", profFights.includes("Underloaded researchers"));
   check("v6: underload headline n/min format", /has \d+\/\d+ running projects/.test(profFights));
   check("v6: manager sees other researchers' underload", /Omid Rahimi has \d+\/\d+/.test(profFights));
@@ -1284,7 +1284,7 @@ async function main() {
   // Settings: the two new thresholds render; minActiveProjects 0 disables
   // the underload rule (self-restoring: back to 5).
   await page.goto(BASE + "/admin/settings/fights");
-  check("v6: paper grace input renders", (await page.textContent("body"))!.includes("Paper grace (days)"));
+  check("v8: paper-grace input removed", !(await page.textContent("body"))!.includes("Paper grace (days)"));
   const v6Form = page.locator("form", { has: page.locator("input[name=minActiveProjects]") });
   check(
     "v6: min-active-projects input renders",
@@ -1363,11 +1363,16 @@ async function main() {
   );
   await page.goto(BASE + "/guide");
   const guideBody = (await page.textContent("body"))!;
-  for (const section of ["The Fight List", "Scoring", "The project lifecycle", "How to win"]) {
+  for (const section of ["The Fight List", "The project lifecycle", "How to win"]) {
     check(`guide: renders "${section}"`, guideBody.includes(section));
   }
   check("guide: playbook coaching present", guideBody.includes("Stagger the stages"));
   check("guide: further reading present", guideBody.includes("You and Your Research"));
+  // v8 hotfix: the guide is a shared document — scoring is out for EVERY
+  // viewer (admin included), and so is the settings/config framing.
+  check("v8: no Scoring section even for the admin", !guideBody.includes("Points each"));
+  check("v8: no points mentions for the admin", !/\bpoints?\b/i.test(guideBody));
+  check("v8: settings/config framing gone", !guideBody.includes("live configuration"));
 
   // Live numbers: the guide reflects the CURRENT stallDays, and follows a change.
   await page.goto(BASE + "/admin/settings/fights");

@@ -56,7 +56,7 @@ export default async function PerformancePage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            Standings <InfoHint {...MECHANISM_HELP.perfTotal(helpCtx)} href="/guide#scoring" />
+            Standings <InfoHint {...MECHANISM_HELP.perfTotal(helpCtx)} />
           </CardTitle>
           <CardDescription>
             Delivery (closing things) + Discipline (weekly rhythm minus what
