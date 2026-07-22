@@ -37,9 +37,9 @@ describe("computeStats", () => {
   it("groups projects by workflow state and falls back on unknown keys", () => {
     const input = emptyInput();
     input.projects = [
-      { id: "p1", state: "ACTIVE", ownerId: "u1", createdAt: subDays(NOW, 40) },
-      { id: "p2", state: "ACTIVE", ownerId: "u1", createdAt: subDays(NOW, 10) },
-      { id: "p3", state: "GHOST_STATE", ownerId: "u2", createdAt: subDays(NOW, 400) },
+      { id: "p1", title: "p1", state: "ACTIVE", ownerId: "u1", createdAt: subDays(NOW, 40) },
+      { id: "p2", title: "p2", state: "ACTIVE", ownerId: "u1", createdAt: subDays(NOW, 10) },
+      { id: "p3", title: "p3", state: "GHOST_STATE", ownerId: "u2", createdAt: subDays(NOW, 400) },
     ];
     const s = computeStats(input, STATES, NOW);
     const active = s.projectsByState.find((x) => x.key === "ACTIVE");
@@ -88,8 +88,8 @@ describe("computeStats", () => {
   it("computes cycle medians from project start and submission", () => {
     const input = emptyInput();
     input.projects = [
-      { id: "p1", state: "ACTIVE", ownerId: "u1", createdAt: subDays(NOW, 100) },
-      { id: "p2", state: "ACTIVE", ownerId: "u1", createdAt: subDays(NOW, 30) },
+      { id: "p1", title: "p1", state: "ACTIVE", ownerId: "u1", createdAt: subDays(NOW, 100) },
+      { id: "p2", title: "p2", state: "ACTIVE", ownerId: "u1", createdAt: subDays(NOW, 30) },
     ];
     input.papers = [
       { projectId: "p1", status: "SUBMITTED", venue: "A", submittedAt: subDays(NOW, 40), acceptedAt: null },
@@ -126,8 +126,8 @@ describe("computeStats", () => {
   it("UTF rollup: cross-project tags count, archived-but-tagged stays listed", () => {
     const input = emptyInput();
     input.projects = [
-      { id: "p1", state: "ACTIVE", ownerId: "u1", createdAt: subDays(NOW, 50) },
-      { id: "p2", state: "DONE", ownerId: "u1", createdAt: subDays(NOW, 300) },
+      { id: "p1", title: "p1", state: "ACTIVE", ownerId: "u1", createdAt: subDays(NOW, 50) },
+      { id: "p2", title: "p2", state: "DONE", ownerId: "u1", createdAt: subDays(NOW, 300) },
     ];
     input.utfStudents = [
       { id: "s1", name: "Lily", archived: false },

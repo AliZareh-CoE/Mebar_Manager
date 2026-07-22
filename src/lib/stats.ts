@@ -27,7 +27,7 @@ export interface StatsInput {
     role: string | null;
     banned: boolean;
   }[];
-  projects: { id: string; state: string; ownerId: string; createdAt: Date }[];
+  projects: { id: string; title: string; state: string; ownerId: string; createdAt: Date }[];
   updates: { authorId: string; createdAt: Date }[];
   milestones: {
     projectId: string;

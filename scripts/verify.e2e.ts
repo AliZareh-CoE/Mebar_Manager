@@ -1558,6 +1558,37 @@ async function main() {
   );
   check("stats: no points language", !/\bpoints?\b/i.test(statsBody));
 
+  // 29d. v9: report exports — printable views render, Word/CSV endpoints
+  // stream files for leadership, and a researcher is refused the lab docx.
+  await page.goto(BASE + "/stats/report");
+  await page.waitForSelector("text=Lab report");
+  const labReportBody = (await page.textContent("body"))!;
+  check("report: lab print view renders Outputs", labReportBody.includes("Outputs"));
+  check("report: lab print view renders Personnel", labReportBody.includes("Personnel"));
+
+  await page.goto(BASE + "/board");
+  await page.click("text=Cryo-stage vibration isolation");
+  await page.waitForSelector("text=The Heilmeier questions");
+  await page.click("a:has-text('Report'), button:has-text('Report')");
+  await page.waitForURL(/\/projects\/.+\/report/);
+  const projReportBody = (await page.textContent("body"))!;
+  check("report: project print view renders Lineup", projReportBody.includes("Lineup"));
+  check("report: project print view renders History", projReportBody.includes("History"));
+
+  const labDocx = await page.request.get(BASE + "/api/reports/lab");
+  check(
+    "report: lab docx downloads for leadership",
+    labDocx.status() === 200 &&
+      (labDocx.headers()["content-disposition"] ?? "").includes(".docx")
+  );
+  const membersCsv = await page.request.get(BASE + "/api/reports/csv?entity=members");
+  check(
+    "report: members csv downloads",
+    membersCsv.status() === 200 && (await membersCsv.text()).includes("Running owned")
+  );
+  const forbidden = await engPage.request.get(BASE + "/api/reports/lab");
+  check("report: researcher refused the lab docx", forbidden.status() === 403);
+
   // 30. v8: responsive nav. On a phone the inline link row hides and a
   // hamburger menu takes over (with the fight badge and an Account item);
   // on desktop the researcher's short link set stays inline.

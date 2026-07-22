@@ -230,6 +230,14 @@ export default async function ProjectPage({
               {hint("agePill")}
             </>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto"
+            render={<Link href={`/projects/${project.id}/report`} />}
+          >
+            Report
+          </Button>
         </div>
         {project.description && (
           <p className="max-w-3xl text-sm text-muted-foreground">{project.description}</p>

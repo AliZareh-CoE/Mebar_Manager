@@ -44,6 +44,7 @@ export async function loadStatsInput(): Promise<StatsInput> {
     db
       .select({
         id: projects.id,
+        title: projects.title,
         state: projects.state,
         ownerId: projects.ownerId,
         createdAt: projects.createdAt,

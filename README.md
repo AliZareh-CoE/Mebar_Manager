@@ -83,6 +83,22 @@ Other opinions built in:
 - **Admin audit log** (`/admin/audit`) — every privileged change on the
   record, newest first, filterable.
 
+## What's new in v9
+
+- **UTF students** — a name-only roster (no accounts) managed on the admin
+  People page; tag them onto any project's People tab and their involvement
+  is on the record. They can't hold PI/first author and never affect
+  activation, visibility, or notifications.
+- **Lab statistics** (`/stats`, leadership-only) — a question-first
+  dashboard: portfolio state, papers and cycle times, weekly throughput,
+  bottlenecks (blocker Pareto, decision latency), internal services, member
+  contribution counts, thesis-milestone progress, and UTF-student
+  involvement.
+- **Report exports** — a printable whole-lab report (RPPR-shaped; print →
+  save as PDF), Word (.docx) downloads for the lab and for any single
+  project, and per-entity CSV data exports for Excel. All from the Stats
+  page; the project report also has a button on each project's header.
+
 **v8 (UI/UX polish):** fluid typography — the whole interface scales from a
 16px base on phones to 18px on wide monitors, with body copy and meta text
 bumped a notch and line-height at 1.5; the layout widened to the 1280–1440px
@@ -394,3 +410,4 @@ Committed migrations so far:
 - `0006` user.onboardedAt
 - `0007` person_milestones
 - `0008` audit_events (append-only)
+- `0009` utf_students + project_people.utf_student_id

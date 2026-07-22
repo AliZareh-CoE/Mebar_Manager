@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { isLabLeadership } from "@/lib/policy";
@@ -12,7 +13,9 @@ import { ParetoChart } from "@/components/pareto-chart";
 import { WeeklyThroughputChart } from "@/components/weekly-throughput-chart";
 import { ProjectsOverTimeChart } from "@/components/projects-over-time-chart";
 import { PapersTimelineChart } from "@/components/papers-timeline-chart";
+import { StatsExportMenu } from "@/components/stats-export-menu";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -56,11 +59,22 @@ export default async function StatsPage() {
 
   return (
     <div className="flex flex-col gap-10">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Lab statistics</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {`The whole record, live — all-time plus the last ${STATS_WINDOW_DAYS} days. Counts from the record, nothing else.`}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Lab statistics</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {`The whole record, live — all-time plus the last ${STATS_WINDOW_DAYS} days. Counts from the record, nothing else.`}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" render={<Link href="/stats/report" />}>
+            Printable report
+          </Button>
+          <Button variant="outline" render={<a href="/api/reports/lab" />}>
+            Download Word
+          </Button>
+          <StatsExportMenu />
+        </div>
       </div>
 
       {/* 1 — At a glance */}
