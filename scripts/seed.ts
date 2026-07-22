@@ -30,6 +30,7 @@ import {
   sops,
   personMilestones,
   auditEvents,
+  utfStudents,
 } from "../src/lib/db/schema";
 
 async function createUserRaw(input: {
@@ -130,6 +131,7 @@ async function seedDemo() {
   db.delete(personMilestones).run();
   db.delete(papers).run();
   db.delete(projectPeople).run();
+  db.delete(utfStudents).run();
   db.delete(projects).run();
 
   const password = "mebar-demo";
@@ -484,6 +486,20 @@ async function seedDemo() {
   });
   void p8;
 
+  // UTF students — name-only roster; Lily is tagged on two projects so the
+  // stats cross-project rollup has something to count, Mateo proves that
+  // archived students stay on the record.
+  const utfRows = db
+    .insert(utfStudents)
+    .values([
+      { name: "Arman Farhadi" },
+      { name: "Lily Okafor" },
+      { name: "Mateo Ruiz", archived: true },
+    ])
+    .returning()
+    .all();
+  const [arman, lily] = utfRows;
+
   // Project lineups: PI + first author (the activation requirement) plus an
   // external student. P3 deliberately lacks a first author — it's BLOCKED
   // (counts for stall), so MISSING_PROJECT_PEOPLE lights on the Fight List.
@@ -491,6 +507,27 @@ async function seedDemo() {
     .values([
       { projectId: p1.id, userId: prof, role: "PI" },
       { projectId: p1.id, userId: sara, role: "FIRST_AUTHOR" },
+      {
+        projectId: p1.id,
+        utfStudentId: arman.id,
+        externalName: arman.name,
+        role: "UTF_STUDENT",
+        title: "UTF student",
+      },
+      {
+        projectId: p1.id,
+        utfStudentId: lily.id,
+        externalName: lily.name,
+        role: "UTF_STUDENT",
+        title: "UTF student",
+      },
+      {
+        projectId: p2.id,
+        utfStudentId: lily.id,
+        externalName: lily.name,
+        role: "UTF_STUDENT",
+        title: "UTF student",
+      },
       {
         projectId: p1.id,
         externalName: "Maya Chen",

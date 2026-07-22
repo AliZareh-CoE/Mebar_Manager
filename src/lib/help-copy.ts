@@ -215,7 +215,7 @@ export const MECHANISM_HELP: Record<MechanismId, (ctx: HelpContext) => HelpCopy>
     title: "PI & first author",
     body: [
       "Every active project names exactly one PI and one first author — members or external people. Activation is blocked until both exist.",
-      "Once active, the lineup is leadership's to change, not yours: credit isn't self-serve. Contributors can still come and go. Settle authorship at the start — it's a conversation at activation and a feud after submission.",
+      "Once active, the lineup is leadership's to change, not yours: credit isn't self-serve. Contributors and UTF students can still come and go — UTF students are tagged from the lab's roster (no account needed) so their involvement stays on the record. Settle authorship at the start — it's a conversation at activation and a feud after submission.",
     ],
   }),
   agePill: ({ thresholds: t }) => ({

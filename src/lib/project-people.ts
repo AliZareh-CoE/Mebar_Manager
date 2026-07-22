@@ -9,6 +9,8 @@ export interface LineupRow {
   id: string;
   userId: string | null;
   externalName: string | null;
+  /** Set on UTF_STUDENT rows — roster tags are never plain externals. */
+  utfStudentId: string | null;
   role: ProjectPersonRole;
 }
 
@@ -48,7 +50,9 @@ export function planRoleAssignment(
   const matches = (r: LineupRow) =>
     person.kind === "member"
       ? r.userId === person.userId
-      : r.userId === null && r.externalName === person.externalName;
+      : // A UTF-student tag that happens to share an external's name must
+        // never be mistaken for that external — roster rows stay untouched.
+        r.userId === null && r.utfStudentId === null && r.externalName === person.externalName;
 
   const current = rows.find((r) => r.role === role) ?? null;
   // The same person may hold both PI and FIRST_AUTHOR (solo work), so the

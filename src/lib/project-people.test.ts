@@ -5,6 +5,7 @@ const row = (over: Partial<LineupRow>): LineupRow => ({
   id: "r1",
   userId: null,
   externalName: null,
+  utfStudentId: null,
   role: "CONTRIBUTOR",
   ...over,
 });
@@ -87,5 +88,25 @@ describe("planRoleAssignment", () => {
       rowId: "x",
       demoteRowId: "m",
     });
+  });
+
+  it("never mistakes a same-named UTF-student tag for an external", () => {
+    // A roster tag named exactly like the external being promoted must stay
+    // untouched: the plan inserts a fresh external row instead.
+    const rows = [
+      row({ id: "utf", externalName: "Maya Chen", utfStudentId: "s1", role: "UTF_STUDENT" }),
+    ];
+    expect(planRoleAssignment(rows, "PI", external)).toEqual({
+      op: "insert",
+      demoteRowId: null,
+    });
+  });
+
+  it("missingRoleLabels ignores UTF students and contributors", () => {
+    const rows = [
+      row({ id: "utf", externalName: "Lily", utfStudentId: "s2", role: "UTF_STUDENT" }),
+      row({ id: "c", userId: "u2", role: "CONTRIBUTOR" }),
+    ];
+    expect(missingRoleLabels(rows)).toEqual(["a PI", "a first author"]);
   });
 });

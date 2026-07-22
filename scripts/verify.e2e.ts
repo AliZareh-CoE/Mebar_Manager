@@ -1494,6 +1494,44 @@ async function main() {
   await engPage.waitForURL((u) => !u.pathname.startsWith("/admin/audit"));
   check("audit: researcher redirected away", !engPage.url().includes("/admin/audit"));
 
+  // 29b. v9: UTF students — roster on the admin People page, tagging on a
+  // project lineup. Reseed restores the roster, so adding is rerun-safe.
+  await page.goto(BASE + "/admin/users");
+  await page.waitForSelector("text=UTF students");
+  check(
+    "utf: roster card renders with seeded students",
+    (await page.textContent("body"))!.includes("Lily Okafor")
+  );
+  await page.fill("input[aria-label='New UTF student name']", "Test Student");
+  await page.click("button:has-text('Add student')");
+  await page.waitForSelector("text=Test Student");
+  check("utf: roster add round-trips", true);
+
+  await page.goto(BASE + "/board");
+  await page.click("text=Cryo-stage vibration isolation");
+  await page.waitForSelector("text=The Heilmeier questions");
+  await page.click("text=People (");
+  check(
+    "utf: seeded tag renders with badge",
+    (await page.locator("tr", { hasText: "Arman Farhadi" }).locator("text=UTF student").count()) > 0
+  );
+  await page.click("button:has-text('Add UTF student')");
+  await page.waitForSelector("div[role=dialog]");
+  await page.click("div[role=dialog] button:has-text('Add')");
+  await page.waitForSelector("tr:has-text('Test Student')");
+  check("utf: tagging from the roster works", true);
+  const utfRow = page.locator("tr", { hasText: "Test Student" });
+  check(
+    "utf: no Make PI on a UTF row",
+    (await utfRow.locator("button:has-text('Make PI')").count()) === 0
+  );
+
+  await page.goto(BASE + "/guide");
+  check(
+    "guide: further-reading uses the archived Pacheco-Vega link",
+    (await page.locator("a[href*='web.archive.org']").count()) > 0
+  );
+
   // 30. v8: responsive nav. On a phone the inline link row hides and a
   // hamburger menu takes over (with the fight badge and an Account item);
   // on desktop the researcher's short link set stays inline.

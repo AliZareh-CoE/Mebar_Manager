@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { projects, projectPeople, user } from "@/lib/db/schema";
+import { projects, projectPeople, user, utfStudents } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
 import { getPolicy } from "@/lib/policy-server";
 import { isManagerOrAbove } from "@/lib/policy";
@@ -190,6 +190,60 @@ export async function addContributor(
   return {};
 }
 
+const addUtfSchema = z.object({
+  utfStudentId: z.string().min(1, "Pick a student."),
+});
+
+/**
+ * Tag a UTF student (roster entry, no account) onto the lineup. Same
+ * access rule as adding a contributor — and like contributors, no lineup
+ * lock: students come and go without a coordinator.
+ */
+export async function addUtfStudentToProject(
+  projectId: string,
+  formData: FormData
+): Promise<ActionResult> {
+  const me = await requireUser();
+  const access = await verifyLineupAccess(me, projectId);
+  if ("error" in access) return access;
+
+  const parsed = parseForm(addUtfSchema, formData);
+  if (!parsed.success) return { error: parsed.error };
+
+  const student = await db
+    .select()
+    .from(utfStudents)
+    .where(eq(utfStudents.id, parsed.data.utfStudentId))
+    .get();
+  if (!student || student.archived) {
+    return { error: "That student is not on the roster." };
+  }
+  const dupe = await db
+    .select({ id: projectPeople.id })
+    .from(projectPeople)
+    .where(
+      and(
+        eq(projectPeople.projectId, projectId),
+        eq(projectPeople.utfStudentId, student.id)
+      )
+    )
+    .get();
+  if (dupe) return { error: "They're already on this project." };
+
+  await db.insert(projectPeople).values({
+    projectId,
+    userId: null,
+    // Display snapshot; the live roster name wins in the UI.
+    externalName: student.name,
+    utfStudentId: student.id,
+    role: "UTF_STUDENT",
+    title: "UTF student",
+  });
+
+  revalidateLineup(projectId);
+  return {};
+}
+
 /**
  * Remove someone from the lineup. A plain delete — lineup rows are
  * current-state metadata, not history (the commented exception to the
@@ -206,9 +260,10 @@ export async function removeProjectPerson(personId: string): Promise<ActionResul
   if (!row) return { error: "Not on the lineup." };
   const access = await verifyLineupAccess(me, row.projectId);
   if ("error" in access) return access;
-  // Contributors come and go; the required roles are the locked part.
+  // Contributors and UTF students come and go; only the two required
+  // roles — PI and first author — are locked once the project activates.
   if (
-    row.role !== "CONTRIBUTOR" &&
+    (row.role === "PI" || row.role === "FIRST_AUTHOR") &&
     !isManagerOrAbove(me) &&
     (await lineupLocked(access.projectState))
   ) {

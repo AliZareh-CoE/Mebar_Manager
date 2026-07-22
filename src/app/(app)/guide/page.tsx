@@ -303,7 +303,7 @@ export default async function GuidePage() {
             </a>
             {" · "}
             <a
-              href="https://www.raulpacheco.org/2020/09/project-management-for-academics-iii-juggling-multiple-writing-research-projects/"
+              href="https://web.archive.org/web/20260603174358/https://www.raulpacheco.org/2020/09/project-management-for-academics-iii-juggling-multiple-writing-research-projects/"
               target="_blank"
               rel="noreferrer"
               className="underline-offset-4 hover:underline"

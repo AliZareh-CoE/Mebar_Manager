@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { asc, desc, ne } from "drizzle-orm";
+import { asc, desc, eq, ne } from "drizzle-orm";
 import { format, formatDistanceStrict, addHours, differenceInDays } from "date-fns";
 import { isOverdue, projectAgeDays } from "@/lib/fight-engine";
 import {
@@ -16,14 +16,14 @@ import { MECHANISM_HELP, type HelpContext } from "@/lib/help-copy";
 import { InfoHint } from "@/components/info-hint";
 import { visibleProjectIds, isVisible } from "@/lib/visibility";
 import { db } from "@/lib/db";
-import { user } from "@/lib/db/schema";
+import { user, utfStudents } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/session";
 import { expireOverdueDecisions } from "@/lib/maintenance";
 import { getSettings } from "@/lib/settings";
 import { proposalFieldName, type HeilmeierColumn } from "@/lib/proposal";
 import { editProject } from "@/actions/projects";
 import { addUpdate, editUpdate } from "@/actions/updates";
-import { addContributor } from "@/actions/project-people";
+import { addContributor, addUtfStudentToProject } from "@/actions/project-people";
 import { filePaper } from "@/actions/papers";
 import { PAPER_STATUS_LABELS } from "@/lib/papers";
 import { PersonPicker } from "@/components/forms/person-picker";
@@ -57,7 +57,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CauseSelect, PersonSelect } from "@/components/forms/labeled-selects";
+import { CauseSelect, EnumSelect, PersonSelect } from "@/components/forms/labeled-selects";
 
 export const dynamic = "force-dynamic";
 
@@ -100,7 +100,10 @@ export default async function ProjectPage({
         orderBy: (cr) => desc(cr.createdAt),
       },
       people: {
-        with: { user: { columns: { id: true, name: true, email: true } } },
+        with: {
+          user: { columns: { id: true, name: true, email: true } },
+          utfStudent: { columns: { id: true, name: true } },
+        },
         orderBy: (pp) => asc(pp.createdAt),
       },
       papers: { orderBy: (pp) => desc(pp.createdAt) },
@@ -114,6 +117,11 @@ export default async function ProjectPage({
     .select({ id: user.id, name: user.name, isDataAnalyst: user.isDataAnalyst })
     .from(user)
     .where(ne(user.banned, true));
+  const utfRoster = await db
+    .select({ id: utfStudents.id, name: utfStudents.name })
+    .from(utfStudents)
+    .where(eq(utfStudents.archived, false))
+    .orderBy(asc(utfStudents.name));
   const people = allPeople.map(({ id, name }) => ({ id, name }));
   const analysts = allPeople
     .filter((p) => p.isDataAnalyst)
@@ -159,10 +167,19 @@ export default async function ProjectPage({
   const pendingDecisions = project.decisions.filter((d) => d.status === "PENDING");
   const openDataRequests = project.dataRequests.filter((dr) => dr.status === "OPEN");
   const personName = (pp: (typeof project.people)[number]) =>
-    pp.user?.name ?? pp.externalName ?? "—";
+    pp.user?.name ?? pp.utfStudent?.name ?? pp.externalName ?? "—";
   const pi = project.people.find((pp) => pp.role === "PI");
   const firstAuthor = project.people.find((pp) => pp.role === "FIRST_AUTHOR");
-  const ROLE_LABEL = { PI: "PI", FIRST_AUTHOR: "First author", CONTRIBUTOR: "Contributor" } as const;
+  const ROLE_LABEL = {
+    PI: "PI",
+    FIRST_AUTHOR: "First author",
+    CONTRIBUTOR: "Contributor",
+    UTF_STUDENT: "UTF student",
+  } as const;
+  const taggedUtfIds = new Set(
+    project.people.map((pp) => pp.utfStudentId).filter(Boolean)
+  );
+  const utfOptions = utfRoster.filter((s) => !taggedUtfIds.has(s.id));
   const latestPaper = project.papers[0];
   // A DRAFTING paper whose target submission date is inside the lead window
   // (or past) renders red — the same condition the fight engine uses,
@@ -944,16 +961,43 @@ export default async function ProjectPage({
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             How the lineup works {hint("lineupLock")}
           </div>
-          <FormDialog
-            trigger={<Button className="self-start">Add person</Button>}
-            title="Add someone to this project"
-            description="Lab members, or people who never touch this app — students, external PIs, assistants."
-            submitLabel="Add"
-            successMessage="Added to the lineup."
-            action={addContributor.bind(null, project.id)}
-          >
-            <PersonPicker members={people} />
-          </FormDialog>
+          <div className="flex flex-wrap gap-2">
+            <FormDialog
+              trigger={<Button>Add person</Button>}
+              title="Add someone to this project"
+              description="Lab members, or people who never touch this app — students, external PIs, assistants."
+              submitLabel="Add"
+              successMessage="Added to the lineup."
+              action={addContributor.bind(null, project.id)}
+            >
+              <PersonPicker members={people} />
+            </FormDialog>
+            {utfOptions.length > 0 ? (
+              <FormDialog
+                trigger={<Button variant="outline">Add UTF student</Button>}
+                title="Tag a UTF student"
+                description="From the lab's roster — no account needed; their contribution shows in the record."
+                submitLabel="Add"
+                successMessage="UTF student tagged."
+                action={addUtfStudentToProject.bind(null, project.id)}
+              >
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="utfStudentId">Student</Label>
+                  <EnumSelect
+                    name="utfStudentId"
+                    options={utfOptions.map((s) => ({ value: s.id, label: s.name }))}
+                    defaultValue={utfOptions[0].id}
+                  />
+                </div>
+              </FormDialog>
+            ) : (
+              utfRoster.length === 0 && (
+                <p className="self-center text-xs text-muted-foreground">
+                  {`No UTF students on the roster yet — the admin manages the roster on the People page.`}
+                </p>
+              )
+            )}
+          </div>
 
           {(!pi || !firstAuthor) && (
             <p className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
@@ -984,7 +1028,7 @@ export default async function ProjectPage({
                     <TableCell>
                       <span className="flex items-center gap-1.5 font-medium">
                         <Initials name={personName(pp)} /> {personName(pp)}
-                        {!pp.userId && (
+                        {!pp.userId && !pp.utfStudentId && (
                           <Badge variant="outline" className="text-muted-foreground">
                             external
                           </Badge>
@@ -994,6 +1038,8 @@ export default async function ProjectPage({
                     <TableCell>
                       {pp.role === "PI" || pp.role === "FIRST_AUTHOR" ? (
                         <Badge>{ROLE_LABEL[pp.role]}</Badge>
+                      ) : pp.role === "UTF_STUDENT" ? (
+                        <Badge variant="secondary">{ROLE_LABEL[pp.role]}</Badge>
                       ) : (
                         <span className="text-muted-foreground">{ROLE_LABEL[pp.role]}</span>
                       )}

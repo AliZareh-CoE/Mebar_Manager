@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { asc, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { user, personMilestones } from "@/lib/db/schema";
+import { user, personMilestones, utfStudents } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/session";
 import { isOverdue } from "@/lib/fight-engine";
 import { PersonMilestonesDialog } from "@/components/person-milestones-dialog";
@@ -15,6 +15,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CreateUserDialog } from "@/components/forms/create-user-dialog";
+import { UtfStudentsEditor } from "@/components/admin/utf-students-editor";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { UserActiveToggle } from "@/components/user-active-toggle";
 import { AnalystToggle, MakeCoordinatorButton } from "@/components/role-flag-controls";
 import { UserAdminActions } from "@/components/user-admin-actions";
@@ -28,9 +36,10 @@ export default async function AdminUsersPage() {
   if (me.role !== "ADMIN") redirect("/");
 
   const now = new Date();
-  const [allUsers, pmRows] = await Promise.all([
+  const [allUsers, pmRows, utfRoster] = await Promise.all([
     db.select().from(user).orderBy(asc(user.createdAt)),
     db.select().from(personMilestones).orderBy(desc(personMilestones.dueDate)),
+    db.select().from(utfStudents).orderBy(asc(utfStudents.name)),
   ]);
   const coordinator = allUsers.find((u) => u.isComputeCoordinator && !u.banned) ?? null;
   const pmByUser = new Map<string, typeof pmRows>();
@@ -161,6 +170,22 @@ export default async function AdminUsersPage() {
           ))}
         </TableBody>
       </Table>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>UTF students</CardTitle>
+          <CardDescription>
+            Name-only roster — no accounts, no app access. Tag them on a
+            project&apos;s People tab and their involvement shows up in the
+            lab record.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <UtfStudentsEditor
+            students={utfRoster.map(({ id, name, archived }) => ({ id, name, archived }))}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

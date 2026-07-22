@@ -483,7 +483,26 @@ export const auditEventsRelations = relations(auditEvents, ({ one }) => ({
   }),
 }));
 
-export const PROJECT_PEOPLE_ROLES = ["PI", "FIRST_AUTHOR", "CONTRIBUTOR"] as const;
+// Lab-defined UTF students: a name-only roster (no accounts, no app
+// access). Tagged onto project lineups as role UTF_STUDENT so their
+// contribution shows up in stats; archived, never deleted.
+export const utfStudents = sqliteTable(
+  "utf_students",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [index("utf_students_archived_idx").on(t.archived)]
+);
+
+export const PROJECT_PEOPLE_ROLES = [
+  "PI",
+  "FIRST_AUTHOR",
+  "CONTRIBUTOR",
+  "UTF_STUDENT",
+] as const;
 export type ProjectPersonRole = (typeof PROJECT_PEOPLE_ROLES)[number];
 
 // The project's human lineup — lab members AND people who never touch the
@@ -510,6 +529,9 @@ export const projectPeople = sqliteTable(
     // email. notify=true opts the row into big-event project emails.
     email: text("email"),
     notify: integer("notify", { mode: "boolean" }).notNull().default(false),
+    // Set on UTF_STUDENT rows: which roster entry this tag points at.
+    // externalName carries a display snapshot; the live roster name wins.
+    utfStudentId: text("utf_student_id").references(() => utfStudents.id),
     createdAt: createdAt(),
   },
   (t) => [index("project_people_project_idx").on(t.projectId)]
@@ -523,6 +545,10 @@ export const projectPeopleRelations = relations(projectPeople, ({ one }) => ({
   user: one(user, {
     fields: [projectPeople.userId],
     references: [user.id],
+  }),
+  utfStudent: one(utfStudents, {
+    fields: [projectPeople.utfStudentId],
+    references: [utfStudents.id],
   }),
 }));
 
@@ -716,3 +742,4 @@ export type Sop = typeof sops.$inferSelect;
 export type ProjectPerson = typeof projectPeople.$inferSelect;
 export type Paper = typeof papers.$inferSelect;
 export type AuditEvent = typeof auditEvents.$inferSelect;
+export type UtfStudent = typeof utfStudents.$inferSelect;

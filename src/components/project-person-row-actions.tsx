@@ -28,7 +28,7 @@ export function ProjectPersonRowActions({
 }: {
   projectId: string;
   personId: string;
-  role: "PI" | "FIRST_AUTHOR" | "CONTRIBUTOR";
+  role: "PI" | "FIRST_AUTHOR" | "CONTRIBUTOR" | "UTF_STUDENT";
   userId: string | null;
   externalName: string | null;
   hasEmail: boolean;
@@ -63,15 +63,18 @@ export function ProjectPersonRowActions({
   }
 
   const canNotify = userId !== null || hasEmail;
+  // UTF-student tags are roster references: no promotion into the required
+  // roles and no notification bell (the roster is name-only).
+  const isUtf = role === "UTF_STUDENT";
 
   return (
     <div className="flex items-center justify-end gap-2">
-      {!rolesLocked && role !== "PI" && (
+      {!rolesLocked && !isUtf && role !== "PI" && (
         <Button size="sm" variant="outline" disabled={pending} onClick={() => promote("PI")}>
           Make PI
         </Button>
       )}
-      {!rolesLocked && role !== "FIRST_AUTHOR" && (
+      {!rolesLocked && !isUtf && role !== "FIRST_AUTHOR" && (
         <Button
           size="sm"
           variant="outline"
@@ -81,6 +84,7 @@ export function ProjectPersonRowActions({
           Make first author
         </Button>
       )}
+      {!isUtf && (
       <Button
         size="sm"
         variant="ghost"
@@ -102,7 +106,8 @@ export function ProjectPersonRowActions({
         {notify ? <Bell className="size-4" /> : <BellOff className="size-4 opacity-50" />}
         <span className="sr-only">Toggle notifications</span>
       </Button>
-      {!(rolesLocked && role !== "CONTRIBUTOR") && (
+      )}
+      {!(rolesLocked && (role === "PI" || role === "FIRST_AUTHOR")) && (
         <Button
           size="sm"
           variant="ghost"
