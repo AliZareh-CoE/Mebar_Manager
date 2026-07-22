@@ -44,6 +44,11 @@ export function canSeePerformance(user: AccessUser): boolean {
   return isLabLeadership(user);
 }
 
+/** Lab statistics: contribution counts are leadership reading, like scores. */
+export function canSeeStats(user: AccessUser): boolean {
+  return isLabLeadership(user);
+}
+
 export const GUARDED_ROUTES = [
   "/board",
   "/data",
@@ -54,6 +59,7 @@ export const GUARDED_ROUTES = [
   "/meeting",
   "/initiatives",
   "/performance",
+  "/stats",
   "/admin/users",
   "/admin/feedback",
   "/admin/settings",
@@ -80,6 +86,8 @@ export function routeAllowed(user: AccessUser, route: GuardedRoute): boolean {
       return canSeeInitiatives(user);
     case "/performance":
       return canSeePerformance(user);
+    case "/stats":
+      return canSeeStats(user);
     // The dangerous stuff — the ADMIN alone. Managers run projects; they
     // don't manage accounts, rewrite settings, or triage feedback.
     case "/admin/users":

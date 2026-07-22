@@ -3,6 +3,7 @@ import {
   GUARDED_ROUTES,
   canSeeInitiatives,
   canSeePerformance,
+  canSeeStats,
   projectScope,
   routeAllowed,
   taskScope,
@@ -88,6 +89,7 @@ describe("leadership surfaces (initiatives, performance)", () => {
     it(`${persona} → ${allowed}`, () => {
       expect(canSeeInitiatives(PERSONAS[persona])).toBe(allowed);
       expect(canSeePerformance(PERSONAS[persona])).toBe(allowed);
+      expect(canSeeStats(PERSONAS[persona])).toBe(allowed);
     });
   }
 });
@@ -96,39 +98,39 @@ describe("route access grid", () => {
   const expected: Record<Persona, Record<GuardedRoute, boolean>> = {
     adminCoordinator: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
-      "/handbook": true, "/sops": true, "/meeting": true, "/initiatives": true, "/performance": true,
+      "/handbook": true, "/sops": true, "/meeting": true, "/initiatives": true, "/performance": true, "/stats": true,
       "/admin/users": true, "/admin/feedback": true, "/admin/settings": true, "/admin/audit": true,
     },
     admin: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
-      "/handbook": true, "/sops": true, "/meeting": true, "/initiatives": true, "/performance": true,
+      "/handbook": true, "/sops": true, "/meeting": true, "/initiatives": true, "/performance": true, "/stats": true,
       "/admin/users": true, "/admin/feedback": true, "/admin/settings": true, "/admin/audit": true,
     },
     // Managers run the lab's work — the dangerous stuff is the admin's alone.
     manager: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
-      "/handbook": true, "/sops": true, "/meeting": true, "/initiatives": true, "/performance": true,
+      "/handbook": true, "/sops": true, "/meeting": true, "/initiatives": true, "/performance": true, "/stats": true,
       "/admin/users": false, "/admin/feedback": false, "/admin/settings": false, "/admin/audit": false,
     },
     managerCoordinator: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
-      "/handbook": true, "/sops": true, "/meeting": true, "/initiatives": true, "/performance": true,
+      "/handbook": true, "/sops": true, "/meeting": true, "/initiatives": true, "/performance": true, "/stats": true,
       "/admin/users": false, "/admin/feedback": false, "/admin/settings": false, "/admin/audit": false,
     },
     engineer: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
-      "/handbook": true, "/sops": true, "/meeting": false, "/initiatives": false, "/performance": false,
+      "/handbook": true, "/sops": true, "/meeting": false, "/initiatives": false, "/performance": false, "/stats": false,
       "/admin/users": false, "/admin/feedback": false, "/admin/settings": false, "/admin/audit": false,
     },
     engineerCoordinator: {
       "/board": true, "/data": true, "/compute": true, "/tasks": true,
-      "/handbook": true, "/sops": true, "/meeting": true, "/initiatives": true, "/performance": true,
+      "/handbook": true, "/sops": true, "/meeting": true, "/initiatives": true, "/performance": true, "/stats": true,
       // Coordinator sees the lab, but admin pages stay admin-only.
       "/admin/users": false, "/admin/feedback": false, "/admin/settings": false, "/admin/audit": false,
     },
     secretary: {
       "/board": false, "/data": false, "/compute": false, "/tasks": true,
-      "/handbook": true, "/sops": false, "/meeting": false, "/initiatives": false, "/performance": false,
+      "/handbook": true, "/sops": false, "/meeting": false, "/initiatives": false, "/performance": false, "/stats": false,
       "/admin/users": false, "/admin/feedback": false, "/admin/settings": false, "/admin/audit": false,
     },
   };

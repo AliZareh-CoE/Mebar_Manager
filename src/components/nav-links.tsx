@@ -53,6 +53,7 @@ export function NavLinks({
           { href: "/meeting", label: "Meeting" },
           { href: "/initiatives", label: "Initiatives" },
           { href: "/performance", label: "Performance" },
+          { href: "/stats", label: "Stats" },
         ]
       : []),
     // The dangerous stuff — admin only.

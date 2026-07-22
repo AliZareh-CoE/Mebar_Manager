@@ -728,14 +728,14 @@ async function main() {
 
   // Exact nav contents per persona.
   const profNav = await navSet(page);
-  for (const item of ["Fight List", "Board", "Data", "Compute", "Tasks", "Initiatives", "Performance", "People", "Feedback", "Settings"]) {
+  for (const item of ["Fight List", "Board", "Data", "Compute", "Tasks", "Initiatives", "Performance", "Stats", "People", "Feedback", "Settings"]) {
     check(`matrix: prof nav has ${item}`, profNav.includes(item));
   }
   const saraNavFull = await navSet(engPage);
   for (const item of ["Fight List", "Board", "Data", "Compute", "Tasks"]) {
     check(`matrix: sara nav has ${item}`, saraNavFull.includes(item));
   }
-  for (const item of ["Initiatives", "Performance", "People", "Feedback", "Settings"]) {
+  for (const item of ["Initiatives", "Performance", "Stats", "People", "Feedback", "Settings"]) {
     check(`matrix: sara nav lacks ${item}`, !saraNavFull.includes(item));
   }
   const taylorNav = await navSet(secPage);
@@ -781,6 +781,7 @@ async function main() {
     ["/meeting", "/meeting", "/", "/"],
     ["/initiatives", "/initiatives", "/", "/"],
     ["/performance", "/performance", "/", "/"],
+    ["/stats", "/stats", "/", "/"],
     ["/admin/users", "/admin/users", "/", "/"],
     ["/admin/feedback", "/admin/feedback", "/", "/"],
     ["/admin/settings", "/admin/settings", "/", "/"],
@@ -813,7 +814,7 @@ async function main() {
   await noaMx.click("button[type=submit]");
   await noaMx.waitForURL(BASE + "/");
   const noaNav = await navSet(noaMx);
-  for (const item of ["Initiatives", "Performance"]) {
+  for (const item of ["Initiatives", "Performance", "Stats"]) {
     check(`matrix: manager (noa) nav has ${item}`, noaNav.includes(item));
   }
   for (const item of ["People", "Feedback", "Settings"]) {
@@ -1531,6 +1532,31 @@ async function main() {
     "guide: further-reading uses the archived Pacheco-Vega link",
     (await page.locator("a[href*='web.archive.org']").count()) > 0
   );
+
+  // 29c. v9: /stats — the leadership dashboard renders every question
+  // section with live data (seeded UTF tags included) and at least one
+  // chart; access is covered by the ROUTE_MATRIX /stats row.
+  await page.goto(BASE + "/stats");
+  await page.waitForSelector("text=Lab statistics");
+  const statsBody = (await page.textContent("body"))!;
+  for (const section of [
+    "Portfolio",
+    "Papers",
+    "Throughput",
+    "Where work gets stuck",
+    "Internal services",
+    "Member contributions",
+    "UTF student contributions",
+  ]) {
+    check(`stats: renders "${section}"`, statsBody.includes(section));
+  }
+  check("stats: UTF rollup lists Lily Okafor", statsBody.includes("Lily Okafor"));
+  check(
+    "stats: charts render",
+    (await page.locator(".recharts-surface, svg.recharts-surface").count()) > 0 ||
+      (await page.locator("[data-chart]").count()) > 0
+  );
+  check("stats: no points language", !/\bpoints?\b/i.test(statsBody));
 
   // 30. v8: responsive nav. On a phone the inline link row hides and a
   // hamburger menu takes over (with the fight badge and an Account item);
