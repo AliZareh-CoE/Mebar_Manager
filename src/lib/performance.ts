@@ -40,9 +40,10 @@ export interface PerformanceInput {
   /** Optional (v6) — absent in older inputs. Credited to the project OWNER. */
   papersSubmitted?: { ownerId: string | null; submittedAt: Date }[];
   papersAccepted?: { ownerId: string | null; acceptedAt: Date }[];
-  /** First-ever entry of each project into a points-carrying state, credited
-   * to the project OWNER with the state's configured points. */
-  stagesReached?: { ownerId: string | null; points: number; reachedAt: Date }[];
+  /** First-ever entry of a project into a points-carrying state, expanded by
+   * the loader to one row per LAB MEMBER on the project's People tab
+   * (externals and UTF students carry no account, so no row). */
+  stagesReached?: { personId: string | null; points: number; reachedAt: Date }[];
   // Discipline.
   updates: { authorId: string; projectId: string; createdAt: Date }[];
   /** Point-in-time — already filtered to the penalized fight types. */
@@ -105,7 +106,7 @@ export function computeScores(
 
   for (const st of input.stagesReached ?? []) {
     if (!inWindow(st.reachedAt) || st.points <= 0) continue;
-    bump(st.ownerId, "stageReached", st.points);
+    bump(st.personId, "stageReached", st.points);
   }
 
   for (const m of input.milestonesDone) {

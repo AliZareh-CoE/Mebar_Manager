@@ -257,8 +257,9 @@ export function WorkflowEditor({ initial }: { initial: Workflow }) {
                   }
                 />
                 <p className="text-xs text-muted-foreground">
-                  Awarded to the project owner the first time a project enters
-                  this state — re-entries never re-award.
+                  Awarded to every lab member on the project’s People tab the
+                  first time a project enters this state — re-entries never
+                  re-award.
                 </p>
               </div>
 

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, gte, inArray, ne, notInArray } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, ne, notInArray } from "drizzle-orm";
 import { subDays } from "date-fns";
 import { db } from "@/lib/db";
 import {
@@ -15,6 +15,7 @@ import {
   updates,
   user,
   stateTransitions,
+  projectPeople,
 } from "@/lib/db/schema";
 import type { LabSettings } from "@/lib/settings";
 import { firstStateEntries } from "@/lib/performance";
@@ -180,9 +181,9 @@ export async function loadPerformanceInput(
   const statePoints = new Map(
     workflow.states.filter((st) => st.points > 0).map((st) => [st.key, st.points])
   );
-  let stagesReached: { ownerId: string | null; points: number; reachedAt: Date }[] = [];
+  let stagesReached: { personId: string | null; points: number; reachedAt: Date }[] = [];
   if (statePoints.size > 0) {
-    const [transitionRows, ownerRows] = await Promise.all([
+    const [transitionRows, memberRows] = await Promise.all([
       db
         .select({
           projectId: stateTransitions.projectId,
@@ -191,14 +192,27 @@ export async function loadPerformanceInput(
         })
         .from(stateTransitions)
         .where(inArray(stateTransitions.toState, [...statePoints.keys()])),
-      db.select({ id: projects.id, ownerId: projects.ownerId }).from(projects),
+      // Recipients: LAB MEMBERS on the People tab (userId set). Externals
+      // and UTF students have no account and earn nothing here.
+      db
+        .select({ projectId: projectPeople.projectId, userId: projectPeople.userId })
+        .from(projectPeople)
+        .where(isNotNull(projectPeople.userId)),
     ]);
-    const ownerOf = new Map(ownerRows.map((r) => [r.id, r.ownerId]));
-    stagesReached = firstStateEntries(transitionRows).map((t) => ({
-      ownerId: ownerOf.get(t.projectId) ?? null,
-      points: statePoints.get(t.toState) ?? 0,
-      reachedAt: t.createdAt,
-    }));
+    const membersOf = new Map<string, string[]>();
+    for (const m of memberRows) {
+      if (!m.userId) continue;
+      const arr = membersOf.get(m.projectId) ?? [];
+      if (!arr.includes(m.userId)) arr.push(m.userId);
+      membersOf.set(m.projectId, arr);
+    }
+    stagesReached = firstStateEntries(transitionRows).flatMap((t) =>
+      (membersOf.get(t.projectId) ?? []).map((personId) => ({
+        personId,
+        points: statePoints.get(t.toState) ?? 0,
+        reachedAt: t.createdAt,
+      }))
+    );
   }
 
   const fights = computeFightList(snapshot, now, settings.thresholds, {

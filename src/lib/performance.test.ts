@@ -245,10 +245,10 @@ describe("stageReached (state points)", () => {
     const results = computeScores(
       input({
         stagesReached: [
-          { ownerId: alice.id, points: 5, reachedAt: subDays(NOW, 2) },
-          { ownerId: alice.id, points: 3, reachedAt: subDays(NOW, 4) },
-          { ownerId: alice.id, points: 50, reachedAt: subDays(NOW, 400) }, // out of window
-          { ownerId: null, points: 9, reachedAt: subDays(NOW, 1) }, // ownerless
+          { personId: alice.id, points: 5, reachedAt: subDays(NOW, 2) },
+          { personId: alice.id, points: 3, reachedAt: subDays(NOW, 4) },
+          { personId: alice.id, points: 50, reachedAt: subDays(NOW, 400) }, // out of window
+          { personId: null, points: 9, reachedAt: subDays(NOW, 1) }, // accountless
         ],
       }),
       config(),
@@ -260,7 +260,7 @@ describe("stageReached (state points)", () => {
 
   it("zero-point entries add nothing; absent array still computes", () => {
     const withZero = computeScores(
-      input({ stagesReached: [{ ownerId: alice.id, points: 0, reachedAt: subDays(NOW, 1) }] }),
+      input({ stagesReached: [{ personId: alice.id, points: 0, reachedAt: subDays(NOW, 1) }] }),
       config(),
       NOW
     );
