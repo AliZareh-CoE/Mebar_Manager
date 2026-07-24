@@ -20,6 +20,8 @@ import { StateBadge } from "@/components/state-badge";
 import { AgePill } from "@/components/age-pill";
 import { Initials } from "@/components/initials";
 import { BoardFilters } from "@/components/board-filters";
+import { SearchBar } from "@/components/search-bar";
+import { matchesQuery } from "@/lib/search";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -28,7 +30,7 @@ export const dynamic = "force-dynamic";
 export default async function BoardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ state?: string; owner?: string }>;
+  searchParams: Promise<{ state?: string; owner?: string; q?: string }>;
 }) {
   // Per-page guard: the layout's check doesn't re-run on partial RSC
   // renders, so every page must validate the session itself.
@@ -37,7 +39,7 @@ export default async function BoardPage({
   // Secretaries live in their task list — no project surfaces.
   if (me.role === "SECRETARY") redirect("/tasks");
 
-  const { state, owner } = await searchParams;
+  const { state, owner, q } = await searchParams;
   const settings = await getSettings();
   const visibleIds = await visibleProjectIds(me, settings);
 
@@ -79,7 +81,8 @@ export default async function BoardPage({
   const visible = projects
     .filter((p) => isVisible(visibleIds, p.id))
     .filter((p) => (stateFilter ? p.state === stateFilter : !hiddenKeys.has(p.state)))
-    .filter((p) => (owner ? p.ownerId === owner : true));
+    .filter((p) => (owner ? p.ownerId === owner : true))
+    .filter((p) => matchesQuery(q, p.title, p.description));
 
   const filterStates = workflow.states
     .filter((s) => !s.archived)
@@ -101,6 +104,7 @@ export default async function BoardPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <SearchBar placeholder="Search projects…" />
           <BoardFilters owners={owners} states={filterStates} />
           <Button
             size="sm"

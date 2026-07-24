@@ -1,3 +1,5 @@
+import { SearchBar } from "@/components/search-bar";
+import { matchesQuery } from "@/lib/search";
 import { redirect } from "next/navigation";
 import { desc } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -42,7 +44,12 @@ function SopFields() {
   );
 }
 
-export default async function SopsPage() {
+export default async function SopsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   const me = await getCurrentUser();
   if (!me) redirect("/login");
   // Read surface for everyone doing lab work; secretaries live in /tasks.
@@ -54,14 +61,18 @@ export default async function SopsPage() {
   const allSops = await db.query.sops.findMany({
     orderBy: (s) => desc(s.updatedAt),
   });
-  const active = allSops.filter((s) => !s.archived);
-  const archivedSops = allSops.filter((s) => s.archived);
+  const searched = allSops.filter((s) =>
+    matchesQuery(q, s.title, s.body, s.checklist.join(" "))
+  );
+  const active = searched.filter((s) => !s.archived);
+  const archivedSops = searched.filter((s) => s.archived);
 
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Protocols</h1>
+          <SearchBar placeholder="Search protocols…" className="mt-2" />
           <p className="text-sm text-muted-foreground">
             The lab&apos;s standard operating procedures. Expand one for the
             steps; copy a checklist to run it at the bench.

@@ -1,3 +1,5 @@
+import { SearchBar } from "@/components/search-bar";
+import { matchesQuery } from "@/lib/search";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { and, desc, eq, ne } from "drizzle-orm";
@@ -31,7 +33,12 @@ const GROUPS: Record<DataRequestStatus, { title: string; blurb: string }> = {
   CANCELLED: { title: "Cancelled", blurb: "No longer needed, with reasons on the record." },
 };
 
-export default async function DataPage() {
+export default async function DataPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   const me = await getCurrentUser();
   if (!me) redirect("/login");
   if (me.role === "SECRETARY") redirect("/tasks");
@@ -57,9 +64,9 @@ export default async function DataPage() {
   // Project requests scope to visible projects; external requests (no
   // project) are a coordinator/analyst concern only.
   const canSeeExternal = isLabLeadership(me) || me.isDataAnalyst;
-  const requests = allRequests.filter((r) =>
-    r.projectId ? isVisible(visibleIds, r.projectId) : canSeeExternal
-  );
+  const requests = allRequests
+    .filter((r) => (r.projectId ? isVisible(visibleIds, r.projectId) : canSeeExternal))
+    .filter((r) => matchesQuery(q, r.title, r.description, r.externalRequester, r.assignee?.name));
   const now = new Date();
 
   return (
@@ -67,6 +74,7 @@ export default async function DataPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Data</h1>
+          <SearchBar placeholder="Search data requests…" className="mt-2" />
           <p className="text-sm text-muted-foreground">
             {analysts.length > 0 ? (
               <>

@@ -1,3 +1,5 @@
+import { SearchBar } from "@/components/search-bar";
+import { matchesQuery } from "@/lib/search";
 import { MECHANISM_HELP, type HelpContext } from "@/lib/help-copy";
 import { InfoHint } from "@/components/info-hint";
 import { redirect } from "next/navigation";
@@ -22,7 +24,12 @@ const GROUP_BLURBS: Record<ComputeRequestStatus, string> = {
   WITHDRAWN: "Withdrawn by their requesters before a decision.",
 };
 
-export default async function ComputePage() {
+export default async function ComputePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   const me = await getCurrentUser();
   if (!me) redirect("/login");
   if (me.role === "SECRETARY") redirect("/tasks");
@@ -44,7 +51,9 @@ export default async function ComputePage() {
       .get(),
   ]);
 
-  const requests = allRequests.filter((r) => isVisible(visibleIds, r.projectId));
+  const requests = allRequests
+    .filter((r) => isVisible(visibleIds, r.projectId))
+    .filter((r) => matchesQuery(q, r.project?.title, r.requester?.name, r.serverType));
   const serverTypeLabels = Object.fromEntries(
     settings.serverTypes.map((s) => [s.key, s.label])
   );
@@ -64,6 +73,7 @@ export default async function ComputePage() {
             } satisfies HelpContext)}
           />
         </h1>
+        <SearchBar placeholder="Search compute requests…" className="mt-2" />
         <p className="text-sm text-muted-foreground">
           {coordinator ? (
             <>

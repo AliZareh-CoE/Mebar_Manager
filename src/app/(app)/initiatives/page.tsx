@@ -1,3 +1,5 @@
+import { SearchBar } from "@/components/search-bar";
+import { matchesQuery } from "@/lib/search";
 import { redirect } from "next/navigation";
 import { and, desc, ne, or, eq } from "drizzle-orm";
 import { format } from "date-fns";
@@ -45,7 +47,12 @@ const STATUS_BADGE: Record<Exclude<InitiativeStatus, "OPEN">, { label: string; c
   CANCELLED: { label: "Cancelled", className: "text-muted-foreground" },
 };
 
-export default async function InitiativesPage() {
+export default async function InitiativesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   const me = await getCurrentUser();
   if (!me) redirect("/login");
   // Leadership-only surface: managers and the compute coordinator.
@@ -80,6 +87,7 @@ export default async function InitiativesPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Initiatives</h1>
+          <SearchBar placeholder="Search initiatives…" className="mt-2" />
           <p className="text-sm text-muted-foreground">
             The weekly meeting&apos;s big fights — equipment, budgets, the
             university. Assigned to leadership; overdue ones escalate after{" "}
@@ -133,7 +141,11 @@ export default async function InitiativesPage() {
         </p>
       ) : (
         GROUP_ORDER.map((status) => {
-          const group = allInitiatives.filter((i) => i.status === status);
+          const group = allInitiatives.filter(
+            (i) =>
+              i.status === status &&
+              matchesQuery(q, i.title, i.description, i.assignee?.name, i.requester?.name)
+          );
           if (group.length === 0) return null;
           return (
             <section key={status} className="flex flex-col gap-3">

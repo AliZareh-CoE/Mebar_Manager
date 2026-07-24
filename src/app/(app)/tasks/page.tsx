@@ -1,3 +1,5 @@
+import { SearchBar } from "@/components/search-bar";
+import { matchesQuery } from "@/lib/search";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { and, desc, eq, ne } from "drizzle-orm";
@@ -36,7 +38,12 @@ const GROUPS: Record<TaskStatus, { title: string; blurb: string }> = {
   CANCELLED: { title: "Cancelled", blurb: "No longer needed, with reasons on the record." },
 };
 
-export default async function TasksPage() {
+export default async function TasksPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   const me = await getCurrentUser();
   if (!me) redirect("/login");
 
@@ -62,7 +69,9 @@ export default async function TasksPage() {
     db.query.projects.findMany({ columns: { id: true, title: true } }),
   ]);
 
-  const visible = allTasks.filter((t) => isVisible(taskIds, t.id));
+  const visible = allTasks
+    .filter((t) => isVisible(taskIds, t.id))
+    .filter((t) => matchesQuery(q, t.title, t.description, t.assignee?.name, t.requester?.name));
   const linkableProjects = projectRows
     .filter((p) => isVisible(projectIds, p.id))
     .map((p) => ({ id: p.id, name: p.title }));
@@ -73,6 +82,7 @@ export default async function TasksPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Tasks</h1>
+          <SearchBar placeholder="Search tasks…" className="mt-2" />
           <p className="text-sm text-muted-foreground">
             {secretaries.length > 0 ? (
               <>

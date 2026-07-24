@@ -1,3 +1,5 @@
+import { SearchBar } from "@/components/search-bar";
+import { matchesQuery } from "@/lib/search";
 import { redirect } from "next/navigation";
 import { asc, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -30,7 +32,12 @@ import { format } from "date-fns";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminUsersPage() {
+export default async function AdminUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   const me = await getCurrentUser();
   if (!me) redirect("/login");
   if (me.role !== "ADMIN") redirect("/");
@@ -54,6 +61,7 @@ export default async function AdminUsersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">People</h1>
+          <SearchBar placeholder="Search people…" className="mt-2" />
           <p className="text-sm text-muted-foreground">
             Create accounts, manage access, and grant add-on roles. There is no
             self-signup.
@@ -82,7 +90,7 @@ export default async function AdminUsersPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {allUsers.map((u) => (
+          {allUsers.filter((u) => matchesQuery(q, u.name, u.email, u.role)).map((u) => (
             <TableRow key={u.id}>
               <TableCell className="font-medium">{u.name}</TableCell>
               <TableCell className="text-muted-foreground">{u.email}</TableCell>

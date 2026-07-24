@@ -1589,6 +1589,36 @@ async function main() {
   const forbidden = await engPage.request.get(BASE + "/api/reports/lab");
   check("report: researcher refused the lab docx", forbidden.status() === 403);
 
+  // 29e. v10: search bars — URL-synced, debounced, server-filtered.
+  await page.goto(BASE + "/board");
+  await page.waitForSelector("text=Cryo-stage vibration isolation");
+  await page.fill("input[aria-label='Search projects…']", "Cryo");
+  await page.waitForFunction(() => window.location.search.includes("q=Cryo"));
+  await page.waitForFunction(
+    () => !document.body.innerText.includes("Terahertz waveguide mapper")
+  );
+  await page.waitForSelector("text=Cryo-stage vibration isolation");
+  check("search: board narrows to the match", true);
+  await page.fill("input[aria-label='Search projects…']", "");
+  await page.waitForFunction(() => !window.location.search.includes("q="));
+
+  await page.goto(BASE + "/admin/users");
+  await page.fill("input[aria-label='Search people…']", "omid");
+  await page.waitForFunction(() => window.location.search.includes("q=omid"));
+  await page.waitForFunction(() => !document.body.innerText.includes("Sara Kim"));
+  await page.waitForSelector("text=Omid Rahimi");
+  check("search: people narrows", true);
+
+  await page.goto(BASE + "/admin/audit");
+  await page.waitForSelector("text=Audit log");
+  await page.fill("input[aria-label='Search the log…']", "thresholds");
+  await page.waitForFunction(() => window.location.search.includes("q=thresholds"));
+  await page.waitForFunction(
+    () => !document.body.innerText.includes("project.transition")
+  );
+  await page.waitForSelector("text=settings.thresholds");
+  check("search: audit log narrows", true);
+
   // 30. v8: responsive nav. On a phone the inline link row hides and a
   // hamburger menu takes over (with the fight badge and an Account item);
   // on desktop the researcher's short link set stays inline.

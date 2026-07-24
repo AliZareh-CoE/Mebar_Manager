@@ -1,3 +1,5 @@
+import { SearchBar } from "@/components/search-bar";
+import { matchesQuery } from "@/lib/search";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { desc, like } from "drizzle-orm";
@@ -36,21 +38,24 @@ const FILTERS: { value: string; label: string }[] = [
 export default async function AdminAuditPage({
   searchParams,
 }: {
-  searchParams: Promise<{ action?: string }>;
+  searchParams: Promise<{ action?: string; q?: string }>;
 }) {
   const me = await getCurrentUser();
   if (!me) redirect("/login");
   if (me.role !== "ADMIN") redirect("/");
 
-  const { action } = await searchParams;
+  const { action, q } = await searchParams;
   const prefix = (action ?? "").trim();
 
-  const rows = await db.query.auditEvents.findMany({
+  const loaded = await db.query.auditEvents.findMany({
     where: prefix ? like(auditEvents.action, `${prefix}%`) : undefined,
     with: { actor: { columns: { name: true } } },
     orderBy: (a) => desc(a.at),
     limit: 500,
   });
+  const rows = loaded.filter((r) =>
+    matchesQuery(q, r.action, r.summary, r.actor?.name)
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -59,6 +64,10 @@ export default async function AdminAuditPage({
         <p className="text-sm text-muted-foreground">
           {`Every privileged change on the record — transitions, lineup and date overrides, paper acceptances, settings saves, role grants. Newest first, most recent 500. Account creation, bans, and password resets run through the auth provider and aren't recorded here.`}
         </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchBar placeholder="Search the log…" />
       </div>
 
       <nav className="flex flex-wrap gap-1.5">
