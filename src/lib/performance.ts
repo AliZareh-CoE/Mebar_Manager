@@ -40,6 +40,9 @@ export interface PerformanceInput {
   /** Optional (v6) — absent in older inputs. Credited to the project OWNER. */
   papersSubmitted?: { ownerId: string | null; submittedAt: Date }[];
   papersAccepted?: { ownerId: string | null; acceptedAt: Date }[];
+  /** First-ever entry of each project into a points-carrying state, credited
+   * to the project OWNER with the state's configured points. */
+  stagesReached?: { ownerId: string | null; points: number; reachedAt: Date }[];
   // Discipline.
   updates: { authorId: string; projectId: string; createdAt: Date }[];
   /** Point-in-time — already filtered to the penalized fight types. */
@@ -99,6 +102,11 @@ export function computeScores(
     const row = counts.get(personId);
     if (row) row[metric] += by;
   };
+
+  for (const st of input.stagesReached ?? []) {
+    if (!inWindow(st.reachedAt) || st.points <= 0) continue;
+    bump(st.ownerId, "stageReached", st.points);
+  }
 
   for (const m of input.milestonesDone) {
     if (!inWindow(m.completedAt)) continue;
@@ -195,4 +203,20 @@ export function computeScores(
   return results.sort(
     (a, b) => b.total - a.total || a.person.name.localeCompare(b.person.name)
   );
+}
+
+/**
+ * First entry per (projectId, toState), oldest wins — re-entering a state
+ * after a block/pause never re-awards its points. Pure and order-tolerant.
+ */
+export function firstStateEntries<T extends { projectId: string; toState: string; createdAt: Date }>(
+  transitions: T[]
+): T[] {
+  const seen = new Map<string, T>();
+  for (const t of transitions) {
+    const key = `${t.projectId}\u0000${t.toState}`;
+    const cur = seen.get(key);
+    if (!cur || t.createdAt < cur.createdAt) seen.set(key, t);
+  }
+  return [...seen.values()];
 }

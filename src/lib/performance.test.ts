@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { subDays, subHours } from "date-fns";
-import { computeScores, type PerformanceInput, type PerformanceConfig } from "./performance";
+import { computeScores, firstStateEntries, type PerformanceInput, type PerformanceConfig } from "./performance";
 import { DEFAULT_PERFORMANCE_WEIGHTS } from "./performance-metrics";
 
 const NOW = new Date("2026-07-14T12:00:00Z");
@@ -237,5 +237,49 @@ describe("paper metrics (v6)", () => {
       expect(r.perMetric.paperSubmitted).toBe(0);
       expect(r.perMetric.paperAccepted).toBe(0);
     }
+  });
+});
+
+describe("stageReached (state points)", () => {
+  it("sums the state's points to the owner, window-guarded", () => {
+    const results = computeScores(
+      input({
+        stagesReached: [
+          { ownerId: alice.id, points: 5, reachedAt: subDays(NOW, 2) },
+          { ownerId: alice.id, points: 3, reachedAt: subDays(NOW, 4) },
+          { ownerId: alice.id, points: 50, reachedAt: subDays(NOW, 400) }, // out of window
+          { ownerId: null, points: 9, reachedAt: subDays(NOW, 1) }, // ownerless
+        ],
+      }),
+      config(),
+      NOW
+    );
+    const u1 = results.find((r) => r.person.id === alice.id)!;
+    expect(u1.perMetric.stageReached).toBe(8);
+  });
+
+  it("zero-point entries add nothing; absent array still computes", () => {
+    const withZero = computeScores(
+      input({ stagesReached: [{ ownerId: alice.id, points: 0, reachedAt: subDays(NOW, 1) }] }),
+      config(),
+      NOW
+    );
+    expect(withZero.find((r) => r.person.id === alice.id)!.perMetric.stageReached).toBe(0);
+    const absent = computeScores(input(), config(), NOW);
+    for (const r of absent) expect(r.perMetric.stageReached).toBe(0);
+  });
+});
+
+describe("firstStateEntries", () => {
+  it("keeps only the oldest entry per project+state, order-tolerant", () => {
+    const out = firstStateEntries([
+      { projectId: "p1", toState: "ACTIVE", createdAt: subDays(NOW, 1) },
+      { projectId: "p1", toState: "ACTIVE", createdAt: subDays(NOW, 10) },
+      { projectId: "p1", toState: "BLOCKED", createdAt: subDays(NOW, 5) },
+      { projectId: "p2", toState: "ACTIVE", createdAt: subDays(NOW, 3) },
+    ]);
+    expect(out).toHaveLength(3);
+    const p1Active = out.find((t) => t.projectId === "p1" && t.toState === "ACTIVE")!;
+    expect(p1Active.createdAt).toEqual(subDays(NOW, 10));
   });
 });

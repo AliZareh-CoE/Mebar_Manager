@@ -59,6 +59,9 @@ export const workflowStateSchema = z.object({
   description: z.string().trim().max(200).default(""),
   /** Archived states keep rendering on existing projects but accept no new entries. */
   archived: z.boolean().default(false),
+  /** Points the project OWNER earns the FIRST time the project enters this
+   * state (0 = none). Admin-set; feeds the stageReached performance metric. */
+  points: z.coerce.number().min(0).max(100).default(0),
   flags: stateFlagsSchema.default(() => stateFlagsSchema.parse({})),
 });
 export type WorkflowState = z.infer<typeof workflowStateSchema>;

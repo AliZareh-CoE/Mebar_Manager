@@ -1619,6 +1619,14 @@ async function main() {
   await page.waitForSelector("text=settings.thresholds");
   check("search: audit log narrows", true);
 
+  // 29f. v10: per-state points input in the workflow editor (admin-only).
+  await page.goto(BASE + "/admin/settings/workflow");
+  await page.waitForSelector("text=Points on reaching");
+  check(
+    "workflow: per-state points input renders",
+    (await page.locator("input[id^='points-']").count()) > 0
+  );
+
   // 30. v8: responsive nav. On a phone the inline link row hides and a
   // hamburger menu takes over (with the fight badge and an Account item);
   // on desktop the researcher's short link set stays inline.

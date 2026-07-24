@@ -124,6 +124,7 @@ export function WorkflowEditor({ initial }: { initial: Workflow }) {
           color: "slate",
           description: "",
           archived: false,
+          points: 0,
           flags: {
             initial: false,
             countsForStall: false,
@@ -242,6 +243,23 @@ export function WorkflowEditor({ initial }: { initial: Workflow }) {
                     onChange={(e) => patchState(state.key, { description: e.target.value })}
                   />
                 </div>
+              </div>
+              <div className="flex flex-col gap-1.5 sm:w-56">
+                <Label htmlFor={`points-${state.key}`}>Points on reaching (0 = none)</Label>
+                <Input
+                  id={`points-${state.key}`}
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={state.points}
+                  onChange={(e) =>
+                    patchState(state.key, { points: Math.max(0, Number(e.target.value) || 0) })
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  Awarded to the project owner the first time a project enters
+                  this state — re-entries never re-award.
+                </p>
               </div>
 
               <div className="flex flex-wrap gap-x-6 gap-y-2">

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, gte, ne, notInArray } from "drizzle-orm";
+import { and, eq, gte, inArray, ne, notInArray } from "drizzle-orm";
 import { subDays } from "date-fns";
 import { db } from "@/lib/db";
 import {
@@ -14,8 +14,10 @@ import {
   tasks,
   updates,
   user,
+  stateTransitions,
 } from "@/lib/db/schema";
 import type { LabSettings } from "@/lib/settings";
+import { firstStateEntries } from "@/lib/performance";
 import { computeFightList, type FightType } from "@/lib/fight-engine";
 import { loadLabSnapshot } from "@/lib/fight-data";
 import { activationStateKeys, engineStateFlags } from "@/lib/workflow";
@@ -171,6 +173,34 @@ export async function loadPerformanceInput(
     ),
   ]);
 
+  // State points: the FIRST-ever entry of each project into a
+  // points-carrying state credits the project owner. Loaded all-time so the
+  // dedupe is correct (a windowed load would mistake a re-entry for the
+  // first), then windowed by computeScores like every other event.
+  const statePoints = new Map(
+    workflow.states.filter((st) => st.points > 0).map((st) => [st.key, st.points])
+  );
+  let stagesReached: { ownerId: string | null; points: number; reachedAt: Date }[] = [];
+  if (statePoints.size > 0) {
+    const [transitionRows, ownerRows] = await Promise.all([
+      db
+        .select({
+          projectId: stateTransitions.projectId,
+          toState: stateTransitions.toState,
+          createdAt: stateTransitions.createdAt,
+        })
+        .from(stateTransitions)
+        .where(inArray(stateTransitions.toState, [...statePoints.keys()])),
+      db.select({ id: projects.id, ownerId: projects.ownerId }).from(projects),
+    ]);
+    const ownerOf = new Map(ownerRows.map((r) => [r.id, r.ownerId]));
+    stagesReached = firstStateEntries(transitionRows).map((t) => ({
+      ownerId: ownerOf.get(t.projectId) ?? null,
+      points: statePoints.get(t.toState) ?? 0,
+      reachedAt: t.createdAt,
+    }));
+  }
+
   const fights = computeFightList(snapshot, now, settings.thresholds, {
     stateFlags: engineStateFlags(workflow),
     enabledRules: Object.fromEntries(
@@ -220,6 +250,7 @@ export async function loadPerformanceInput(
     decisionsAutoProceeded: decisionsAuto
       .filter((d) => d.decidedAt !== null)
       .map((d) => ({ requestedFromId: d.requestedFromId, decidedAt: d.decidedAt! })),
+    stagesReached,
     proposalsFiled: projectsCreated,
     blockersRaised: blockersCreated,
     tasksFiled: tasksCreated,

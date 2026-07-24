@@ -42,6 +42,7 @@ export const PERFORMANCE_METRICS = [
   "taskFiled",
   "dataRequestFiled",
   "initiativeFiled",
+  "stageReached",
 ] as const;
 export type PerformanceMetric = (typeof PERFORMANCE_METRICS)[number];
 
@@ -68,6 +69,7 @@ export const METRIC_CATEGORY: Record<PerformanceMetric, PerformanceCategory> = {
   taskFiled: "INITIATIVE",
   dataRequestFiled: "INITIATIVE",
   initiativeFiled: "INITIATIVE",
+  stageReached: "DELIVERY",
 };
 
 export const METRIC_LABELS: Record<PerformanceMetric, string> = {
@@ -93,6 +95,7 @@ export const METRIC_LABELS: Record<PerformanceMetric, string> = {
   taskFiled: "Tasks filed",
   dataRequestFiled: "Data requests filed",
   initiativeFiled: "Initiatives filed",
+  stageReached: "Workflow stages reached (state points)",
 };
 
 export const DEFAULT_PERFORMANCE_WEIGHTS: Record<PerformanceMetric, number> = {
@@ -119,4 +122,5 @@ export const DEFAULT_PERFORMANCE_WEIGHTS: Record<PerformanceMetric, number> = {
   taskFiled: 1,
   dataRequestFiled: 1,
   initiativeFiled: 2,
+  stageReached: 1,
 };

@@ -52,6 +52,7 @@ describe("labSettingsSchema defaults", () => {
       color: "violet",
       description: "",
       archived: false,
+      points: 0,
       flags: {
         initial: false,
         countsForStall: false,

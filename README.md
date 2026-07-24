@@ -99,6 +99,12 @@ Other opinions built in:
   project, and per-entity CSV data exports for Excel. All from the Stats
   page; the project report also has a button on each project's header.
 
+**v10:** search bars on every list page (URL-synced, so filtered views are
+shareable); roomier dialogs with two-column field layouts; and **per-state
+points** — in Settings → Workflow each state can carry points that the
+project owner earns the first time a project reaches it (re-entries never
+re-award; leadership-only visibility like all scoring).
+
 **v8 (UI/UX polish):** fluid typography — the whole interface scales from a
 16px base on phones to 18px on wide monitors, with body copy and meta text
 bumped a notch and line-height at 1.5; the layout widened to the 1280–1440px
