@@ -15,6 +15,7 @@ export function UpdateDialog({
     <FormDialog
       trigger={trigger}
       title="Weekly update"
+          size="lg"
       description="Three bullets. Five minutes. Keeps the project off the Fight List."
       submitLabel="Post update"
       successMessage="Update posted. The clock resets."

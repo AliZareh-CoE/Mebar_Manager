@@ -26,6 +26,7 @@ export function FormDialog({
   submitLabel = "Save",
   successMessage = "Saved.",
   action,
+  size = "default",
   children,
 }: {
   trigger: React.ReactElement;
@@ -34,6 +35,8 @@ export function FormDialog({
   submitLabel?: string;
   successMessage?: string;
   action: (formData: FormData) => Promise<ActionResult | void>;
+  /** Wider boxes for crowded forms — "lg" (32rem) or "xl" (42rem). */
+  size?: "default" | "lg" | "xl";
   children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -62,7 +65,15 @@ export function FormDialog({
     // half-written update. Esc and the close button still work.
     <Dialog open={open} onOpenChange={setOpen} disablePointerDismissal>
       <DialogTrigger render={trigger} />
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
+      <DialogContent
+        className={
+          size === "xl"
+            ? "max-h-[85vh] overflow-y-auto sm:max-w-2xl"
+            : size === "lg"
+              ? "max-h-[85vh] overflow-y-auto sm:max-w-lg"
+              : "max-h-[85vh] overflow-y-auto"
+        }
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}

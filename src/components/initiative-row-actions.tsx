@@ -130,6 +130,7 @@ export function InitiativeRowActions({
           <FormDialog
             trigger={<Button variant="ghost" size="sm">Edit</Button>}
             title="Edit initiative"
+          size="lg"
             submitLabel="Save"
             action={(fd) => editInitiative(initiativeId, fd)}
           >

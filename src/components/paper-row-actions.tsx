@@ -142,6 +142,7 @@ export function PaperRowActions({
             </Button>
           }
           title="Edit paper"
+          size="xl"
           submitLabel="Save"
           action={(fd) => editPaper(paperId, fd)}
         >
@@ -149,25 +150,28 @@ export function PaperRowActions({
             <Label htmlFor={`et-${paperId}`}>Title</Label>
             <Input id={`et-${paperId}`} name="title" defaultValue={edit.title} required />
           </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`ev-${paperId}`}>Venue / journal</Label>
-            <Input id={`ev-${paperId}`} name="venue" defaultValue={edit.venue} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`ev-${paperId}`}>Venue / journal</Label>
+              <Input id={`ev-${paperId}`} name="venue" defaultValue={edit.venue} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`eq-${paperId}`}>Quartile note</Label>
+              <Input
+                id={`eq-${paperId}`}
+                name="quartileNote"
+                defaultValue={edit.quartileNote}
+                placeholder="Q1 — target"
+              />
+            </div>
           </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`eq-${paperId}`}>Quartile note</Label>
-            <Input
-              id={`eq-${paperId}`}
-              name="quartileNote"
-              defaultValue={edit.quartileNote}
-              placeholder="Q1 — target"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`el-${paperId}`}>Link / DOI</Label>
-            <Input id={`el-${paperId}`} name="link" defaultValue={edit.link} />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`etgt-${paperId}`}>Target submission date</Label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`el-${paperId}`}>Link / DOI</Label>
+              <Input id={`el-${paperId}`} name="link" defaultValue={edit.link} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`etgt-${paperId}`}>Target submission date</Label>
             <Input
               id={`etgt-${paperId}`}
               name="targetSubmissionAt"
@@ -178,12 +182,15 @@ export function PaperRowActions({
                   : ""
               }
             />
+            </div>
           </div>
           <div className="flex flex-col gap-2">
             <Label>Journal shortlist (ranked)</Label>
-            <Input name="venueShortlist" defaultValue={venueShortlist[0] ?? ""} placeholder="Target 1 — best fit" />
-            <Input name="venueShortlist" defaultValue={venueShortlist[1] ?? ""} placeholder="Target 2 — strong alternative" />
-            <Input name="venueShortlist" defaultValue={venueShortlist[2] ?? ""} placeholder="Target 3 — reliable fallback" />
+            <div className="grid gap-2 sm:grid-cols-3">
+              <Input name="venueShortlist" defaultValue={venueShortlist[0] ?? ""} placeholder="Target 1 — best fit" />
+              <Input name="venueShortlist" defaultValue={venueShortlist[1] ?? ""} placeholder="Target 2 — strong alternative" />
+              <Input name="venueShortlist" defaultValue={venueShortlist[2] ?? ""} placeholder="Target 3 — reliable fallback" />
+            </div>
           </div>
         </FormDialog>
       )}

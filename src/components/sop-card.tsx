@@ -59,6 +59,7 @@ export function SopCard({
                 </Button>
               }
               title="Edit protocol"
+          size="lg"
               submitLabel="Save"
               successMessage="Protocol updated."
               action={(fd) => editSop(sop.id, fd)}

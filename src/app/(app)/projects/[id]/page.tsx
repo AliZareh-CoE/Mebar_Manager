@@ -314,6 +314,7 @@ export default async function ProjectPage({
             <FormDialog
               trigger={<Button variant="outline" size="sm">Edit</Button>}
               title="Edit project"
+            size="xl"
               submitLabel="Save changes"
               action={editProject.bind(null, project.id)}
             >
@@ -330,7 +331,7 @@ export default async function ProjectPage({
                 return (
                   <div key={q.key} className="flex flex-col gap-2">
                     <Label htmlFor={field}>{q.label}</Label>
-                    <Textarea id={field} name={field} defaultValue={answerFor(q)} rows={2} />
+                    <Textarea id={field} name={field} defaultValue={answerFor(q)} rows={4} />
                   </div>
                 );
               })}
@@ -378,6 +379,7 @@ export default async function ProjectPage({
           <FormDialog
             trigger={<Button className="self-start">Add update</Button>}
             title="Weekly update"
+          size="lg"
             description="Three bullets. Five minutes. Keeps the project off the Fight List."
             submitLabel="Post update"
             successMessage="Update posted. The clock resets."
@@ -416,6 +418,7 @@ export default async function ProjectPage({
                           </button>
                         }
                         title="Edit update"
+            size="lg"
                         submitLabel="Save"
                         action={editUpdate.bind(null, u.id)}
                       >
@@ -452,6 +455,7 @@ export default async function ProjectPage({
           <FormDialog
             trigger={<Button className="self-start">Raise blocker</Button>}
             title="Raise a blocker"
+          size="lg"
             description="Stuck for more than two days? That's a blocker. Raising it is professionalism, not failure."
             submitLabel="Raise it"
             successMessage="Blocker raised. Now it can be fought."
@@ -570,6 +574,7 @@ export default async function ProjectPage({
           <FormDialog
             trigger={<Button className="self-start">Request decision</Button>}
             title="Request a decision"
+            size="lg"
             description={`If ${project.advisor.name} doesn't answer within ${settings.thresholds.decisionTimeoutHours} hours, you proceed with your recommendation. Default to action.`}
             submitLabel="Request it"
             successMessage={`Decision requested. The ${settings.thresholds.decisionTimeoutHours}-hour clock is running.`}
@@ -632,6 +637,7 @@ export default async function ProjectPage({
                           <FormDialog
                             trigger={<Button variant="ghost" size="sm">Edit</Button>}
                             title="Edit decision request"
+          size="lg"
                             submitLabel="Save"
                             action={editDecision.bind(null, d.id)}
                           >
@@ -691,6 +697,7 @@ export default async function ProjectPage({
           <FormDialog
             trigger={<Button className="self-start">Add milestone</Button>}
             title="Add milestone"
+            size="lg"
             description="Timebox it: one to two weeks, with a concrete deliverable."
             submitLabel="Add"
             action={addMilestone.bind(null, project.id)}
@@ -770,6 +777,7 @@ export default async function ProjectPage({
                             <FormDialog
                               trigger={<Button variant="ghost" size="sm">Edit</Button>}
                               title="Edit milestone"
+            size="lg"
                               submitLabel="Save"
                               action={editMilestone.bind(null, m.id)}
                             >
@@ -826,6 +834,7 @@ export default async function ProjectPage({
           <FormDialog
             trigger={<Button className="self-start">Request data</Button>}
             title="Request data"
+            size="lg"
             description="The assigned analyst is responsible for delivering it. Unassigned requests escalate to the advisor after 2 days."
             submitLabel="Request it"
             successMessage="Data request filed."
@@ -973,6 +982,7 @@ export default async function ProjectPage({
             <FormDialog
               trigger={<Button>Add person</Button>}
               title="Add someone to this project"
+            size="lg"
               description="Lab members, or people who never touch this app — students, external PIs, assistants."
               submitLabel="Add"
               successMessage="Added to the lineup."
@@ -984,6 +994,7 @@ export default async function ProjectPage({
               <FormDialog
                 trigger={<Button variant="outline">Add UTF student</Button>}
                 title="Tag a UTF student"
+            size="lg"
                 description="From the lab's roster — no account needed; their contribution shows in the record."
                 submitLabel="Add"
                 successMessage="UTF student tagged."
@@ -1082,6 +1093,7 @@ export default async function ProjectPage({
           <FormDialog
             trigger={<Button className="self-start">File paper</Button>}
             title="File a paper"
+            size="lg"
             description="Every project must lead to a Q1 paper. A draft counts — filing it is the commitment."
             submitLabel="File it"
             successMessage="Paper on the record."
@@ -1091,13 +1103,15 @@ export default async function ProjectPage({
               <Label htmlFor="paper-title">Working title</Label>
               <Input id="paper-title" name="title" required />
             </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="paper-venue">Target venue / journal</Label>
-              <Input id="paper-venue" name="venue" placeholder="IEEE TII" />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="paper-quartile">Quartile note</Label>
-              <Input id="paper-quartile" name="quartileNote" placeholder="Q1 — target" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="paper-venue">Target venue / journal</Label>
+                <Input id="paper-venue" name="venue" placeholder="IEEE TII" />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="paper-quartile">Quartile note</Label>
+                <Input id="paper-quartile" name="quartileNote" placeholder="Q1 — target" />
+              </div>
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="paper-link">Link / DOI (optional)</Label>
@@ -1112,9 +1126,11 @@ export default async function ProjectPage({
             </div>
             <div className="flex flex-col gap-2">
               <Label>Journal shortlist (ranked, optional)</Label>
-              <Input name="venueShortlist" placeholder="Target 1 — best fit" />
-              <Input name="venueShortlist" placeholder="Target 2 — strong alternative" />
-              <Input name="venueShortlist" placeholder="Target 3 — reliable fallback" />
+              <div className="grid gap-2 sm:grid-cols-3">
+                <Input name="venueShortlist" placeholder="Target 1 — best fit" />
+                <Input name="venueShortlist" placeholder="Target 2 — strong alternative" />
+                <Input name="venueShortlist" placeholder="Target 3 — reliable fallback" />
+              </div>
             </div>
           </FormDialog>
 

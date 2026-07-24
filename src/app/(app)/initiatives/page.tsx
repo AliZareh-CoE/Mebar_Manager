@@ -97,6 +97,7 @@ export default async function InitiativesPage({
         <FormDialog
           trigger={<Button>File initiative</Button>}
           title="File an initiative"
+          size="lg"
           description="A fight worth having, with a deadline and (ideally) a fighter."
           submitLabel="File it"
           successMessage="Initiative filed. Now it can be fought."

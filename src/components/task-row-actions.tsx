@@ -107,6 +107,7 @@ export function TaskRowActions({
           <FormDialog
             trigger={<Button variant="ghost" size="sm">Edit</Button>}
             title="Edit task"
+          size="lg"
             submitLabel="Save"
             action={(fd) => editTask(taskId, fd)}
           >

@@ -104,6 +104,7 @@ export default async function TasksPage({
         <FormDialog
           trigger={<Button>File task</Button>}
           title="File a task"
+          size="lg"
           description="Anything with a deadline. The assigned secretary owns it; unassigned tasks escalate."
           submitLabel="File it"
           successMessage="Task filed."

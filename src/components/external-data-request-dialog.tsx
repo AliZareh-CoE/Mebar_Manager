@@ -26,6 +26,7 @@ export function ExternalDataRequestDialog({
         </Button>
       }
       title="External data request"
+          size="lg"
       description="A data ask from outside Mebar. You log it, an analyst delivers it."
       submitLabel="Log it"
       successMessage="Logged. Assign an analyst so it doesn't rot."

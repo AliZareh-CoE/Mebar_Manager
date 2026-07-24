@@ -82,6 +82,7 @@ export default async function SopsPage({
           <FormDialog
             trigger={<Button>New protocol</Button>}
             title="New protocol"
+          size="lg"
             description="A repeatable procedure, with a checklist of steps (one per line)."
             submitLabel="Create"
             successMessage="Protocol created."

@@ -138,6 +138,7 @@ export function DataRequestRowActions({
           <FormDialog
             trigger={<Button variant="ghost" size="sm">Edit</Button>}
             title="Edit data request"
+          size="lg"
             submitLabel="Save"
             action={(fd) => editDataRequest(requestId, fd)}
           >
