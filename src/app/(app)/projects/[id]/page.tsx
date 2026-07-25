@@ -37,6 +37,7 @@ import { StateBadge } from "@/components/state-badge";
 import { AgePill } from "@/components/age-pill";
 import { Initials } from "@/components/initials";
 import { TransitionButtons } from "@/components/transition-buttons";
+import { DetailDialog } from "@/components/detail-dialog";
 import { FormDialog } from "@/components/form-dialog";
 import { BlockerRowActions } from "@/components/blocker-row-actions";
 import { ComputeRequestCard } from "@/components/compute-request-card";
@@ -508,14 +509,40 @@ export default async function ProjectPage({
                 {project.blockers.map((b) => (
                   <TableRow key={b.id}>
                     <TableCell className="max-w-xs">
-                      <p className="truncate font-medium" title={b.description}>
-                        {b.description}
-                      </p>
-                      {b.resolutionNote && (
-                        <p className="truncate text-xs text-muted-foreground" title={b.resolutionNote}>
-                          ✓ {b.resolutionNote}
-                        </p>
-                      )}
+                      <DetailDialog
+                        title="Blocker"
+                        fields={[
+                          {
+                            label: "Status",
+                            value:
+                              b.status === "CANCELLED"
+                                ? "Cancelled"
+                                : b.status === "RESOLVED"
+                                  ? "Resolved"
+                                  : b.status === "ESCALATED"
+                                    ? "Escalated"
+                                    : "Open",
+                          },
+                          { label: "What's stuck", value: b.description },
+                          { label: "Cause", value: causeLabels[b.causeTag] ?? b.causeTag },
+                          { label: "Resolution note", value: b.resolutionNote },
+                          { label: "Owner", value: b.owner?.name ?? "Unassigned" },
+                          { label: "Deadline", value: format(b.deadline, "MMM d, yyyy") },
+                          { label: "Raised", value: format(b.createdAt, "MMM d, yyyy") },
+                        ]}
+                        trigger={
+                          <button type="button" className="block w-full min-w-0 cursor-pointer text-left">
+                            <span className="block truncate font-medium underline-offset-4 hover:underline">
+                              {b.description}
+                            </span>
+                            {b.resolutionNote && (
+                              <span className="block truncate text-xs text-muted-foreground">
+                                ✓ {b.resolutionNote}
+                              </span>
+                            )}
+                          </button>
+                        }
+                      />
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary">{causeLabels[b.causeTag] ?? b.causeTag}</Badge>
@@ -752,8 +779,36 @@ export default async function ProjectPage({
                   return (
                     <TableRow key={m.id}>
                       <TableCell className="font-medium">{m.title}</TableCell>
-                      <TableCell className="max-w-xs truncate text-muted-foreground" title={m.deliverable}>
-                        {m.deliverable}
+                      <TableCell className="max-w-xs">
+                        <DetailDialog
+                          title={m.title}
+                          fields={[
+                            {
+                              label: "Status",
+                              value:
+                                m.status === "CANCELLED"
+                                  ? "Cancelled"
+                                  : m.status === "DONE"
+                                    ? "Done"
+                                    : missed
+                                      ? "Missed"
+                                      : m.status === "IN_PROGRESS"
+                                        ? "In progress"
+                                        : "Planned",
+                            },
+                            { label: "Deliverable", value: m.deliverable },
+                            { label: "Start", value: format(m.startDate, "MMM d, yyyy") },
+                            { label: "Due", value: format(m.dueDate, "MMM d, yyyy") },
+                          ]}
+                          trigger={
+                            <button
+                              type="button"
+                              className="block w-full min-w-0 cursor-pointer truncate text-left text-muted-foreground underline-offset-4 hover:underline"
+                            >
+                              {m.deliverable}
+                            </button>
+                          }
+                        />
                       </TableCell>
                       <TableCell className={missed ? "font-medium text-red-600 dark:text-red-400" : "text-muted-foreground"}>
                         {format(m.dueDate, "MMM d")}
@@ -895,14 +950,38 @@ export default async function ProjectPage({
                 {project.dataRequests.map((dr) => (
                   <TableRow key={dr.id}>
                     <TableCell className="max-w-xs">
-                      <p className="truncate font-medium" title={dr.title}>
-                        {dr.title}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground" title={dr.description}>
-                        {dr.status === "DELIVERED" && dr.deliveryNote
-                          ? `✓ ${dr.deliveryNote}`
-                          : dr.description}
-                      </p>
+                      <DetailDialog
+                        title={dr.title}
+                        fields={[
+                          {
+                            label: "Status",
+                            value:
+                              dr.status === "DELIVERED"
+                                ? "Delivered"
+                                : dr.status === "CANCELLED"
+                                  ? "Cancelled"
+                                  : "Open",
+                          },
+                          { label: "Details", value: dr.description },
+                          { label: "Delivery note", value: dr.deliveryNote },
+                          { label: "Requested by", value: dr.requester?.name },
+                          { label: "Analyst", value: dr.assignee?.name ?? "Unassigned" },
+                          { label: "Needed by", value: format(dr.neededBy, "MMM d, yyyy") },
+                          { label: "Filed", value: format(dr.createdAt, "MMM d, yyyy") },
+                        ]}
+                        trigger={
+                          <button type="button" className="block w-full min-w-0 cursor-pointer text-left">
+                            <span className="block truncate font-medium underline-offset-4 hover:underline">
+                              {dr.title}
+                            </span>
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {dr.status === "DELIVERED" && dr.deliveryNote
+                                ? `✓ ${dr.deliveryNote}`
+                                : dr.description}
+                            </span>
+                          </button>
+                        }
+                      />
                     </TableCell>
                     <TableCell
                       className={

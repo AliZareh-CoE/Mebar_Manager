@@ -199,7 +199,11 @@ async function main() {
   );
 
   // 15. Coordinator approves the pending compute request from the Fight List
-  await page.click("section:has-text('Compute requests waiting') >> button:has-text('Approve')");
+  // Scope to the actions slot: the card's detail text ("Approve it or deny
+  // it…") is itself a button since v11's detail dialogs.
+  await page.click(
+    "section:has-text('Compute requests waiting') >> [data-slot=fight-actions] >> button:has-text('Approve')"
+  );
   await page.fill("textarea[name=accessInstructions]", "Brev instance mebar-ml-01; link in the vault.");
   await page.fill("input[name=windowEnd]", "2027-01-15");
   await page.click("div[role=dialog] button:has-text('Approve')");
@@ -307,11 +311,15 @@ async function main() {
   const adaRow = page.locator("tr", { hasText: "Prof. Ada Byrne" });
   await adaRow.locator("button:has-text('Assign analyst')").click();
   await page.click("[role=option]:has-text('Lena Fischer')");
-  await page.waitForTimeout(1200);
-  check(
-    "coordinator assigned the external request to an analyst",
-    (await page.locator("tr", { hasText: "Prof. Ada Byrne" }).textContent())!.includes("Lena Fischer")
-  );
+  // Condition-based: the row re-renders via RSC refresh, which can outlast a
+  // fixed sleep on a cold dev server.
+  await page.waitForFunction(() => {
+    const row = Array.from(document.querySelectorAll("tr")).find((r) =>
+      (r.textContent ?? "").includes("Prof. Ada Byrne")
+    );
+    return !!row && (row.textContent ?? "").includes("Lena Fischer");
+  });
+  check("coordinator assigned the external request to an analyst", true);
 
   // 22. Settings: raising the unowned grace hides the unowned-blocker fight
   await page.goto(BASE + "/admin/settings/fights");
@@ -1626,6 +1634,38 @@ async function main() {
     "workflow: per-state points input renders",
     (await page.locator("input[id^='points-']").count()) > 0
   );
+
+  // 29g. v11: detail dialogs — truncated table cells open a read-only modal
+  // with the full record, so long text is never lost to an ellipsis.
+  await page.goto(BASE + "/data");
+  await page.click("button:has-text('2024 wafer defect micrographs')");
+  await page.waitForSelector("div[role=dialog]");
+  const dataDetail = (await page.textContent("div[role=dialog]"))!;
+  check("detail: /data dialog shows the full description", dataDetail.includes("one folder per class"));
+  check("detail: /data dialog shows the meta fields", dataDetail.includes("Needed by") && dataDetail.includes("Requested by"));
+  await page.keyboard.press("Escape");
+  await page.waitForSelector("[data-slot=dialog-content]", { state: "detached" });
+
+  await page.goto(BASE + "/tasks");
+  await page.click("button:has-text('Order cryostat o-ring set')");
+  await page.waitForSelector("div[role=dialog]");
+  const taskDetail = (await page.textContent("div[role=dialog]"))!;
+  check("detail: /tasks dialog shows the full details", taskDetail.includes("PO template is in the lab vault"));
+  check("detail: /tasks dialog names the filer", taskDetail.includes("Filed by"));
+  await page.keyboard.press("Escape");
+  await page.waitForSelector("[data-slot=dialog-content]", { state: "detached" });
+
+  await page.goto(BASE + "/");
+  const fightDetailTriggers = page.locator("main button.line-clamp-2");
+  check("detail: fight cards expose detail triggers", (await fightDetailTriggers.count()) > 0);
+  await fightDetailTriggers.first().click();
+  await page.waitForSelector("div[role=dialog]");
+  check(
+    "detail: fight dialog shows age + full detail",
+    ((await page.textContent("div[role=dialog]")) ?? "").includes("Sitting still for")
+  );
+  await page.keyboard.press("Escape");
+  await page.waitForSelector("[data-slot=dialog-content]", { state: "detached" });
 
   // 30. v8: responsive nav. On a phone the inline link row hides and a
   // hamburger menu takes over (with the fight badge and an Account item);

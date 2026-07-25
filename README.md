@@ -99,6 +99,12 @@ Other opinions built in:
   project, and per-entity CSV data exports for Excel. All from the Stats
   page; the project report also has a button on each project's header.
 
+**v11:** detail views everywhere — every truncated table cell (data
+requests, tasks, initiatives, feedback, blockers, milestone deliverables)
+and every clamped fight-card detail is now clickable and opens a read-only
+modal with the full text plus the record's who/when/status fields, so
+nothing is ever lost to an ellipsis.
+
 **v10:** search bars on every list page (URL-synced, so filtered views are
 shareable); roomier dialogs with two-column field layouts; and **per-state
 points** — in Settings → Workflow each state can carry points that the

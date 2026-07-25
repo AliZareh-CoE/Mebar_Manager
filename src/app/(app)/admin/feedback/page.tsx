@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { type FeedbackStatus } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/session";
 import { respondToFeedback } from "@/actions/feedback";
+import { DetailDialog } from "@/components/detail-dialog";
 import { FormDialog } from "@/components/form-dialog";
 import { EnumSelect } from "@/components/forms/labeled-selects";
 import { Badge } from "@/components/ui/badge";
@@ -99,23 +100,40 @@ export default async function AdminFeedbackPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="max-w-md">
-                        <p className="truncate font-medium" title={f.title}>
-                          {f.title}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground" title={f.body}>
-                          {f.body}
-                        </p>
-                        {f.adminResponse && (
-                          <p
-                            className="truncate text-xs text-emerald-600 dark:text-emerald-400"
-                            title={f.adminResponse}
-                          >
-                            ↳ {f.adminResponse}
-                            {f.respondedBy && (
-                              <span className="text-muted-foreground"> — {f.respondedBy.name}</span>
-                            )}
-                          </p>
-                        )}
+                        <DetailDialog
+                          title={f.title}
+                          fields={[
+                            { label: "Kind", value: f.kind === "BUG" ? "Bug" : "Idea" },
+                            { label: "Status", value: GROUPS[f.status as FeedbackStatus].title },
+                            { label: "Feedback", value: f.body },
+                            {
+                              label: "Response",
+                              value: f.adminResponse
+                                ? `${f.adminResponse}${f.respondedBy ? ` — ${f.respondedBy.name}` : ""}`
+                                : null,
+                            },
+                            { label: "From", value: f.submitter.name },
+                            { label: "Submitted", value: format(f.createdAt, "MMM d, yyyy") },
+                          ]}
+                          trigger={
+                            <button type="button" className="block w-full min-w-0 cursor-pointer text-left">
+                              <span className="block truncate font-medium underline-offset-4 hover:underline">
+                                {f.title}
+                              </span>
+                              <span className="block truncate text-xs text-muted-foreground">
+                                {f.body}
+                              </span>
+                              {f.adminResponse && (
+                                <span className="block truncate text-xs text-emerald-600 dark:text-emerald-400">
+                                  ↳ {f.adminResponse}
+                                  {f.respondedBy && (
+                                    <span className="text-muted-foreground"> — {f.respondedBy.name}</span>
+                                  )}
+                                </span>
+                              )}
+                            </button>
+                          }
+                        />
                       </TableCell>
                       <TableCell className="text-muted-foreground">{f.submitter.name}</TableCell>
                       <TableCell className="text-muted-foreground">

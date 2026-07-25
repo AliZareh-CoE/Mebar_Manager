@@ -10,6 +10,7 @@ import { getSettings } from "@/lib/settings";
 import { isLabLeadership } from "@/lib/policy";
 import { isOverdue } from "@/lib/fight-engine";
 import { fileInitiative } from "@/actions/initiatives";
+import { DetailDialog } from "@/components/detail-dialog";
 import { FormDialog } from "@/components/form-dialog";
 import { PersonSelect } from "@/components/forms/labeled-selects";
 import { InitiativeRowActions } from "@/components/initiative-row-actions";
@@ -171,17 +172,30 @@ export default async function InitiativesPage({
                   {group.map((i) => (
                     <TableRow key={i.id}>
                       <TableCell className="max-w-md">
-                        <p className="truncate font-medium" title={i.title}>
-                          {i.title}
-                        </p>
-                        <p
-                          className="truncate text-xs text-muted-foreground"
-                          title={i.closureNote ?? i.description}
-                        >
-                          {i.status !== "OPEN" && i.closureNote
-                            ? `✓ ${i.closureNote}`
-                            : i.description}
-                        </p>
+                        <DetailDialog
+                          title={i.title}
+                          fields={[
+                            { label: "Status", value: GROUPS[i.status as InitiativeStatus].title },
+                            { label: "Details", value: i.description },
+                            { label: "Closure note", value: i.closureNote },
+                            { label: "Fighter", value: i.assignee?.name ?? "Unassigned" },
+                            { label: "Filed by", value: i.requester.name },
+                            { label: "Deadline", value: format(i.deadline, "MMM d, yyyy") },
+                            { label: "Filed", value: format(i.createdAt, "MMM d, yyyy") },
+                          ]}
+                          trigger={
+                            <button type="button" className="block w-full min-w-0 cursor-pointer text-left">
+                              <span className="block truncate font-medium underline-offset-4 hover:underline">
+                                {i.title}
+                              </span>
+                              <span className="block truncate text-xs text-muted-foreground">
+                                {i.status !== "OPEN" && i.closureNote
+                                  ? `✓ ${i.closureNote}`
+                                  : i.description}
+                              </span>
+                            </button>
+                          }
+                        />
                       </TableCell>
                       <TableCell
                         className={

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DetailDialog } from "@/components/detail-dialog";
 import { Initials } from "@/components/initials";
 import { InfoHint, type HelpCopy } from "@/components/info-hint";
 import { cn } from "@/lib/utils";
@@ -54,10 +55,30 @@ export function FightItemCard({
           )}
         </div>
         {item.detail && (
-          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.detail}</p>
+          <DetailDialog
+            title={item.headline}
+            fields={[
+              { label: "Detail", value: item.detail },
+              { label: "Project", value: item.projectTitle },
+              { label: "Responsible", value: item.responsible?.name },
+              { label: "Sitting still for", value: `${item.ageDays} day${item.ageDays === 1 ? "" : "s"}` },
+            ]}
+            trigger={
+              <button
+                type="button"
+                className="mt-1 line-clamp-2 cursor-pointer text-left text-sm text-muted-foreground underline-offset-4 hover:underline"
+              >
+                {item.detail}
+              </button>
+            }
+          />
         )}
       </div>
-      {children && <div className="shrink-0">{children}</div>}
+      {children && (
+        <div data-slot="fight-actions" className="shrink-0">
+          {children}
+        </div>
+      )}
     </div>
   );
 }

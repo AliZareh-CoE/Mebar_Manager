@@ -12,6 +12,7 @@ import { visibleProjectIds, isVisible } from "@/lib/visibility";
 import { isLabLeadership } from "@/lib/policy";
 import { isOverdue } from "@/lib/fight-engine";
 import { Badge } from "@/components/ui/badge";
+import { DetailDialog } from "@/components/detail-dialog";
 import { ExternalDataRequestDialog } from "@/components/external-data-request-dialog";
 import {
   Table,
@@ -127,17 +128,44 @@ export default async function DataPage({
                   {group.map((dr) => (
                     <TableRow key={dr.id}>
                       <TableCell className="max-w-xs">
-                        <p className="truncate font-medium" title={dr.title}>
-                          {dr.title}
-                        </p>
-                        <p
-                          className="truncate text-xs text-muted-foreground"
-                          title={dr.deliveryNote ?? dr.description}
-                        >
-                          {dr.status !== "OPEN" && dr.deliveryNote
-                            ? `✓ ${dr.deliveryNote}`
-                            : dr.description}
-                        </p>
+                        <DetailDialog
+                          title={dr.title}
+                          fields={[
+                            { label: "Status", value: GROUPS[dr.status as DataRequestStatus].title },
+                            { label: "Details", value: dr.description },
+                            { label: "Delivery note", value: dr.deliveryNote },
+                            {
+                              label: dr.project ? "Project" : "External requester",
+                              value: dr.project ? (
+                                <Link
+                                  href={`/projects/${dr.project.id}`}
+                                  className="underline underline-offset-4"
+                                >
+                                  {dr.project.title}
+                                </Link>
+                              ) : (
+                                dr.externalRequester
+                              ),
+                            },
+                            { label: "Contact", value: dr.project ? null : dr.externalContact },
+                            { label: "Requested by", value: dr.requester?.name },
+                            { label: "Analyst", value: dr.assignee?.name ?? "Unassigned" },
+                            { label: "Needed by", value: format(dr.neededBy, "MMM d, yyyy") },
+                            { label: "Filed", value: format(dr.createdAt, "MMM d, yyyy") },
+                          ]}
+                          trigger={
+                            <button type="button" className="block w-full min-w-0 cursor-pointer text-left">
+                              <span className="block truncate font-medium underline-offset-4 hover:underline">
+                                {dr.title}
+                              </span>
+                              <span className="block truncate text-xs text-muted-foreground">
+                                {dr.status !== "OPEN" && dr.deliveryNote
+                                  ? `✓ ${dr.deliveryNote}`
+                                  : dr.description}
+                              </span>
+                            </button>
+                          }
+                        />
                       </TableCell>
                       <TableCell>
                         {dr.project ? (

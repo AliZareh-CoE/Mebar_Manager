@@ -11,6 +11,7 @@ import { getSettings } from "@/lib/settings";
 import { visibleProjectIds, visibleTaskIds, isVisible } from "@/lib/visibility";
 import { isOverdue } from "@/lib/fight-engine";
 import { fileTask } from "@/actions/tasks";
+import { DetailDialog } from "@/components/detail-dialog";
 import { FormDialog } from "@/components/form-dialog";
 import { PersonSelect } from "@/components/forms/labeled-selects";
 import { TaskRowActions } from "@/components/task-row-actions";
@@ -179,17 +180,42 @@ export default async function TasksPage({
                   {group.map((t) => (
                     <TableRow key={t.id}>
                       <TableCell className="max-w-xs">
-                        <p className="truncate font-medium" title={t.title}>
-                          {t.title}
-                        </p>
-                        <p
-                          className="truncate text-xs text-muted-foreground"
-                          title={t.completionNote ?? t.description}
-                        >
-                          {t.status !== "OPEN" && t.completionNote
-                            ? `✓ ${t.completionNote}`
-                            : t.description}
-                        </p>
+                        <DetailDialog
+                          title={t.title}
+                          fields={[
+                            { label: "Status", value: GROUPS[t.status as TaskStatus].title },
+                            { label: "Details", value: t.description },
+                            { label: "Completion note", value: t.completionNote },
+                            {
+                              label: "Project",
+                              value:
+                                t.project && isVisible(projectIds, t.project.id) ? (
+                                  <Link
+                                    href={`/projects/${t.project.id}`}
+                                    className="underline underline-offset-4"
+                                  >
+                                    {t.project.title}
+                                  </Link>
+                                ) : null,
+                            },
+                            { label: "Filed by", value: t.requester?.name },
+                            { label: "Secretary", value: t.assignee?.name ?? "Unassigned" },
+                            { label: "Deadline", value: format(t.deadline, "MMM d, yyyy") },
+                            { label: "Filed", value: format(t.createdAt, "MMM d, yyyy") },
+                          ]}
+                          trigger={
+                            <button type="button" className="block w-full min-w-0 cursor-pointer text-left">
+                              <span className="block truncate font-medium underline-offset-4 hover:underline">
+                                {t.title}
+                              </span>
+                              <span className="block truncate text-xs text-muted-foreground">
+                                {t.status !== "OPEN" && t.completionNote
+                                  ? `✓ ${t.completionNote}`
+                                  : t.description}
+                              </span>
+                            </button>
+                          }
+                        />
                       </TableCell>
                       <TableCell>
                         {t.project && isVisible(projectIds, t.project.id) ? (
