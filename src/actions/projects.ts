@@ -101,6 +101,87 @@ export async function editProject(
   return {};
 }
 
+const adminSetStateSchema = z.object({
+  toState: z.string().regex(KEY_RE),
+  reason: z.string().trim().optional(),
+});
+
+/**
+ * ADMIN-only escape hatch: put a project in ANY workflow state directly,
+ * skipping the transition map, the activation lineup checkpoint, and the
+ * accepted-paper completion gate. The move still lands in the transition
+ * history, the audit log, and watcher emails — full power, full paper trail.
+ */
+export async function adminSetProjectState(
+  projectId: string,
+  formData: FormData
+): Promise<ActionResult> {
+  const user = await requireUser();
+  if (user.role !== "ADMIN") {
+    return { error: "Only the admin can override project states." };
+  }
+
+  const parsed = parseForm(adminSetStateSchema, formData);
+  if (!parsed.success) return { error: parsed.error };
+  const { toState, reason } = parsed.data;
+
+  const project = await db.select().from(projects).where(eq(projects.id, projectId)).get();
+  if (!project) return { error: "Project not found." };
+
+  const { workflow } = await getSettings();
+  const target = stateByKey(workflow, toState);
+  if (!target) return { error: "Unknown workflow state." };
+  if (project.state === toState) return { error: "The project is already in that state." };
+
+  const targetPaused = target.flags.paused;
+  let raced = false;
+  db.transaction((tx) => {
+    const updated = tx
+      .update(projects)
+      .set({
+        state: toState,
+        pauseReason: targetPaused ? (reason ?? "Admin override") : null,
+        reviveDate: null,
+      })
+      .where(and(eq(projects.id, projectId), eq(projects.state, project.state)))
+      .run();
+    if (updated.changes === 0) {
+      raced = true;
+      return;
+    }
+    tx.insert(stateTransitions)
+      .values({
+        projectId,
+        fromState: project.state,
+        toState,
+        byUserId: user.id,
+        reason: reason ? `Admin override: ${reason}` : "Admin override",
+      })
+      .run();
+  });
+  if (raced) {
+    return { error: "The project's state just changed — refresh and try again." };
+  }
+
+  revalidateProject(projectId);
+  void logAudit(
+    user.id,
+    "project.transition",
+    "project",
+    projectId,
+    `${project.state} → ${toState} (admin override)`,
+    { fromState: project.state, toState, reason: reason ?? null, adminOverride: true }
+  );
+  void notifyProjectEvent(projectId, {
+    title: `Now ${target.label}`,
+    lines: [
+      `${project.state} → ${toState}, set directly by ${user.name} (admin).`,
+      ...(reason ? [`Reason: ${reason}`] : []),
+    ],
+  });
+  return {};
+}
+
 const fireEventSchema = z.object({
   type: z.string().regex(KEY_RE),
   reason: z.string().trim().optional(),

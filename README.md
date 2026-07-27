@@ -99,6 +99,16 @@ Other opinions built in:
   project, and per-entity CSV data exports for Excel. All from the Stats
   page; the project report also has a button on each project's header.
 
+**v12 (admin god-mode):** the admin can now change anything. **Set state
+(admin)** on every project page moves a project to any workflow state
+directly — no allowed-transition map, no activation or accepted-paper
+checkpoints — recorded in the history and audit log as an override. And
+**Database** (`/admin/db`, admin-only) is a Django-admin-style editor
+generated from the schema: every table (auth included) with row counts,
+search, pagination, and full row create/edit/delete with typed fields.
+No validation on purpose; every write is audit-logged, and backups are the
+undo button.
+
 **v11:** detail views everywhere — every truncated table cell (data
 requests, tasks, initiatives, feedback, blockers, milestone deliverables)
 and every clamped fight-card detail is now clickable and opens a read-only

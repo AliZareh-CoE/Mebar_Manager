@@ -63,6 +63,7 @@ export function NavLinks({
           { href: "/admin/feedback", label: "Feedback" },
           { href: "/admin/settings", label: "Settings" },
           { href: "/admin/audit", label: "Audit" },
+          { href: "/admin/db", label: "Database" },
         ]
       : []),
   ];

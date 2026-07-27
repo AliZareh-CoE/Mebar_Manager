@@ -21,7 +21,7 @@ import { getCurrentUser } from "@/lib/session";
 import { expireOverdueDecisions } from "@/lib/maintenance";
 import { getSettings } from "@/lib/settings";
 import { proposalFieldName, type HeilmeierColumn } from "@/lib/proposal";
-import { editProject } from "@/actions/projects";
+import { adminSetProjectState, editProject } from "@/actions/projects";
 import { addUpdate, editUpdate } from "@/actions/updates";
 import { addContributor, addUtfStudentToProject } from "@/actions/project-people";
 import { filePaper } from "@/actions/papers";
@@ -295,16 +295,47 @@ export default async function ProjectPage({
             )}
           </div>
         )}
-        <TransitionButtons
-          projectId={project.id}
-          transitions={transitionDescriptors(
-            workflow,
-            project.state,
-            transitionGate(me, policy),
-            isLabLeadership(me)
+        <div className="flex flex-wrap items-center gap-2">
+          <TransitionButtons
+            projectId={project.id}
+            transitions={transitionDescriptors(
+              workflow,
+              project.state,
+              transitionGate(me, policy),
+              isLabLeadership(me)
+            )}
+            help={MECHANISM_HELP.transitions(helpCtx)}
+          />
+          {me.role === "ADMIN" && (
+            <FormDialog
+              trigger={
+                <Button variant="outline" size="sm">
+                  Set state (admin)
+                </Button>
+              }
+              title="Set state directly"
+              description="Admin override: moves the project to any state, skipping the normal workflow rules and checkpoints. It's still recorded in the history and audit log."
+              submitLabel="Set state"
+              successMessage="State set."
+              action={adminSetProjectState.bind(null, project.id)}
+            >
+              <div className="flex flex-col gap-2">
+                <Label>New state</Label>
+                <EnumSelect
+                  name="toState"
+                  options={workflow.states
+                    .filter((s) => !s.archived || s.key === project.state)
+                    .map((s) => ({ value: s.key, label: s.label }))}
+                  defaultValue={project.state}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="ovr-reason">Reason (optional, goes in the history)</Label>
+                <Textarea id="ovr-reason" name="reason" rows={2} />
+              </div>
+            </FormDialog>
           )}
-          help={MECHANISM_HELP.transitions(helpCtx)}
-        />
+        </div>
       </div>
 
       {/* Heilmeier */}

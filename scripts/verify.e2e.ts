@@ -793,6 +793,7 @@ async function main() {
     ["/admin/users", "/admin/users", "/", "/"],
     ["/admin/feedback", "/admin/feedback", "/", "/"],
     ["/admin/settings", "/admin/settings", "/", "/"],
+    ["/admin/db", "/admin/db", "/", "/"],
   ];
   for (const [route, profDest, saraDest, taylorDest] of ROUTE_MATRIX) {
     check(`matrix: prof ${route} → ${profDest}`, (await routeLandsOn(page, route)) === profDest);
@@ -828,7 +829,7 @@ async function main() {
   for (const item of ["People", "Feedback", "Settings"]) {
     check(`matrix: manager (noa) nav lacks ${item}`, !noaNav.includes(item));
   }
-  for (const route of ["/admin/users", "/admin/feedback", "/admin/settings"]) {
+  for (const route of ["/admin/users", "/admin/feedback", "/admin/settings", "/admin/db"]) {
     check(`matrix: manager (noa) ${route} → /`, (await routeLandsOn(noaMx, route)) === "/");
   }
   await noaMx.close();
@@ -1705,6 +1706,67 @@ async function main() {
     "desktop: researcher inline nav visible at 1440",
     await engPage.locator("header nav a:has-text('Guide')").isVisible()
   );
+
+  // 31. v12: admin god-mode — direct state override + the /admin/db editor.
+  // (a) A DONE project has no legal transitions, but the admin sets any
+  // state directly; the move lands in the audit log as an override.
+  await page.goto(BASE + "/board?state=DONE");
+  await page.click("text=Lock-in amplifier firmware");
+  await page.waitForSelector("text=The Heilmeier questions");
+  await page.click("button:has-text('Set state (admin)')");
+  await page.waitForSelector("div[role=dialog]");
+  await page.click("div[role=dialog] [data-slot=select-trigger]");
+  await page.click("[role=option]:has-text('Scoping')");
+  await page.fill(
+    "div[role=dialog] textarea[name=reason]",
+    "Override drill — reopening for a follow-up study."
+  );
+  await page.click("div[role=dialog] button:has-text('Set state')");
+  await page.waitForSelector("[data-slot=dialog-content]", { state: "detached" });
+  // The select trigger already reads "Scoping" pre-submit, so wait on the
+  // header badge (h1's flex row), not the whole body.
+  await page.waitForFunction(() => {
+    const h1 = document.querySelector("h1");
+    return !!h1?.parentElement?.innerText.includes("Scoping");
+  });
+  check("override: DONE project set to Scoping directly", true);
+  await page.goto(BASE + "/admin/audit");
+  await page.waitForSelector("text=Audit log");
+  check(
+    "override: audit log records the admin override",
+    (await page.textContent("body"))!.includes("(admin override)")
+  );
+
+  // (b) /admin/db: Django-style editor — every table, full CRUD, admin only.
+  await page.goto(BASE + "/admin/db");
+  await page.waitForSelector("text=Database");
+  const dbBody = (await page.textContent("body"))!;
+  check(
+    "admin/db: lists tables with counts",
+    dbBody.includes("projects") && dbBody.includes("utf_students") && dbBody.includes("user")
+  );
+  await page.goto(BASE + "/admin/db/utf_students");
+  await page.waitForSelector("button:has-text('Add row')");
+  await page.click("button:has-text('Add row')");
+  await page.fill("div[role=dialog] textarea[name=name]", "E2E Robot");
+  await page.click("div[role=dialog] button:has-text('Insert')");
+  await page.waitForFunction(() => document.body.innerText.includes("E2E Robot"));
+  check("admin/db: insert works (blank id/createdAt use defaults)", true);
+  await page
+    .locator("tr", { hasText: "E2E Robot" })
+    .locator("button:has-text('Edit')")
+    .click();
+  await page.fill("div[role=dialog] textarea[name=name]", "E2E Robot Mk2");
+  await page.click("div[role=dialog] button:has-text('Save')");
+  await page.waitForFunction(() => document.body.innerText.includes("E2E Robot Mk2"));
+  check("admin/db: edit works", true);
+  await page
+    .locator("tr", { hasText: "E2E Robot Mk2" })
+    .locator("button:has-text('Delete')")
+    .click();
+  await page.click("div[role=dialog] button:has-text('Delete row')");
+  await page.waitForFunction(() => !document.body.innerText.includes("E2E Robot"));
+  check("admin/db: delete works", true);
 
   await browser.close();
   console.log(results.join("\n"));
