@@ -31,6 +31,7 @@ import {
   personMilestones,
   auditEvents,
   utfStudents,
+  projectComments,
 } from "../src/lib/db/schema";
 
 async function createUserRaw(input: {
@@ -116,6 +117,7 @@ async function seedAdmin() {
 
 async function seedDemo() {
   // Wipe domain data (keep auth accounts).
+  db.delete(projectComments).run();
   db.delete(updates).run();
   db.delete(decisions).run();
   db.delete(blockers).run();
@@ -234,6 +236,22 @@ async function seedDemo() {
       authorId: sara,
       createdAt: subDays(new Date(), 21),
     })
+    .run();
+  db.insert(projectComments)
+    .values([
+      {
+        projectId: p1.id,
+        authorId: prof,
+        body: "The optics group says their loaner driver is free after Tuesday — grab it before the workshop does.",
+        createdAt: subDays(new Date(), 3),
+      },
+      {
+        projectId: p1.id,
+        authorId: sara,
+        body: "Will do. Also drafting the resonance-mode figure for the paper while we wait.",
+        createdAt: subDays(new Date(), 2),
+      },
+    ])
     .run();
   db.insert(blockers)
     .values({

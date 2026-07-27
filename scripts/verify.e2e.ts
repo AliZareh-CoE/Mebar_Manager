@@ -1790,6 +1790,27 @@ async function main() {
     (await engPage.locator("button:has-text('Remind')").count()) === 0
   );
 
+  // 33. v13: project comments — the seeded thread renders, posting works.
+  await page.goto(BASE + "/board");
+  await page.click("text=Cryo-stage vibration isolation");
+  await page.waitForSelector("text=The Heilmeier questions");
+  await page.click("text=Comments (");
+  await page.waitForSelector("text=loaner driver");
+  check(
+    "comments: seeded thread renders with author names",
+    (await page.textContent("body"))!.includes("Prof. Mebar")
+  );
+  await page.click("button:has-text('Add comment')");
+  await page.fill(
+    "div[role=dialog] textarea[name=body]",
+    "Ordered the spare driver as backup — ETA Friday."
+  );
+  await page.click("div[role=dialog] button:has-text('Post it')");
+  await page.waitForFunction(() =>
+    document.body.innerText.includes("Ordered the spare driver")
+  );
+  check("comments: posting adds to the thread", true);
+
   await browser.close();
   console.log(results.join("\n"));
   if (results.some((r) => r.startsWith("FAIL"))) process.exit(1);

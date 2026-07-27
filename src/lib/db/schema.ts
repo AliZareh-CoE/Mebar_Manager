@@ -149,6 +149,23 @@ export const updates = sqliteTable(
   (t) => [index("updates_project_created_idx").on(t.projectId, t.createdAt)]
 );
 
+/** Free-form discussion on a project — the hallway talk, on the record. */
+export const projectComments = sqliteTable(
+  "project_comments",
+  {
+    id: id(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id),
+    authorId: text("author_id")
+      .notNull()
+      .references(() => user.id),
+    body: text("body").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("project_comments_project_created_idx").on(t.projectId, t.createdAt)]
+);
+
 // CANCELLED reuses decisionNote/decidedAt as closure note/time.
 export const DECISION_STATUSES = ["PENDING", "DECIDED", "AUTO_PROCEEDED", "CANCELLED"] as const;
 export type DecisionStatus = (typeof DECISION_STATUSES)[number];
@@ -617,6 +634,7 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   milestones: many(milestones),
   blockers: many(blockers),
   updates: many(updates),
+  comments: many(projectComments),
   decisions: many(decisions),
   transitions: many(stateTransitions),
   dataRequests: many(dataRequests),
@@ -696,6 +714,17 @@ export const blockersRelations = relations(blockers, ({ one }) => ({
   }),
   owner: one(user, {
     fields: [blockers.ownerId],
+    references: [user.id],
+  }),
+}));
+
+export const projectCommentsRelations = relations(projectComments, ({ one }) => ({
+  project: one(projects, {
+    fields: [projectComments.projectId],
+    references: [projects.id],
+  }),
+  author: one(user, {
+    fields: [projectComments.authorId],
     references: [user.id],
   }),
 }));

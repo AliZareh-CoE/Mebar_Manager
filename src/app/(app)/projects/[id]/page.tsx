@@ -22,6 +22,7 @@ import { expireOverdueDecisions } from "@/lib/maintenance";
 import { getSettings } from "@/lib/settings";
 import { proposalFieldName, type HeilmeierColumn } from "@/lib/proposal";
 import { adminSetProjectState, editProject } from "@/actions/projects";
+import { addComment, deleteComment, editComment } from "@/actions/comments";
 import { addUpdate, editUpdate } from "@/actions/updates";
 import { addContributor, addUtfStudentToProject } from "@/actions/project-people";
 import { filePaper } from "@/actions/papers";
@@ -88,6 +89,10 @@ export default async function ProjectPage({
       milestones: { orderBy: (m) => asc(m.dueDate) },
       blockers: { with: { owner: true }, orderBy: (b) => desc(b.createdAt) },
       updates: { with: { author: true }, orderBy: (u) => desc(u.createdAt) },
+      comments: {
+        with: { author: { columns: { id: true, name: true } } },
+        orderBy: (c) => desc(c.createdAt),
+      },
       decisions: { orderBy: (d) => desc(d.createdAt) },
       transitions: { with: { byUser: true }, orderBy: (t) => desc(t.createdAt) },
       dataRequests: {
@@ -404,6 +409,7 @@ export default async function ProjectPage({
           </TabsTrigger>
           <TabsTrigger value="people">People ({project.people.length})</TabsTrigger>
           <TabsTrigger value="papers">Papers ({project.papers.length})</TabsTrigger>
+          <TabsTrigger value="comments">Comments ({project.comments.length})</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
 
@@ -1371,6 +1377,93 @@ export default async function ProjectPage({
                 ))}
               </TableBody>
             </Table>
+          )}
+        </TabsContent>
+
+        {/* Comments */}
+        <TabsContent value="comments" className="flex flex-col gap-4 pt-4">
+          <FormDialog
+            trigger={<Button className="self-start">Add comment</Button>}
+            title="Add a comment"
+            description="Anything worth saying about this project — questions, context, hallway talk that should be on the record. Watchers get an email."
+            submitLabel="Post it"
+            successMessage="Comment posted."
+            action={addComment.bind(null, project.id)}
+          >
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="c-body">Comment</Label>
+              <Textarea id="c-body" name="body" rows={4} required />
+            </div>
+          </FormDialog>
+
+          {project.comments.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No comments yet. The hallway conversation belongs here, where it
+              can&apos;t get lost.
+            </p>
+          ) : (
+            <ol className="flex flex-col gap-3">
+              {project.comments.map((c) => {
+                const canModerate = c.authorId === me.id || isManagerOrAbove(me);
+                return (
+                  <li key={c.id} className="rounded-lg border bg-card p-4 shadow-sm">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <Initials name={c.author.name} className="size-5" />
+                      <span className="font-medium text-foreground/80">{c.author.name}</span>
+                      <span>{format(c.createdAt, "MMM d, yyyy HH:mm")}</span>
+                      {canModerate && (
+                        <span className="ml-auto flex items-center gap-2">
+                          <FormDialog
+                            trigger={
+                              <button
+                                className="cursor-pointer underline-offset-4 hover:underline"
+                                type="button"
+                              >
+                                edit
+                              </button>
+                            }
+                            title="Edit comment"
+                            submitLabel="Save"
+                            action={editComment.bind(null, c.id)}
+                          >
+                            <div className="flex flex-col gap-2">
+                              <Label htmlFor={`ec-${c.id}`}>Comment</Label>
+                              <Textarea
+                                id={`ec-${c.id}`}
+                                name="body"
+                                rows={4}
+                                defaultValue={c.body}
+                                required
+                              />
+                            </div>
+                          </FormDialog>
+                          <FormDialog
+                            trigger={
+                              <button
+                                className="cursor-pointer underline-offset-4 hover:underline"
+                                type="button"
+                              >
+                                delete
+                              </button>
+                            }
+                            title="Delete comment"
+                            description="It disappears from the record for good."
+                            submitLabel="Delete"
+                            successMessage="Comment deleted."
+                            action={deleteComment.bind(null, c.id)}
+                          >
+                            <p className="text-sm text-muted-foreground">
+                              This can&apos;t be undone.
+                            </p>
+                          </FormDialog>
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-2 text-sm whitespace-pre-wrap break-words">{c.body}</p>
+                  </li>
+                );
+              })}
+            </ol>
           )}
         </TabsContent>
 

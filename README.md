@@ -99,7 +99,10 @@ Other opinions built in:
   project, and per-entity CSV data exports for Excel. All from the Stats
   page; the project report also has a button on each project's header.
 
-**v13:** one-click **Remind** buttons for leadership — on every fight card
+**v13:** **project comments** — every project has a Comments tab: free-form
+discussion on the record, visible to everyone who can see the project;
+authors (and managers) can edit or delete, and watchers get an email on
+new comments. Plus one-click **Remind** buttons for leadership — on every fight card
 (Fight List and Meeting mode), on open task and data-request rows, on
 pending decisions, and on project milestones. One click emails the
 responsible person a nudge naming the item, the deadline, and who sent it;
@@ -442,3 +445,4 @@ Committed migrations so far:
 - `0007` person_milestones
 - `0008` audit_events (append-only)
 - `0009` utf_students + project_people.utf_student_id
+- `0010` project_comments
