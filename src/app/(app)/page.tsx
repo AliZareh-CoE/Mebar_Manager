@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { format } from "date-fns";
 import { PartyPopper } from "lucide-react";
+import { dueWithin, loadMyDeadlines } from "@/lib/my-deadlines";
 import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { getPolicy, transitionGate } from "@/lib/policy-server";
@@ -106,6 +108,7 @@ export default async function FightListPage() {
     enabledRules,
   });
   const pareto = computeParetoData(causes);
+  const myWeek = dueWithin(await loadMyDeadlines(me.id), now, 7);
   const helpCtx: HelpContext = {
     thresholds: settings.thresholds,
     performance: settings.performance,
@@ -342,6 +345,45 @@ export default async function FightListPage() {
           getting away with it.
         </p>
       </div>
+
+      {myWeek.length > 0 && (
+        <section className="flex flex-col gap-2 rounded-lg border bg-card p-4 shadow-sm">
+          <h2 className="text-base font-medium">Your week</h2>
+          <p className="text-xs text-muted-foreground">
+            Deadlines on your name — overdue and the next 7 days. The full
+            feed is in your calendar (Account → Calendar feed).
+          </p>
+          <ul className="mt-1 flex flex-col gap-1.5">
+            {myWeek.slice(0, 10).map((item) => {
+              const overdue = item.date.getTime() < now.getTime();
+              return (
+                <li key={item.uid} className="flex items-baseline gap-3 text-sm">
+                  <span
+                    className={
+                      overdue
+                        ? "w-16 shrink-0 text-xs font-medium text-red-600 dark:text-red-400"
+                        : "w-16 shrink-0 text-xs text-muted-foreground"
+                    }
+                  >
+                    {format(item.date, "MMM d")}
+                  </span>
+                  <Link
+                    href={item.href}
+                    className="min-w-0 truncate underline-offset-4 hover:underline"
+                  >
+                    {item.summary}
+                  </Link>
+                </li>
+              );
+            })}
+            {myWeek.length > 10 && (
+              <li className="text-xs text-muted-foreground">
+                …and {myWeek.length - 10} more in your calendar feed.
+              </li>
+            )}
+          </ul>
+        </section>
+      )}
 
       {items.length === 0 ? (
         <Card>

@@ -99,7 +99,11 @@ Other opinions built in:
   project, and per-entity CSV data exports for Excel. All from the Stats
   page; the project report also has a button on each project's header.
 
-**v13:** **project comments** — every project has a Comments tab: free-form
+**v13:** a **personal calendar feed** (Account → Calendar feed: an ICS URL
+with your milestones, tasks, data requests, paper targets, thesis
+milestones, and compute expiries — subscribe from Google Calendar) and a
+**"Your week" panel** on the Fight List showing your own overdue and
+next-7-days deadlines. Plus **project comments** — every project has a Comments tab: free-form
 discussion on the record, visible to everyone who can see the project;
 authors (and managers) can edit or delete, and watchers get an email on
 new comments. Plus one-click **Remind** buttons for leadership — on every fight card

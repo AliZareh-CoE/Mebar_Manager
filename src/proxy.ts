@@ -21,8 +21,9 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // api/digest is excluded from the cookie check — it carries its own
-    // CRON_SECRET bearer guard (fails closed when the env is unset).
-    "/((?!api/auth|api/digest|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|ico)$).*)",
+    // api/digest and api/calendar are excluded from the cookie check — the
+    // first carries a CRON_SECRET bearer guard, the second a per-user HMAC
+    // token (calendar apps can't send cookies). Both fail closed.
+    "/((?!api/auth|api/digest|api/calendar|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|ico)$).*)",
   ],
 };

@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { desc, eq as eqOp } from "drizzle-orm";
+import { calendarToken } from "@/lib/calendar-token";
 import { format } from "date-fns";
 import { db } from "@/lib/db";
 import { personMilestones } from "@/lib/db/schema";
@@ -32,6 +34,10 @@ export const dynamic = "force-dynamic";
 export default async function AccountPage() {
   const me = await getCurrentUser();
   if (!me) redirect("/login");
+
+  const host = (await headers()).get("host") ?? "mebarmanager.com";
+  const proto = host.startsWith("localhost") ? "http" : "https";
+  const calendarUrl = `${proto}://${host}/api/calendar?u=${me.id}&t=${calendarToken(me.id)}`;
 
   const settings = await getSettings();
   const workflow = settings.workflow;
@@ -248,6 +254,23 @@ export default async function AccountPage() {
         </CardHeader>
         <CardContent>
           <DigestOptOutToggle initialOptOut={me.digestOptOut} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Calendar feed</CardTitle>
+          <CardDescription>
+            Your deadlines — milestones, tasks, data requests, paper targets,
+            compute expiries — as a calendar subscription. In Google Calendar:
+            Other calendars → + → From URL. The link is personal; don&apos;t
+            share it.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <code className="block w-full overflow-x-auto rounded-md bg-muted p-3 text-xs whitespace-nowrap">
+            {calendarUrl}
+          </code>
         </CardContent>
       </Card>
     </div>

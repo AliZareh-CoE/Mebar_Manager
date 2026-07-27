@@ -1811,6 +1811,28 @@ async function main() {
   );
   check("comments: posting adds to the thread", true);
 
+  // 34. v13: personal calendar feed + the "Your week" panel.
+  await engPage.goto(BASE + "/account");
+  await engPage.waitForSelector("text=Calendar feed");
+  const calUrl = (
+    await engPage.locator("code", { hasText: "/api/calendar" }).textContent()
+  )!.trim();
+  const calResp = await engPage.request.get(calUrl);
+  const calBody = await calResp.text();
+  check(
+    "calendar: feed serves ICS without a session",
+    calResp.status() === 200 && calBody.includes("BEGIN:VCALENDAR")
+  );
+  check("calendar: feed carries the member's deadlines", calBody.includes("SUMMARY:"));
+  const badResp = await engPage.request.get(`${calUrl.split("&t=")[0]}&t=deadbeef`);
+  check("calendar: wrong token 404s", badResp.status() === 404);
+  await engPage.goto(BASE + "/");
+  await engPage.waitForSelector("text=Your week");
+  check(
+    "your week: panel lists the member's own deadlines",
+    ((await engPage.textContent("body")) ?? "").includes("Milestone:")
+  );
+
   await browser.close();
   console.log(results.join("\n"));
   if (results.some((r) => r.startsWith("FAIL"))) process.exit(1);
