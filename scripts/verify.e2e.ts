@@ -1521,6 +1521,8 @@ async function main() {
   await page.click("text=Cryo-stage vibration isolation");
   await page.waitForSelector("text=The Heilmeier questions");
   await page.click("text=People (");
+  // Tab panels mount on selection — wait for the lineup before reading it.
+  await page.waitForSelector("text=Arman Farhadi");
   check(
     "utf: seeded tag renders with badge",
     (await page.locator("tr", { hasText: "Arman Farhadi" }).locator("text=UTF student").count()) > 0
@@ -1634,6 +1636,11 @@ async function main() {
   check(
     "workflow: per-state points input renders",
     (await page.locator("input[id^='points-']").count()) > 0
+  );
+  const wfBody = (await page.textContent("body"))!;
+  check(
+    "workflow: Active-state toggle labeled plainly, active badge shown",
+    wfBody.includes("Active state") && wfBody.includes("active")
   );
 
   // 29g. v11: detail dialogs — truncated table cells open a read-only modal

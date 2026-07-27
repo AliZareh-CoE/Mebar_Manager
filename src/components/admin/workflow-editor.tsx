@@ -38,8 +38,16 @@ const GATE_OPTIONS = [
 ] as const;
 
 const FLAG_FIELDS: Array<[keyof StateFlags, string, string]> = [
-  ["countsForStall", "Counts for stall", "The stall rule and age pill watch projects in this state."],
-  ["resetsStallClock", "Resets the stall clock", "Entering this state counts as fresh progress."],
+  [
+    "countsForStall",
+    "Active state",
+    "Projects here count as active: the stall clock and age pill watch them, and stats count them as running.",
+  ],
+  [
+    "resetsStallClock",
+    "Fresh progress on entry",
+    "Entering resets the stall clock; together with Active, the state counts toward each researcher's running-project minimum.",
+  ],
   ["paused", "Paused-like", "Entering requires a reason + revive date; past-revive fights fire."],
   ["terminal", "Terminal", "A final state — no outgoing transitions allowed."],
   ["hideFromBoard", "Hidden from board", "The board's default view skips it (like Killed)."],
@@ -201,6 +209,11 @@ export function WorkflowEditor({ initial }: { initial: Workflow }) {
                 <code className="text-xs text-muted-foreground">{state.key}</code>
                 {state.archived && <Badge variant="outline">archived</Badge>}
                 {state.flags.initial && <Badge variant="secondary">starting state</Badge>}
+                {state.flags.countsForStall && (
+                  <Badge variant="outline" className="text-emerald-500">
+                    active
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 {!state.flags.initial && !state.archived && (

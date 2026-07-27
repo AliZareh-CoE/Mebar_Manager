@@ -107,7 +107,10 @@ checkpoints — recorded in the history and audit log as an override. And
 generated from the schema: every table (auth included) with row counts,
 search, pagination, and full row create/edit/delete with typed fields.
 No validation on purpose; every write is audit-logged, and backups are the
-undo button.
+undo button. The workflow editor also now labels each state's activity
+toggle plainly — **Active state** (stall clock, age pill, running counts)
+— with an "active" badge on state cards, so custom states are explicit
+about whether projects in them count as active.
 
 **v11:** detail views everywhere — every truncated table cell (data
 requests, tasks, initiatives, feedback, blockers, milestone deliverables)
