@@ -14,6 +14,7 @@ import { isOverdue } from "@/lib/fight-engine";
 import { Badge } from "@/components/ui/badge";
 import { DetailDialog } from "@/components/detail-dialog";
 import { ExternalDataRequestDialog } from "@/components/external-data-request-dialog";
+import { RemindButton } from "@/components/remind-button";
 import {
   Table,
   TableBody,
@@ -201,19 +202,29 @@ export default async function DataPage({
                       </TableCell>
                       <TableCell>
                         {dr.status === "OPEN" ? (
-                          <DataRequestRowActions
-                            requestId={dr.id}
-                            status={dr.status}
-                            assigneeId={dr.assigneeId}
-                            analysts={analysts}
-                            meId={me.id}
-                            meIsAnalyst={me.isDataAnalyst}
-                            edit={{
-                              title: dr.title,
-                              description: dr.description,
-                              neededByISO: format(dr.neededBy, "yyyy-MM-dd"),
-                            }}
-                          />
+                          <div className="flex items-center justify-end gap-1">
+                            {isLabLeadership(me) && dr.assignee && (
+                              <RemindButton
+                                toUserId={dr.assignee.id}
+                                recipientName={dr.assignee.name}
+                                about={`Data request: ${dr.title}`}
+                                due={`Needed by: ${format(dr.neededBy, "MMM d, yyyy")}`}
+                              />
+                            )}
+                            <DataRequestRowActions
+                              requestId={dr.id}
+                              status={dr.status}
+                              assigneeId={dr.assigneeId}
+                              analysts={analysts}
+                              meId={me.id}
+                              meIsAnalyst={me.isDataAnalyst}
+                              edit={{
+                                title: dr.title,
+                                description: dr.description,
+                                neededByISO: format(dr.neededBy, "yyyy-MM-dd"),
+                              }}
+                            />
+                          </div>
                         ) : (
                           <div className="text-right">
                             <Badge

@@ -203,6 +203,7 @@ export default async function MeetingPage() {
                     key={`${item.type}-${item.entityId}`}
                     item={item}
                     help={fightTypeHelpCopy(item.type, helpCtx)}
+                    remind
                   />
                 ))}
               </div>

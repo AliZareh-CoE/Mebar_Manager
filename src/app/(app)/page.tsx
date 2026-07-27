@@ -373,6 +373,7 @@ export default async function FightListPage() {
                   key={`${item.type}-${item.entityId}`}
                   item={item}
                   help={fightTypeHelpCopy(item.type, helpCtx)}
+                  remind={isLabLeadership(me)}
                 >
                   {actionFor(item)}
                 </FightItemCard>

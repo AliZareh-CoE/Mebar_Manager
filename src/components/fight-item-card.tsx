@@ -2,19 +2,24 @@ import Link from "next/link";
 import { DetailDialog } from "@/components/detail-dialog";
 import { Initials } from "@/components/initials";
 import { InfoHint, type HelpCopy } from "@/components/info-hint";
+import { RemindButton } from "@/components/remind-button";
 import { cn } from "@/lib/utils";
 import type { FightItem } from "@/lib/fight-engine";
 
 export function FightItemCard({
   item,
   help,
+  remind = false,
   children,
 }: {
   item: FightItem;
   /** Rule explanation + how to win, from the help-copy catalog. */
   help?: HelpCopy;
+  /** Leadership viewers get a one-click reminder email to the responsible. */
+  remind?: boolean;
   children?: React.ReactNode;
 }) {
+  const showRemind = remind && item.responsible !== null;
   return (
     <div
       className={cn(
@@ -74,8 +79,15 @@ export function FightItemCard({
           />
         )}
       </div>
-      {children && (
-        <div data-slot="fight-actions" className="shrink-0">
+      {(showRemind || children) && (
+        <div data-slot="fight-actions" className="flex shrink-0 items-center gap-1">
+          {showRemind && item.responsible && (
+            <RemindButton
+              toUserId={item.responsible.id}
+              recipientName={item.responsible.name}
+              about={`${item.headline}${item.projectTitle ? ` — ${item.projectTitle}` : ""}`}
+            />
+          )}
           {children}
         </div>
       )}

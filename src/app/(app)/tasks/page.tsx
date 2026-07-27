@@ -10,8 +10,10 @@ import { getCurrentUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { visibleProjectIds, visibleTaskIds, isVisible } from "@/lib/visibility";
 import { isOverdue } from "@/lib/fight-engine";
+import { isLabLeadership } from "@/lib/policy";
 import { fileTask } from "@/actions/tasks";
 import { DetailDialog } from "@/components/detail-dialog";
+import { RemindButton } from "@/components/remind-button";
 import { FormDialog } from "@/components/form-dialog";
 import { PersonSelect } from "@/components/forms/labeled-selects";
 import { TaskRowActions } from "@/components/task-row-actions";
@@ -245,7 +247,16 @@ export default async function TasksPage({
                       </TableCell>
                       <TableCell>
                         {t.status === "OPEN" ? (
-                          <TaskRowActions
+                          <div className="flex items-center justify-end gap-1">
+                            {isLabLeadership(me) && t.assignee && (
+                              <RemindButton
+                                toUserId={t.assignee.id}
+                                recipientName={t.assignee.name}
+                                about={`Task: ${t.title}`}
+                                due={`Deadline: ${format(t.deadline, "MMM d, yyyy")}`}
+                              />
+                            )}
+                            <TaskRowActions
                             taskId={t.id}
                             status={t.status}
                             assigneeId={t.assigneeId}
@@ -257,7 +268,8 @@ export default async function TasksPage({
                               description: t.description,
                               deadlineISO: format(t.deadline, "yyyy-MM-dd"),
                             }}
-                          />
+                            />
+                          </div>
                         ) : (
                           <div className="text-right">
                             <Badge

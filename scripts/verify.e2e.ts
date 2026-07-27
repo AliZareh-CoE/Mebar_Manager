@@ -1775,6 +1775,21 @@ async function main() {
   await page.waitForFunction(() => !document.body.innerText.includes("E2E Robot"));
   check("admin/db: delete works", true);
 
+  // 32. v13: one-click reminders — leadership sees Remind on fight cards;
+  // researchers don't. Dev has no SMTP, so the action failing loudly is the
+  // deterministic proof the click reaches the server gate.
+  await page.goto(BASE + "/");
+  const remindCount = await page.locator("button:has-text('Remind')").count();
+  check("remind: leadership sees Remind buttons", remindCount > 0, `${remindCount} buttons`);
+  await page.locator("button:has-text('Remind')").first().click();
+  await page.waitForSelector("text=Email isn't configured");
+  check("remind: click reaches the server action", true);
+  await engPage.goto(BASE + "/");
+  check(
+    "remind: researcher sees no Remind buttons",
+    (await engPage.locator("button:has-text('Remind')").count()) === 0
+  );
+
   await browser.close();
   console.log(results.join("\n"));
   if (results.some((r) => r.startsWith("FAIL"))) process.exit(1);

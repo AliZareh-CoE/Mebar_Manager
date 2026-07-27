@@ -99,6 +99,12 @@ Other opinions built in:
   project, and per-entity CSV data exports for Excel. All from the Stats
   page; the project report also has a button on each project's header.
 
+**v13:** one-click **Remind** buttons for leadership — on every fight card
+(Fight List and Meeting mode), on open task and data-request rows, on
+pending decisions, and on project milestones. One click emails the
+responsible person a nudge naming the item, the deadline, and who sent it;
+every send lands in the audit log.
+
 **v12 (admin god-mode):** the admin can now change anything. **Set state
 (admin)** on every project page moves a project to any workflow state
 directly — no allowed-transition map, no activation or accepted-paper

@@ -43,6 +43,7 @@ import { BlockerRowActions } from "@/components/blocker-row-actions";
 import { ComputeRequestCard } from "@/components/compute-request-card";
 import { DataRequestRowActions } from "@/components/data-request-row-actions";
 import { MilestoneStatusButtons } from "@/components/milestone-status-buttons";
+import { RemindButton } from "@/components/remind-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -727,6 +728,15 @@ export default async function ProjectPage({
                           </FormDialog>
                         </div>
                       )}
+                      {d.status === "PENDING" && isLabLeadership(me) && (
+                        <div className="self-start">
+                          <RemindButton
+                            toUserId={project.advisor.id}
+                            recipientName={project.advisor.name}
+                            about={`Decision needed: ${d.question.slice(0, 180)} — ${project.title}`}
+                          />
+                        </div>
+                      )}
                       {d.status === "PENDING" && isManagerOrAbove(me) && (
                         <FormDialog
                           trigger={<Button size="sm" className="self-start">Decide now</Button>}
@@ -859,6 +869,16 @@ export default async function ProjectPage({
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-2">
+                          {isLabLeadership(me) &&
+                            m.status !== "DONE" &&
+                            m.status !== "CANCELLED" && (
+                              <RemindButton
+                                toUserId={project.owner.id}
+                                recipientName={project.owner.name}
+                                about={`Milestone: ${m.title} — ${project.title}`}
+                                due={`Due: ${format(m.dueDate, "MMM d, yyyy")}`}
+                              />
+                            )}
                           {m.status !== "DONE" && m.status !== "CANCELLED" && (
                             <FormDialog
                               trigger={<Button variant="ghost" size="sm">Edit</Button>}
