@@ -51,6 +51,7 @@ export function canSeeStats(user: AccessUser): boolean {
 
 export const GUARDED_ROUTES = [
   "/board",
+  "/blockers",
   "/data",
   "/compute",
   "/tasks",
@@ -72,6 +73,7 @@ export type GuardedRoute = (typeof GUARDED_ROUTES)[number];
 export function routeAllowed(user: AccessUser, route: GuardedRoute): boolean {
   switch (route) {
     case "/board":
+    case "/blockers":
     case "/data":
     case "/compute":
     // The protocol library is a read surface for everyone doing lab work.

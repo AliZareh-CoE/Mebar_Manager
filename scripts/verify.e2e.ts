@@ -782,6 +782,7 @@ async function main() {
   // Route sweep: [route, prof, sara, taylor] — expected landing pathname.
   const ROUTE_MATRIX: Array<[string, string, string, string]> = [
     ["/board", "/board", "/board", "/tasks"],
+    ["/blockers", "/blockers", "/blockers", "/tasks"],
     ["/data", "/data", "/data", "/tasks"],
     ["/compute", "/compute", "/compute", "/tasks"],
     ["/tasks", "/tasks", "/tasks", "/tasks"],
@@ -1831,6 +1832,19 @@ async function main() {
   check(
     "your week: panel lists the member's own deadlines",
     ((await engPage.textContent("body")) ?? "").includes("Milestone:")
+  );
+
+  // 35. v13: the global blockers page — every blocker, every status.
+  await page.goto(BASE + "/blockers");
+  await page.waitForSelector("text=Every blocker on every project");
+  const blkBody = (await page.textContent("body"))!;
+  check(
+    "blockers: page lists the seeded blockers with projects",
+    blkBody.includes("Piezo driver died") && blkBody.includes("Cryo-stage vibration isolation")
+  );
+  check(
+    "blockers: closed history renders too",
+    blkBody.includes("Resolved") || blkBody.includes("Cancelled")
   );
 
   await browser.close();

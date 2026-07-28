@@ -48,6 +48,7 @@ export function NavLinks({
   // The leadership/admin surfaces ride in a "More" menu on desktop so the
   // everyday links always fit on one line (priority-nav pattern).
   const secondary: NavLink[] = [
+    ...(role !== "SECRETARY" ? [{ href: "/blockers", label: "Blockers" }] : []),
     ...(role !== "SECRETARY" && isLeadership
       ? [
           { href: "/meeting", label: "Meeting" },
