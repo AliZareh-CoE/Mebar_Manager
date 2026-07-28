@@ -1847,6 +1847,33 @@ async function main() {
     blkBody.includes("Resolved") || blkBody.includes("Cancelled")
   );
 
+  // 36. v13: dispute a false resolution — the blocker reopens and the
+  // dispute row (negative falseResolution metric) is on the record.
+  await page.goto(BASE + "/blockers");
+  await page.waitForSelector("text=Every blocker on every project");
+  await page
+    .locator("tr", { hasText: "SLM flicker at 60 Hz" })
+    .locator("button:has-text('Dispute…')")
+    .click();
+  await page.fill(
+    "div[role=dialog] textarea[name=note]",
+    "Flicker is back at 45 Hz on the bench — not solved."
+  );
+  await page.click("div[role=dialog] button:has-text('Dispute it')");
+  await page.waitForFunction(() => {
+    const row = Array.from(document.querySelectorAll("tr")).find((r) =>
+      (r.textContent ?? "").includes("SLM flicker at 60 Hz")
+    );
+    return !!row && (row.textContent ?? "").includes("Open");
+  });
+  check("dispute: false resolution reopens the blocker", true);
+  await page.goto(BASE + "/admin/audit");
+  await page.waitForSelector("text=Audit log");
+  check(
+    "dispute: verdict lands in the audit log",
+    (await page.textContent("body"))!.includes("resolution disputed as false")
+  );
+
   await browser.close();
   console.log(results.join("\n"));
   if (results.some((r) => r.startsWith("FAIL"))) process.exit(1);

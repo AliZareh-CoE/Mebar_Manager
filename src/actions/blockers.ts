@@ -4,8 +4,11 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { blockers } from "@/lib/db/schema";
+import { blockerDisputes, blockers } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
+import { isLabLeadership } from "@/lib/policy";
+import { notifyProjectEvent } from "@/lib/notify";
+import { logAudit } from "@/lib/audit";
 import { getSettings } from "@/lib/settings";
 import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
@@ -177,5 +180,68 @@ export async function escalateBlocker(blockerId: string): Promise<ActionResult> 
 
   await db.update(blockers).set({ status: "ESCALATED" }).where(eq(blockers.id, blockerId));
   revalidateBlocker(blocker.projectId);
+  return {};
+}
+
+const disputeSchema = z.object({
+  note: z.string().trim().min(1, "Say what you found — the verdict goes on the record."),
+});
+
+/**
+ * Leadership audit verdict: a RESOLVED blocker that wasn't actually solved.
+ * Reopens the blocker and records a dispute row — the performance engine
+ * scores it as a negative falseResolution for the owner who claimed it.
+ */
+export async function disputeResolution(
+  blockerId: string,
+  formData: FormData
+): Promise<ActionResult> {
+  const me = await requireUser();
+  if (!isLabLeadership(me)) {
+    return { error: "Only coordinators and managers can dispute a resolution." };
+  }
+
+  const parsed = parseForm(disputeSchema, formData);
+  if (!parsed.success) return { error: parsed.error };
+
+  const blocker = await db.select().from(blockers).where(eq(blockers.id, blockerId)).get();
+  if (!blocker) return { error: "Blocker not found." };
+  if (blocker.status !== "RESOLVED") {
+    return { error: "Only resolved blockers can be disputed." };
+  }
+
+  db.transaction((tx) => {
+    tx.insert(blockerDisputes)
+      .values({
+        blockerId,
+        penalizedUserId: blocker.ownerId,
+        byUserId: me.id,
+        note: parsed.data.note,
+      })
+      .run();
+    // Back to the fight — the old resolution note stays on the record.
+    tx.update(blockers)
+      .set({ status: "OPEN", resolvedAt: null })
+      .where(eq(blockers.id, blockerId))
+      .run();
+  });
+
+  revalidateBlocker(blocker.projectId);
+  revalidatePath("/blockers");
+  void logAudit(
+    me.id,
+    "blocker.dispute",
+    "blocker",
+    blockerId,
+    `resolution disputed as false: ${parsed.data.note.slice(0, 120)}`,
+    { penalizedUserId: blocker.ownerId, note: parsed.data.note }
+  );
+  void notifyProjectEvent(blocker.projectId, {
+    title: "Blocker resolution disputed",
+    lines: [
+      `${me.name} audited "${blocker.description.slice(0, 120)}" and found it not actually solved. It is back open.`,
+      `Verdict: ${parsed.data.note}`,
+    ],
+  });
   return {};
 }

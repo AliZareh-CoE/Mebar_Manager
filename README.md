@@ -99,7 +99,7 @@ Other opinions built in:
   project, and per-entity CSV data exports for Excel. All from the Stats
   page; the project report also has a button on each project's header.
 
-**v13:** a global **Blockers** page (every blocker on every visible project — all statuses, searchable, with actions and Remind), a **personal calendar feed** (Account → Calendar feed: an ICS URL
+**v13:** resolution audits — on the Blockers page leadership can **dispute** a resolved blocker that wasn't actually solved: it reopens, the verdict goes to the audit log, and the owner who claimed it takes a scoring penalty (new negative falseResolution metric, weight tunable in Settings → Performance). Also a global **Blockers** page (every blocker on every visible project — all statuses, searchable, with actions and Remind), a **personal calendar feed** (Account → Calendar feed: an ICS URL
 with your milestones, tasks, data requests, paper targets, thesis
 milestones, and compute expiries — subscribe from Google Calendar) and a
 **"Your week" panel** on the Fight List showing your own overdue and

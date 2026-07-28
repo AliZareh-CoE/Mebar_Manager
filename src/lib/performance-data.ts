@@ -16,6 +16,7 @@ import {
   user,
   stateTransitions,
   projectPeople,
+  blockerDisputes,
 } from "@/lib/db/schema";
 import type { LabSettings } from "@/lib/settings";
 import { firstStateEntries } from "@/lib/performance";
@@ -225,6 +226,11 @@ export async function loadPerformanceInput(
     .filter((f) => PENALIZED_FIGHT_TYPES.includes(f.type) && f.responsible)
     .map((f) => ({ responsibleId: f.responsible!.id }));
 
+  // Disputed resolutions: all-time load, windowed by the engine.
+  const disputeRows = await db
+    .select({ personId: blockerDisputes.penalizedUserId, at: blockerDisputes.createdAt })
+    .from(blockerDisputes);
+
   return {
     people: people.map((p) => ({ ...p, role: p.role ?? "ENGINEER" })),
     milestonesDone: milestonesDone.map((m) => ({
@@ -265,6 +271,7 @@ export async function loadPerformanceInput(
       .filter((d) => d.decidedAt !== null)
       .map((d) => ({ requestedFromId: d.requestedFromId, decidedAt: d.decidedAt! })),
     stagesReached,
+    falseResolutions: disputeRows,
     proposalsFiled: projectsCreated,
     blockersRaised: blockersCreated,
     tasksFiled: tasksCreated,

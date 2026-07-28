@@ -15,6 +15,11 @@ import { SearchBar } from "@/components/search-bar";
 import { DetailDialog } from "@/components/detail-dialog";
 import { RemindButton } from "@/components/remind-button";
 import { BlockerRowActions } from "@/components/blocker-row-actions";
+import { FormDialog } from "@/components/form-dialog";
+import { disputeResolution } from "@/actions/blockers";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -201,6 +206,21 @@ export default async function BlockersPage({
                               />
                             )}
                           {statusBadge(b)}
+                          {isLabLeadership(me) && b.status === "RESOLVED" && (
+                            <FormDialog
+                              trigger={<Button variant="outline" size="sm">Dispute…</Button>}
+                              title="Not actually solved?"
+                              description="For audits: if this was marked resolved but isn't, the blocker reopens and the false resolution is recorded against its owner — their score takes the penalty."
+                              submitLabel="Dispute it"
+                              successMessage="Disputed. The blocker is back open."
+                              action={disputeResolution.bind(null, b.id)}
+                            >
+                              <div className="flex flex-col gap-2">
+                                <Label htmlFor={`dn-${b.id}`}>What did you find?</Label>
+                                <Textarea id={`dn-${b.id}`} name="note" rows={3} required />
+                              </div>
+                            </FormDialog>
+                          )}
                           <BlockerRowActions
                             escalateHelp={MECHANISM_HELP.escalate(helpCtx)}
                             blockerId={b.id}

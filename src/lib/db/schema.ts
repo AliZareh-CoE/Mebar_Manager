@@ -131,6 +131,30 @@ export const blockers = sqliteTable(
   ]
 );
 
+/**
+ * A leadership audit verdict: a RESOLVED blocker that wasn't actually
+ * solved. The blocker reopens; the dispute row is the durable record the
+ * performance engine reads (negative falseResolution metric for the owner
+ * who claimed it). Never deleted by app code.
+ */
+export const blockerDisputes = sqliteTable(
+  "blocker_disputes",
+  {
+    id: id(),
+    blockerId: text("blocker_id")
+      .notNull()
+      .references(() => blockers.id),
+    /** The owner on the hook when the false resolution was claimed. */
+    penalizedUserId: text("penalized_user_id").references(() => user.id),
+    byUserId: text("by_user_id")
+      .notNull()
+      .references(() => user.id),
+    note: text("note").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("blocker_disputes_penalized_idx").on(t.penalizedUserId, t.createdAt)]
+);
+
 export const updates = sqliteTable(
   "updates",
   {

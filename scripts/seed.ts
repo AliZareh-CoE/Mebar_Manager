@@ -32,6 +32,7 @@ import {
   auditEvents,
   utfStudents,
   projectComments,
+  blockerDisputes,
 } from "../src/lib/db/schema";
 
 async function createUserRaw(input: {
@@ -120,6 +121,7 @@ async function seedDemo() {
   db.delete(projectComments).run();
   db.delete(updates).run();
   db.delete(decisions).run();
+  db.delete(blockerDisputes).run();
   db.delete(blockers).run();
   db.delete(milestones).run();
   db.delete(stateTransitions).run();

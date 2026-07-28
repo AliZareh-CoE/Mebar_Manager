@@ -44,6 +44,8 @@ export interface PerformanceInput {
    * the loader to one row per LAB MEMBER on the project's People tab
    * (externals and UTF students carry no account, so no row). */
   stagesReached?: { personId: string | null; points: number; reachedAt: Date }[];
+  /** Audit verdicts: a claimed resolution that was a lie. Scores negative. */
+  falseResolutions?: { personId: string | null; at: Date }[];
   // Discipline.
   updates: { authorId: string; projectId: string; createdAt: Date }[];
   /** Point-in-time — already filtered to the penalized fight types. */
@@ -107,6 +109,9 @@ export function computeScores(
   for (const st of input.stagesReached ?? []) {
     if (!inWindow(st.reachedAt) || st.points <= 0) continue;
     bump(st.personId, "stageReached", st.points);
+  }
+  for (const fr of input.falseResolutions ?? []) {
+    if (inWindow(fr.at)) bump(fr.personId, "falseResolution");
   }
 
   for (const m of input.milestonesDone) {

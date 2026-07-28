@@ -270,6 +270,30 @@ describe("stageReached (state points)", () => {
   });
 });
 
+describe("falseResolution (dispute penalty)", () => {
+  it("counts window-guarded disputes against the penalized person", () => {
+    const results = computeScores(
+      input({
+        falseResolutions: [
+          { personId: alice.id, at: subDays(NOW, 2) },
+          { personId: alice.id, at: subDays(NOW, 5) },
+          { personId: alice.id, at: subDays(NOW, 400) }, // out of window
+          { personId: null, at: subDays(NOW, 1) }, // ownerless dispute
+        ],
+      }),
+      config(),
+      NOW
+    );
+    const u1 = results.find((r) => r.person.id === alice.id)!;
+    expect(u1.perMetric.falseResolution).toBe(2);
+  });
+
+  it("absent array still computes", () => {
+    const absent = computeScores(input(), config(), NOW);
+    for (const r of absent) expect(r.perMetric.falseResolution).toBe(0);
+  });
+});
+
 describe("firstStateEntries", () => {
   it("keeps only the oldest entry per project+state, order-tolerant", () => {
     const out = firstStateEntries([
