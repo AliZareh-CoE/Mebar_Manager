@@ -1,9 +1,10 @@
 import "server-only";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { projects, projectPeople } from "@/lib/db/schema";
+import { projects, projectPeople, user } from "@/lib/db/schema";
 import { getSettings } from "@/lib/settings";
-import { smtpConfigured, sendWatcherEmail } from "@/lib/email";
+import { smtpConfigured, sendWatcherEmail, sendDigestEmail } from "@/lib/email";
+import { format } from "date-fns";
 import { resolveRecipients } from "@/lib/notify-recipients";
 
 /**
@@ -51,5 +52,38 @@ export async function notifyProjectEvent(
     );
   } catch (error) {
     console.error("[notify] project event email failed:", error);
+  }
+}
+
+/**
+ * Personal "this is now yours" email on assignment — tasks, data requests,
+ * blockers, initiatives. Fire and forget like notifyProjectEvent; silently
+ * skipped when SMTP is off, the recipient is banned, or someone assigns
+ * themselves (claiming your own queue item needs no email).
+ */
+export async function notifyAssignment(
+  toUserId: string,
+  opts: { actorId: string; actorName: string; what: string; due?: Date; context?: string }
+): Promise<void> {
+  if (!smtpConfigured || toUserId === opts.actorId) return;
+  try {
+    const recipient = await db
+      .select({ email: user.email, banned: user.banned })
+      .from(user)
+      .where(eq(user.id, toUserId))
+      .get();
+    if (!recipient || recipient.banned) return;
+    const text = [
+      `${opts.actorName} assigned this to you:`,
+      "",
+      `  ${opts.what}`,
+      ...(opts.context ? [`  ${opts.context}`] : []),
+      ...(opts.due ? [`  Due: ${format(opts.due, "MMM d, yyyy")}`] : []),
+      "",
+      "The details are in Mebar Manager.",
+    ].join("\n");
+    await sendDigestEmail(recipient.email, `Assigned to you: ${opts.what}`, text);
+  } catch (error) {
+    console.error("[notify] assignment email failed:", error);
   }
 }

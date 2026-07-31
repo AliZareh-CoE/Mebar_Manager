@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/session";
 import { getPolicy } from "@/lib/policy-server";
 import { isLabLeadership } from "@/lib/policy";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
+import { notifyAssignment } from "@/lib/notify";
 
 function revalidateInitiative() {
   revalidatePath("/");
@@ -56,6 +57,14 @@ export async function fileInitiative(formData: FormData): Promise<ActionResult> 
   });
 
   revalidateInitiative();
+  if (assigneeId) {
+    void notifyAssignment(assigneeId, {
+      actorId: me.id,
+      actorName: me.name,
+      what: `Initiative: ${parsed.data.title}`,
+      due: parsed.data.deadline,
+    });
+  }
   return {};
 }
 
@@ -89,6 +98,12 @@ export async function assignInitiative(
 
   await db.update(initiatives).set({ assigneeId }).where(eq(initiatives.id, initiativeId));
   revalidateInitiative();
+  void notifyAssignment(assigneeId, {
+    actorId: me.id,
+    actorName: me.name,
+    what: `Initiative: ${initiative.title}`,
+    due: initiative.deadline,
+  });
   return {};
 }
 

@@ -8,6 +8,7 @@ import { dataRequests, user } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
 import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
+import { notifyAssignment } from "@/lib/notify";
 import { canAccessProject } from "@/lib/visibility";
 import { isManagerOrAbove, isLabLeadership } from "@/lib/policy";
 import { logAudit } from "@/lib/audit";
@@ -61,6 +62,14 @@ export async function fileDataRequest(
   });
 
   revalidateDataRequest(projectId);
+  if (assigneeId) {
+    void notifyAssignment(assigneeId, {
+      actorId: me.id,
+      actorName: me.name,
+      what: `Data request: ${parsed.data.title}`,
+      due: parsed.data.neededBy,
+    });
+  }
   return {};
 }
 
@@ -116,6 +125,15 @@ export async function createExternalDataRequest(
   void logAudit(me.id, "dataRequest.external", "dataRequest", null,
     `Logged external request from ${parsed.data.externalRequester}`,
     { externalRequester: parsed.data.externalRequester });
+  if (assigneeId) {
+    void notifyAssignment(assigneeId, {
+      actorId: me.id,
+      actorName: me.name,
+      what: `Data request: ${parsed.data.title}`,
+      context: `From outside Mebar: ${parsed.data.externalRequester}`,
+      due: parsed.data.neededBy,
+    });
+  }
   return {};
 }
 
@@ -151,6 +169,12 @@ export async function assignDataRequest(
     .where(eq(dataRequests.id, requestId));
 
   revalidateDataRequest(request.projectId);
+  void notifyAssignment(assigneeId, {
+    actorId: me.id,
+    actorName: me.name,
+    what: `Data request: ${request.title}`,
+    due: request.neededBy,
+  });
   return {};
 }
 

@@ -12,6 +12,7 @@ import { logAudit } from "@/lib/audit";
 import { getSettings } from "@/lib/settings";
 import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
+import { notifyAssignment } from "@/lib/notify";
 import { canAccessProject } from "@/lib/visibility";
 
 /** Non-archived cause-tag keys, plus optionally a row's current tag. */
@@ -60,6 +61,14 @@ export async function raiseBlocker(
   });
 
   revalidateBlocker(projectId);
+  if (parsed.data.ownerId) {
+    void notifyAssignment(parsed.data.ownerId, {
+      actorId: me.id,
+      actorName: me.name,
+      what: `Blocker: ${parsed.data.description.slice(0, 120)}`,
+      due: parsed.data.deadline,
+    });
+  }
   return {};
 }
 
@@ -103,6 +112,14 @@ export async function assignBlocker(
 
   await db.update(blockers).set({ ownerId: ownerId || null }).where(eq(blockers.id, blockerId));
   revalidateBlocker(blocker.projectId);
+  if (ownerId) {
+    void notifyAssignment(ownerId, {
+      actorId: me.id,
+      actorName: me.name,
+      what: `Blocker: ${blocker.description.slice(0, 120)}`,
+      due: blocker.deadline,
+    });
+  }
   return {};
 }
 

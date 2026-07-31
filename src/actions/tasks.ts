@@ -8,6 +8,7 @@ import { tasks, user } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
 import { getPolicy } from "@/lib/policy-server";
 import { parseForm, type ActionResult } from "@/lib/action-utils";
+import { notifyAssignment } from "@/lib/notify";
 import { canAccessProject } from "@/lib/visibility";
 import { isManagerOrAbove } from "@/lib/policy";
 import { logAudit } from "@/lib/audit";
@@ -61,6 +62,14 @@ export async function fileTask(formData: FormData): Promise<ActionResult> {
   });
 
   revalidateTask(projectId);
+  if (assigneeId) {
+    void notifyAssignment(assigneeId, {
+      actorId: me.id,
+      actorName: me.name,
+      what: `Task: ${parsed.data.title}`,
+      due: parsed.data.deadline,
+    });
+  }
   return {};
 }
 
@@ -88,6 +97,12 @@ export async function assignTask(
 
   await db.update(tasks).set({ assigneeId }).where(eq(tasks.id, taskId));
   revalidateTask(task.projectId);
+  void notifyAssignment(assigneeId, {
+    actorId: me.id,
+    actorName: me.name,
+    what: `Task: ${task.title}`,
+    due: task.deadline,
+  });
   return {};
 }
 
